@@ -233,7 +233,7 @@ public class ScriptingEngine {
 	    throw new ExecuteScriptException(e.getMessage() + " at line " + lineNumber, e);
     }
 
-	static CompilerConfiguration createCompilerConfiguration() {
+	private static CompilerConfiguration createCompilerConfiguration() {
 		CompilerConfiguration config = new CompilerConfiguration();
 		config.setScriptBaseClass(FreeplaneScriptBaseClass.class.getName());
 		if (!(classpath == null || classpath.isEmpty())) {

@@ -448,7 +448,7 @@ class ApplicationViewController extends ViewController {
 			}
 			else {
 				mWindowIcon = new ImageIcon(ResourceController.getResourceController().getResource(
-				    "/images/Freeplane_frame_icon_64x64.png"));
+				    "/images/Freeplane_frame_icon_32x32.png"));
 			}
 			frame.setIconImage(mWindowIcon.getImage());
 		}
