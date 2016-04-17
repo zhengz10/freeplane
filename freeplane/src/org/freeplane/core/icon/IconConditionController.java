@@ -27,8 +27,8 @@ import javax.swing.ListModel;
 
 import org.freeplane.core.controller.Controller;
 import org.freeplane.core.filter.condition.ConditionFactory;
-import org.freeplane.core.filter.condition.ISelectableCondition;
 import org.freeplane.core.filter.condition.IElementaryConditionController;
+import org.freeplane.core.filter.condition.ISelectableCondition;
 import org.freeplane.core.resources.NamedObject;
 import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.util.collection.ExtendedComboBoxModel;
@@ -60,12 +60,12 @@ class IconConditionController implements IElementaryConditionController {
 	}
 
 	public boolean canSelectValues(final Object property, final NamedObject simpleCond) {
-		return controller.getMap().getIconRegistry().getIconsAsListModel().getSize() > 0;
+		return true;
 	}
 
 	public ISelectableCondition createCondition(final Object selectedItem, final NamedObject simpleCond,
 	                                            final Object value, final boolean ignoreCase) {
-		return value != null ? new IconContainedCondition(((UIIcon) value).getName()) : null;
+		return value instanceof UIIcon ? new IconContainedCondition(((UIIcon) value).getName()) : null;
 	}
 
 	public ComboBoxModel getConditionsForProperty(final Object property) {

@@ -48,10 +48,19 @@ public abstract class EdgeView {
 		return EdgeView.ECLIPSED_STROKE;
 	}
 
-	private NodeView source;
+	private final NodeView source;
 	protected Point start, end;
-	private NodeView target;
+	public Point getStart() {
+    	return start;
+    }
+
+	public Point getEnd() {
+    	return end;
+    }
+
+	private final NodeView target;
 	private Color color;
+	private Integer width;
 
 	protected void createStart() {
 		start = source.getMainViewOutPoint(getTarget(), end);
@@ -59,16 +68,16 @@ public abstract class EdgeView {
 	}
 
 	public Color getColor() {
-		if(color == null){
+		if (color == null) {
 			final NodeModel model = target.getModel();
 			color = EdgeController.getController(target.getMap().getModeController()).getColor(model);
 		}
 		return color;
 	}
 
-	public void setColor(Color color) {
-    	this.color = color;
-    }
+	public void setColor(final Color color) {
+		this.color = color;
+	}
 
 	protected MapView getMap() {
 		return getTarget().getMap();
@@ -96,10 +105,17 @@ public abstract class EdgeView {
 		return target;
 	}
 
-	protected int getWidth() {
+	public int getWidth() {
+		if (width != null) {
+			return width;
+		}
 		final NodeModel model = target.getModel();
 		final int width = EdgeController.getController(target.getMap().getModeController()).getWidth(model);
 		return width;
+	}
+
+	public void setWidth(final int width) {
+		this.width = width;
 	}
 
 	protected boolean isTargetEclipsed() {
@@ -112,24 +128,24 @@ public abstract class EdgeView {
 		source = target.getVisibleParentView();
 		this.target = target;
 		end = getTarget().getMainViewInPoint();
-        UITools.convertPointToAncestor(target.getMainView(), end, source);
+		UITools.convertPointToAncestor(target.getMainView(), end, source);
 		createStart();
 	}
 
 	public void paint(final Graphics2D g) {
-	    final Stroke stroke = g.getStroke();
+		final Stroke stroke = g.getStroke();
 		draw(g);
 		g.setStroke(stroke);
-    }
-	
+	}
+
 	public EdgeView(final NodeView source, final NodeView target) {
 		this.source = source;
 		this.target = target;
 		end = getTarget().getMainViewInPoint();
 		final MapView map = getMap();
-        UITools.convertPointToAncestor(target.getMainView(), end, map);
+		UITools.convertPointToAncestor(target.getMainView(), end, map);
 		createStart();
-        UITools.convertPointToAncestor(source, start, map);
+		UITools.convertPointToAncestor(source, start, map);
 	}
 
 	abstract public boolean detectCollision(Point p);

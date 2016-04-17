@@ -17,63 +17,67 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.freeplane.view.swing.map.edge;
+package org.freeplane.view.swing.map.link;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Stroke;
+import java.awt.geom.Line2D;
 
-import org.freeplane.core.model.NodeModel;
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.features.common.edge.EdgeController;
-import org.freeplane.features.common.edge.EdgeStyle;
 import org.freeplane.view.swing.map.MainView;
 import org.freeplane.view.swing.map.NodeView;
+import org.freeplane.view.swing.map.edge.EdgeView;
 
 /**
  * @author Dimitry Polivaev
  * 29.08.2009
  */
 public class OutlineLinkView extends EdgeView {
+	private int xs[];
+	private int ys[];
+
 	public OutlineLinkView(final NodeView source, final NodeView target) {
-	    super(source, target);
-    }
+		super(source, target);
+	}
 
 	@Override
-	public boolean detectCollision(Point p) {
+	public boolean detectCollision(final Point p) {
+		final CollisionDetector collisionDetector = new CollisionDetector();
+		for (int i = 1; i < xs.length; i++) {
+			if (collisionDetector.detectCollision(p, new Line2D.Float(xs[i - 1], ys[i - 1], xs[i], ys[i]))) {
+				return true;
+			}
+		}
 		return false;
 	}
 
+	@Override
 	protected void createStart() {
 		final MainView startMainView = getSource().getMainView();
-		start = new Point (startMainView.getWidth(), startMainView.getHeight()/2);
+		start = new Point(startMainView.getWidth(), startMainView.getHeight() / 2);
 		UITools.convertPointToAncestor(startMainView, start, getSource());
-        final MainView targetMainView = getTarget().getMainView();
-		end = new Point (targetMainView.getWidth(), targetMainView.getHeight()/2);
+		final MainView targetMainView = getTarget().getMainView();
+		end = new Point(targetMainView.getWidth(), targetMainView.getHeight() / 2);
 		UITools.convertPointToAncestor(targetMainView, end, getTarget().getMap());
 	}
+
 	@Override
-	protected void draw(Graphics2D g) {
+	protected void draw(final Graphics2D g) {
 		final Color color = getColor();
 		g.setColor(color);
 		final Stroke stroke = getStroke();
 		g.setStroke(stroke);
-		final int middleX = Math.max(start.x, end.x) + getSource().getMap().getZoomed(10);
-		g.drawLine(start.x, start.y, middleX, start.y);
-		g.drawLine(middleX, start.y, middleX, end.y);
-		g.drawLine(middleX, end.y, end.x, end.y);
-
+		final int xMiddle = Math.max(start.x, end.x) + getSource().getMap().getZoomed(10);
+		xs = new int[] { start.x, xMiddle, xMiddle, end.x };
+		ys = new int[] { start.y, start.y, end.y, end.y };
+		g.drawPolyline(xs, ys, 4);
 	}
-	
+
 	@Override
 	protected Stroke getStroke() {
-		final EdgeController edgeController = EdgeController.getController(getSource().getMap().getModeController());
-		final NodeModel model = getTarget().getModel();
-		int edgeWidth = edgeController.getWidth(model);
-		final EdgeStyle style = edgeController.getStyle(model);
-		edgeWidth = style.getNodeLineWidth(edgeWidth);
-		return new BasicStroke(edgeWidth);
+		return new BasicStroke(getWidth());
 	}
 }

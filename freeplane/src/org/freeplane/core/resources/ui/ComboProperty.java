@@ -46,7 +46,8 @@ public class ComboProperty extends PropertyBean implements IPropertyControl {
 	JComboBox mComboBox = new JComboBox();
 	private Vector<String> possibleValues;
 
-	public ComboProperty(final String name, final Collection<String> possibles, final Collection<String> possibleTranslations) {
+	public ComboProperty(final String name, final Collection<String> possibles,
+	                     final Collection<String> possibleTranslations) {
 		super(name);
 		fillPossibleValues(possibles);
 		mComboBox.setModel(new DefaultComboBoxModel(new Vector<String>(possibleTranslations)));
@@ -65,12 +66,11 @@ public class ComboProperty extends PropertyBean implements IPropertyControl {
 
 	@Override
 	public String getValue() {
-		return (String) possibleValues.get(mComboBox.getSelectedIndex());
+		return possibleValues.get(mComboBox.getSelectedIndex());
 	}
 
 	public void layout(final DefaultFormBuilder builder) {
-		final JLabel label = builder.append(FpStringUtils.getOptionalText(getLabel()), mComboBox);
-		label.setToolTipText(FpStringUtils.getOptionalText(getDescription()));
+		layout(builder, mComboBox);
 	}
 
 	public void setEnabled(final boolean pEnabled) {

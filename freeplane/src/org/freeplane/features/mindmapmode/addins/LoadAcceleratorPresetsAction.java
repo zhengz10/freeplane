@@ -34,6 +34,7 @@ import javax.swing.JOptionPane;
 
 import org.freeplane.core.controller.Controller;
 import org.freeplane.core.modecontroller.ModeController;
+import org.freeplane.core.resources.FpStringUtils;
 import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.AFreeplaneAction;
@@ -105,7 +106,7 @@ public class LoadAcceleratorPresetsAction extends AFreeplaneAction {
 					    loadAcceleratorPresetsAction, MenuBuilder.AS_CHILD);
 				}
 				catch (final Exception e) {
-					UITools.errorMessage("can not load accelerators from" + prop.getPath());
+					UITools.errorMessage(FpStringUtils.format("accelerators_loading_error", prop.getPath()));
 				}
 			}
 		}
@@ -165,11 +166,9 @@ class SaveAcceleratorPresetsAction extends AFreeplaneAction {
 		}
 		try {
 			acceleratorsUserDirectory.mkdirs();
-			
 			final OutputStream output = new BufferedOutputStream(new FileOutputStream(keysetFile));
 			keysetProperties.store(output, "");
 			output.close();
-			
 			final String key = "LoadAcceleratorPresetsAction." + keyset;
 			if (getController().getAction(key) != null) {
 				return;
@@ -177,7 +176,7 @@ class SaveAcceleratorPresetsAction extends AFreeplaneAction {
 			final String title = ResourceBundles.getText(key + ".text", keyset);
 			final LoadAcceleratorPresetsAction loadAcceleratorPresetsAction = new LoadAcceleratorPresetsAction(
 			    keysetFile.toURL(), key, title, getController());
-			if(null == getController().getAction(loadAcceleratorPresetsAction.getKey())){
+			if (null == getController().getAction(loadAcceleratorPresetsAction.getKey())) {
 				getController().addAction(loadAcceleratorPresetsAction);
 				getModeController().getUserInputListenerFactory().getMenuBuilder().addAction(
 				    "/menu_bar/extras/first/options/acceleratorPresets/new", key, loadAcceleratorPresetsAction,

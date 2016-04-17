@@ -24,6 +24,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -76,8 +77,7 @@ public class IconProperty extends PropertyBean implements IPropertyControl, Acti
 	}
 
 	public void layout(final DefaultFormBuilder builder) {
-		final JLabel label = builder.append(FpStringUtils.getOptionalText(getLabel()), mButton);
-		label.setToolTipText(FpStringUtils.getOptionalText(getDescription()));
+		layout(builder, mButton);
 	}
 
 	public void setEnabled(final boolean pEnabled) {
@@ -95,7 +95,9 @@ public class IconProperty extends PropertyBean implements IPropertyControl, Acti
 			if (icon.getName().equals(value)) {
 				mActualIcon = icon;
 				setIcon(mActualIcon);
+				return;
 			}
 		}
+		throw new NoSuchElementException();
 	}
 }

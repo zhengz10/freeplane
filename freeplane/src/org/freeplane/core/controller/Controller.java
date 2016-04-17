@@ -27,7 +27,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-
 import org.freeplane.core.extension.ExtensionContainer;
 import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.frame.IMapViewManager;
@@ -129,33 +128,29 @@ public class Controller extends AController {
 		getActions().get("QuitAction").actionPerformed(actionEvent);
 	}
 
-	public boolean selectMode(final ModeController newModeController) {
+	public void selectMode(final ModeController newModeController) {
 		final ModeController oldModeController = modeController;
 		if (oldModeController == newModeController) {
-			return true;
+			return;
 		}
 		if (oldModeController != null) {
 			oldModeController.shutdown();
 		}
 		modeController = newModeController;
-		if (!getMapViewManager().changeToMode(newModeController.getModeName())) {
-			modeController = oldModeController;
-			return false;
-		}
 		viewController.selectMode(oldModeController, newModeController);
+		getMapViewManager().changeToMode(newModeController.getModeName());
 		newModeController.startup();
-		return true;
 	}
 
-	public boolean selectMode(final String modeName) {
+	public void selectMode(final String modeName) {
 		final ModeController newModeController = modeControllers.get(modeName);
 		if (newModeController == null) {
-			return false;
+			return;
 		}
 		if (modeController == newModeController) {
-			return true;
+			return;
 		}
-		return selectMode(newModeController);
+		selectMode(newModeController);
 	}
 
 	public void setViewController(final ViewController viewController) {
@@ -172,12 +167,12 @@ public class Controller extends AController {
 		return true;
 	}
 
-	public static Process exec(String string) throws IOException {
+	public static Process exec(final String string) throws IOException {
 		LogTool.info("execute " + string);
 		return Runtime.getRuntime().exec(string);
 	}
 
-	public static Process exec(String[] command) throws IOException {
+	public static Process exec(final String[] command) throws IOException {
 		LogTool.info("execute " + Arrays.toString(command));
 		return Runtime.getRuntime().exec(command);
 	}

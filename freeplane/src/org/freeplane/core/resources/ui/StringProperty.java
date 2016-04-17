@@ -19,7 +19,6 @@
  */
 package org.freeplane.core.resources.ui;
 
-import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -51,8 +50,7 @@ public class StringProperty extends PropertyBean implements IPropertyControl {
 	}
 
 	public void layout(final DefaultFormBuilder builder) {
-		final JLabel label = builder.append(FpStringUtils.getOptionalText(getLabel()), mTextField);
-		label.setToolTipText(FpStringUtils.getOptionalText(getDescription()));
+		layout(builder, mTextField);
 	}
 
 	public void setEnabled(final boolean pEnabled) {

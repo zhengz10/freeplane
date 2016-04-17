@@ -39,12 +39,12 @@ import org.freeplane.core.url.UrlManager;
 import org.freeplane.core.util.Compat;
 import org.freeplane.core.util.LogTool;
 import org.freeplane.features.common.addins.mapstyle.MapViewLayout;
-import org.freeplane.features.common.addins.misc.NextNodeAction;
-import org.freeplane.features.common.addins.misc.NextNodeAction.Direction;
 import org.freeplane.features.common.attribute.ModelessAttributeController;
 import org.freeplane.features.common.link.LinkController;
 import org.freeplane.features.common.note.NoteController;
+import org.freeplane.features.common.text.NextNodeAction;
 import org.freeplane.features.common.text.TextController;
+import org.freeplane.features.common.text.TextController.Direction;
 import org.freeplane.features.common.time.TimeController;
 import org.freeplane.features.controller.help.HelpController;
 import org.freeplane.features.controller.print.PrintController;
@@ -52,7 +52,6 @@ import org.freeplane.features.mindmapmode.MModeController;
 import org.freeplane.main.browsemode.BModeControllerFactory;
 import org.freeplane.main.filemode.FModeControllerFactory;
 import org.freeplane.main.mindmapmode.MModeControllerFactory;
-import org.freeplane.plugin.macos.MacChanges;
 import org.freeplane.view.swing.addins.nodehistory.NodeHistory;
 import org.freeplane.view.swing.map.MMapViewController;
 import org.freeplane.view.swing.map.ViewLayoutTypeAction;
@@ -61,13 +60,14 @@ public class FreeplaneStarter {
 	private static final String PROPERTIES_FOLDER = ".freeplane";
 
 	public static String getResourceBaseDir() {
-	    return System.getProperty(FreeplaneStarter.ORG_FREEPLANE_GLOBALRESOURCEDIR,
+		return System.getProperty(FreeplaneStarter.ORG_FREEPLANE_GLOBALRESOURCEDIR,
 		    FreeplaneStarter.DEFAULT_ORG_FREEPLANE_GLOBALRESOURCEDIR);
-    }
+	}
 
 	public static String getFreeplaneUserDirectory() {
-	    return System.getProperty("user.home") + File.separator + PROPERTIES_FOLDER;
-    }
+		return System.getProperty("user.home") + File.separator + PROPERTIES_FOLDER;
+	}
+
 	public static void showSysInfo() {
 		final StringBuilder info = new StringBuilder();
 		info.append("freeplane_version = ");
@@ -92,7 +92,6 @@ public class FreeplaneStarter {
 
 	public FreeplaneStarter() {
 		super();
-		FreeplaneStarter.showSysInfo();
 	}
 
 	public Controller createController() {
@@ -103,11 +102,12 @@ public class FreeplaneStarter {
 			Compat.macAppChanges(controller);
 			applicationResourceController.init(controller);
 			LogTool.createLogger();
+			FreeplaneStarter.showSysInfo();
 			ViewController.setLookAndFeel(applicationResourceController.getProperty("lookandfeel"));
 			final JFrame frame = new JFrame("Freeplane");
 			frame.setName(UITools.MAIN_FREEPLANE_FRAME);
 			splash = new FreeplaneSplashModern(frame);
-			if(! System.getProperty("org.freeplane.nosplash", "false").equals("true")){
+			if (!System.getProperty("org.freeplane.nosplash", "false").equals("true")) {
 				splash.setVisible(true);
 			}
 			final MMapViewController mapViewController = new MMapViewController();
@@ -163,6 +163,11 @@ public class FreeplaneStarter {
 	}
 
 	private void loadMaps(final String[] args) {
+		final boolean alwaysLoadLastMaps = ResourceController.getResourceController().getBooleanProperty(
+		    "always_load_last_maps");
+		if (alwaysLoadLastMaps) {
+			applicationResourceController.getLastOpenedList().openMapsOnStart();
+		}
 		boolean fileLoaded = false;
 		for (int i = 0; i < args.length; i++) {
 			String fileArgument = args[i];
@@ -186,12 +191,10 @@ public class FreeplaneStarter {
 		if (fileLoaded) {
 			return;
 		}
-		applicationResourceController.getLastOpenedList().openMapsOnStart();
-		/*
-		 * nothing loaded so far. Perhaps, we should display a new map...
-		 * According to Summary: On first start Freeplane should show new map
-		 * to newbies https: &aid=1752516&group_id=7118
-		 */
+		if (!alwaysLoadLastMaps) {
+			applicationResourceController.getLastOpenedList().openMapsOnStart();
+		}
+		
 		if (null != controller.getMap()) {
 			return;
 		}
@@ -204,7 +207,7 @@ public class FreeplaneStarter {
 	 */
 	public void run(final String[] args) {
 		try {
-			if(null == System.getProperty("org.freeplane.core.dir.lib", null)){
+			if (null == System.getProperty("org.freeplane.core.dir.lib", null)) {
 				System.setProperty("org.freeplane.core.dir.lib", "/lib/");
 			}
 			createController();

@@ -11,6 +11,7 @@
 	<property file="${workspace}/freeplane/ant/ant.properties" />
 	<property file="ant/ant.properties" />
 	<property name="freeplaneant.jar" value="${workspace}/freeplane_framework/ant/lib/freeplaneant.jar" />
+	<property name="google.translator.jar" value="${workspace}/freeplane_framework/ant/lib/google-api-translate-java-0.92.jar" />
 	<property name="external.jars" value="${commons-lang.jar}:${forms.jar}:${SimplyHTML.jar}:${jortho.jar}" />
 	<property name="build" value="${root}/build" />
 	<property name="dist" value="${root}/dist" />
@@ -171,12 +172,21 @@
 	</target>
 	
 	<target name="check-translation">
-		<check-translation dir="${root}/viewer-resources/translations" includes="*.properties" />
 		<check-translation dir="${root}/resources/translations" includes="*.properties" />
+		<check-translation dir="${root}/viewer-resources/translations" includes="*.properties" />
 	</target>
 	<target name="format-translation">
-		<format-translation dir="${root}/viewer-resources/translations" includes="*.properties" />
-		<format-translation dir="${root}/resources/translations" includes="*.properties" />
+		<format-translation dir="${root}/resources/translations" writeifunchanged="true" includes="*.properties" eolstyle="unix" />
+		<format-translation dir="${root}/viewer-resources/translations" writeifunchanged="true" includes="*.properties" eolstyle="unix" />
+	</target>
+	<target name="format-translation-no-force">
+		<format-translation dir="${root}/resources/translations" writeifunchanged="false" includes="*.properties" eolstyle="unix" />
+		<format-translation dir="${root}/viewer-resources/translations" writeifunchanged="false" includes="*.properties" eolstyle="unix" />
+	</target>
+	<target name="translate">
+		<translator translationsdir="${root}/resources/translations"
+			    sourcefile="${root}/viewer-resources/translations/Resources_en.properties" includes="*.properties" />
+		<antcall target="format-translation" />
 	</target>
 
 	<target name="clean">

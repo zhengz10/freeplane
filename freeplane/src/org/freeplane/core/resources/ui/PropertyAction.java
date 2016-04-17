@@ -64,8 +64,8 @@ public class PropertyAction extends AFreeplaneAction {
 		final OptionPanel options = new OptionPanel(dialog, new IOptionPanelFeedback() {
 			public void writeProperties(final Properties props) {
 				boolean propertiesChanged = false;
-				for (Object keyObject : props.keySet()) {
-					String key = keyObject.toString();
+				for (final Object keyObject : props.keySet()) {
+					final String key = keyObject.toString();
 					final String newProperty = props.getProperty(key);
 					propertiesChanged = propertiesChanged
 					        || !newProperty.equals(ResourceController.getResourceController().getProperty(key));
@@ -78,14 +78,17 @@ public class PropertyAction extends AFreeplaneAction {
 				}
 			}
 		});
-		final String marshalled = ResourceController.getResourceController().getProperty(OptionPanel.PREFERENCE_STORAGE_PROPERTY);
-		final OptionPanelWindowConfigurationStorage storage = OptionPanelWindowConfigurationStorage.decorateDialog(marshalled, dialog);
+		final String marshalled = ResourceController.getResourceController().getProperty(
+		    OptionPanel.PREFERENCE_STORAGE_PROPERTY);
+		final OptionPanelWindowConfigurationStorage storage = OptionPanelWindowConfigurationStorage.decorateDialog(
+		    marshalled, dialog);
 		if (storage != null) {
 			options.setSelectedPanel(storage.getPanel());
 		}
 		options.buildPanel(controls);
 		options.setProperties();
-		dialog.setTitle("Freeplane Properties");
+		final String title = ResourceBundles.getText("PropertyAction.dialog");
+		dialog.setTitle(title);
 		dialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 		dialog.addWindowListener(new WindowAdapter() {
 			@Override
@@ -104,7 +107,7 @@ public class PropertyAction extends AFreeplaneAction {
 			}
 		};
 		UITools.addEscapeActionToDialog(dialog, action);
-		if(storage == null){
+		if (storage == null) {
 			dialog.pack();
 		}
 		dialog.setVisible(true);

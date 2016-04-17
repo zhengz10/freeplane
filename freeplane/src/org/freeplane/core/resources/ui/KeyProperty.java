@@ -19,16 +19,13 @@
  */
 package org.freeplane.core.resources.ui;
 
-import java.awt.Dialog;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 
 import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.SwingUtilities;
 
 import org.freeplane.core.resources.FpStringUtils;
 
@@ -53,7 +50,7 @@ public class KeyProperty extends PropertyBean implements IPropertyControl {
 	}
 
 	public void disableModifiers() {
-		modifierMask = KeyEvent.ALT_MASK | KeyEvent.CTRL_MASK| KeyEvent.META_MASK;
+		modifierMask = KeyEvent.ALT_MASK | KeyEvent.CTRL_MASK | KeyEvent.META_MASK;
 	}
 
 	@Override
@@ -76,7 +73,8 @@ public class KeyProperty extends PropertyBean implements IPropertyControl {
 			labelText = FpStringUtils.getOptionalText(getLabel());
 		}
 		final JLabel label = new JLabel(labelText, icon, JLabel.RIGHT);
-		label.setToolTipText(FpStringUtils.getOptionalText(getDescription()));
+		String tooltip = FpStringUtils.getOptionalText(getDescription());
+		label.setToolTipText(tooltip);
 		if (KeyProperty.rowSpec == null) {
 			KeyProperty.rowSpec = new RowSpec("fill:20dlu");
 		}
@@ -91,6 +89,7 @@ public class KeyProperty extends PropertyBean implements IPropertyControl {
 		builder.add(label);
 		builder.nextColumn(2);
 		builder.add(mButton);
+		mButton.setToolTipText(tooltip);
 	}
 
 	public void setEnabled(final boolean pEnabled) {

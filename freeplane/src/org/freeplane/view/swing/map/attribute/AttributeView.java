@@ -36,7 +36,6 @@ import org.freeplane.core.model.NodeModel;
 import org.freeplane.features.common.attribute.AttributeRegistry;
 import org.freeplane.features.common.attribute.AttributeTableLayoutModel;
 import org.freeplane.features.common.attribute.NodeAttributeTableModel;
-import org.freeplane.features.mindmapmode.MModeController;
 import org.freeplane.view.swing.map.MapView;
 import org.freeplane.view.swing.map.NodeView;
 
@@ -65,15 +64,12 @@ public class AttributeView implements ChangeListener, TableModelListener {
 	}
 
 	private void addListeners() {
-		if (! (getMapView().getModeController() instanceof MModeController)) {
-			return;
-		}
 		getAttributeRegistry().addChangeListener(this);
 		addTableModelListeners();
 	}
 
 	private void addTableModelListeners() {
-		if (! (getMapView().getModeController() instanceof MModeController)) {
+		if (!getMapView().getModeController().canEdit()) {
 			return;
 		}
 		if (attributeTable != null) {
@@ -170,10 +166,10 @@ public class AttributeView implements ChangeListener, TableModelListener {
 	}
 
 	private void removeListeners() {
-		if (! (getMapView().getModeController() instanceof MModeController)) {
+		getAttributeRegistry().removeChangeListener(this);
+		if (!getMapView().getModeController().canEdit()) {
 			return;
 		}
-		getAttributeRegistry().removeChangeListener(this);
 		if (attributeTable != null) {
 			getAttributes().getLayout().removeColumnWidthChangeListener(attributeTable);
 			attributeTable.getParent().remove(attributeTable);

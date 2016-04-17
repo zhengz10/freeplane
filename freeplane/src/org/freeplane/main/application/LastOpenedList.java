@@ -20,6 +20,8 @@
 package org.freeplane.main.application;
 
 import java.awt.Component;
+import java.awt.Frame;
+import java.awt.Window;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -34,6 +36,7 @@ import java.util.Map;
 import java.util.StringTokenizer;
 
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 
 import org.freeplane.core.controller.Controller;
 import org.freeplane.core.frame.IMapViewChangeListener;
@@ -43,12 +46,14 @@ import org.freeplane.core.modecontroller.MapChangeEvent;
 import org.freeplane.core.modecontroller.ModeController;
 import org.freeplane.core.model.MapModel;
 import org.freeplane.core.model.NodeModel;
+import org.freeplane.core.resources.FpStringUtils;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.AFreeplaneAction;
 import org.freeplane.core.ui.IFreeplaneAction;
 import org.freeplane.core.ui.MenuBuilder;
 import org.freeplane.core.ui.UIBuilder;
 import org.freeplane.core.ui.components.FreeplaneMenuBar;
+import org.freeplane.core.ui.components.JFreeplaneMenuItem;
 import org.freeplane.core.ui.components.UITools;
 import org.freeplane.core.url.UrlManager;
 import org.freeplane.core.util.Compat;
@@ -127,11 +132,11 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 			return null;
 		}
 		final String absolutePath = file.getAbsolutePath();
-		if(! PORTABLE_APP || ! USER_DRIVE.endsWith(":")){
+		if (!PORTABLE_APP || !USER_DRIVE.endsWith(":")) {
 			return "MindMap:" + absolutePath;
 		}
 		final String diskName = absolutePath.substring(0, 2);
-		if(! diskName.equals(USER_DRIVE)){
+		if (!diskName.equals(USER_DRIVE)) {
 			return "MindMap:" + absolutePath;
 		}
 		return "MindMap::" + absolutePath.substring(2);
@@ -207,13 +212,12 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 			final StringTokenizer token = new StringTokenizer(restoreable, ":");
 			if (token.hasMoreTokens()) {
 				final String mode = token.nextToken();
-				if (controller.selectMode(mode)) {
-					String fileName = token.nextToken("").substring(1);
-					if(PORTABLE_APP && fileName.startsWith(":") && USER_DRIVE.endsWith(":")){
-						fileName = USER_DRIVE + fileName.substring(1);
-					}
-					controller.getModeController().getMapController().newMap(Compat.fileToUrl(new File(fileName)));
+				controller.selectMode(mode);
+				String fileName = token.nextToken("").substring(1);
+				if (PORTABLE_APP && fileName.startsWith(":") && USER_DRIVE.endsWith(":")) {
+					fileName = USER_DRIVE + fileName.substring(1);
 				}
+				controller.getModeController().getMapController().newMap(Compat.fileToUrl(new File(fileName)));
 			}
 		}
 	}
@@ -249,7 +253,7 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 
 	private void restoreList(final String key, final List<String> list) {
 		final String restored = ResourceController.getResourceController().getProperty(key, null);
-		if (restored != null && ! restored.equals("")) {
+		if (restored != null && !restored.equals("")) {
 			list.addAll(Arrays.asList(restored.split(SEPARATOR)));
 		}
 	}
@@ -265,8 +269,19 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 			open(restoreable);
 		}
 		catch (final Exception ex) {
-			remove(restoreable);
-			UITools.errorMessage("An error occured on opening the file: " + restoreable + ".");
+			final String message = FpStringUtils.format("remove_file_from_list_on_error", restoreable);
+			final Frame frame = UITools.getFrame();
+			final Window[] ownedWindows = frame.getOwnedWindows();
+			for (int i = 0; i < ownedWindows.length; i++) {
+				final Window window = ownedWindows[i];
+				if (window.getClass().equals(FreeplaneSplashModern.class) && window.isVisible()) {
+					window.setVisible(false);
+				}
+			}
+			final int remove = JOptionPane.showConfirmDialog(frame, message, "Freeplane", JOptionPane.YES_NO_OPTION);
+			if (remove == JOptionPane.YES_OPTION) {
+				remove(restoreable);
+			}
 			LogTool.warn(ex);
 		}
 	}
@@ -309,15 +324,16 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 			}
 			final AFreeplaneAction lastOpenedActionListener = new OpenLastOpenedAction(i++, controller, this);
 			final IFreeplaneAction decoratedAction = menuBuilder.decorateAction(lastOpenedActionListener);
-			JMenuItem item = new JMenuItem(decoratedAction);
+			final JMenuItem item = new JFreeplaneMenuItem(decoratedAction);
 			item.setText(key);
 			item.setMnemonic(0);
-			menuBuilder.addMenuItem(MENU_CATEGORY, item, MENU_CATEGORY + '/' + lastOpenedActionListener.getKey(), UIBuilder.AS_CHILD);
+			menuBuilder.addMenuItem(MENU_CATEGORY, item, MENU_CATEGORY + '/' + lastOpenedActionListener.getKey(),
+			    UIBuilder.AS_CHILD);
 		}
 	}
 
-	public void onPreNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
-	    // TODO Auto-generated method stub
-	    
-    }
+	public void onPreNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
+	                           final NodeModel child, final int newIndex) {
+		// TODO Auto-generated method stub
+	}
 }

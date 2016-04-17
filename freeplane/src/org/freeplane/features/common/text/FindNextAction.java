@@ -20,12 +20,9 @@
 package org.freeplane.features.common.text;
 
 import java.awt.event.ActionEvent;
-import java.util.regex.Matcher;
 
 import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.ui.AFreeplaneAction;
-import org.freeplane.core.ui.components.UITools;
 
 class FindNextAction extends AFreeplaneAction {
 	/**
@@ -40,18 +37,6 @@ class FindNextAction extends AFreeplaneAction {
 	}
 
 	public void actionPerformed(final ActionEvent e) {
-		final String searchTerm = find.getSearchTerm();
-		if (searchTerm == null) {
-			UITools.informationMessage(getController().getViewController().getFrame(), ResourceBundles
-			    .getText("no_previous_find"));
-			return;
-		}
-		final boolean found = find.findNext();
-		if (!found) {
-			final String messageText = ResourceBundles.getText("no_more_found_from");
-			UITools.informationMessage(getController().getViewController().getFrame(), messageText.replaceAll("\\$1",
-			    Matcher.quoteReplacement(searchTerm)).replaceAll("\\$2",
-			    Matcher.quoteReplacement(find.getFindFromText())));
-		}
+		find.findNext();
 	}
 }

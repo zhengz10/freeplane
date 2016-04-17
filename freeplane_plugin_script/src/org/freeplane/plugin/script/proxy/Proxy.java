@@ -3,6 +3,7 @@ package org.freeplane.plugin.script.proxy;
 import groovy.lang.Closure;
 
 import java.awt.Color;
+import java.io.File;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -19,6 +20,7 @@ public interface Proxy {
 	interface Attributes {
 		/** returns the <em>first</em> value of an attribute with the given name or null otherwise.
 		 * @deprecated use {@link #get(int)} or {@link #getAll(String)} instead. */
+		@Deprecated
 		String get(final String name);
 
 		/** returns all values for the attribute name. */
@@ -59,8 +61,9 @@ public interface Proxy {
 		/** removes the <em>first</em> attribute with this name.
 		 * @returns true on removal of an existing attribute and false otherwise.
 		 * @deprecated use {@link #remove(int)} or {@link #removeAll(String)} instead. */
+		@Deprecated
 		boolean remove(final String name);
-		
+
 		/** removes <em>all</em> attributes with this name.
 		 * @returns true on removal of an existing attribute and false otherwise. */
 		boolean removeAll(final String name);
@@ -267,6 +270,9 @@ public interface Proxy {
 
 		/** returns the node if the map contains it or null otherwise. */
 		Node node(String id);
+
+		/** returns the physical location of the map if available or null otherwise. */
+		File getFile();
 	}
 
 	interface Node {

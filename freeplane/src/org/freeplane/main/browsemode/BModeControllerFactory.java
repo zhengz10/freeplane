@@ -28,8 +28,6 @@ import org.freeplane.core.controller.Controller;
 import org.freeplane.core.filter.FilterController;
 import org.freeplane.core.icon.IconController;
 import org.freeplane.core.modecontroller.MapController;
-import org.freeplane.core.resources.ResourceController;
-import org.freeplane.core.ui.MenuBuilder;
 import org.freeplane.core.ui.components.FreeplaneToolBar;
 import org.freeplane.core.url.UrlManager;
 import org.freeplane.core.util.LogTool;
@@ -37,8 +35,6 @@ import org.freeplane.features.browsemode.BModeController;
 import org.freeplane.features.browsemode.BNodeNoteViewer;
 import org.freeplane.features.browsemode.BToolbarContributor;
 import org.freeplane.features.common.addins.mapstyle.MapStyle;
-import org.freeplane.features.common.addins.misc.NextNodeAction;
-import org.freeplane.features.common.addins.misc.NextNodeAction.Direction;
 import org.freeplane.features.common.attribute.AttributeController;
 import org.freeplane.features.common.clipboard.ClipboardController;
 import org.freeplane.features.common.cloud.CloudController;
@@ -86,8 +82,10 @@ public class BModeControllerFactory {
 		modeController.addMenuContributor(toolbarContributor);
 		controller.getMapViewManager().addMapViewChangeListener(toolbarContributor);
 		userInputListenerFactory.setNodePopupMenu(new JPopupMenu());
-		userInputListenerFactory.addMainToolBar("/main_toolbar", new FreeplaneToolBar("main_toolbar", SwingConstants.HORIZONTAL));
-		userInputListenerFactory.addMainToolBar("/filter_toolbar", FilterController.getController(controller).getFilterToolbar());
+		userInputListenerFactory.addMainToolBar("/main_toolbar", new FreeplaneToolBar("main_toolbar",
+		    SwingConstants.HORIZONTAL));
+		userInputListenerFactory.addMainToolBar("/filter_toolbar", FilterController.getController(controller)
+		    .getFilterToolbar());
 		userInputListenerFactory.setMenuStructure(menuStructure);
 		userInputListenerFactory.updateMenus(modeController);
 		modeController.updateMenus();

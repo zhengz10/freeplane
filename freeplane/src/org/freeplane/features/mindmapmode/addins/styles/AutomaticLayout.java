@@ -212,8 +212,7 @@ public class AutomaticLayout extends PersistentNodeHook implements IMapChangeLis
 		}
 
 		public void layout(final DefaultFormBuilder builder) {
-			final JLabel label = builder.append(FpStringUtils.getOptionalText(getLabel()), mButton);
-			label.setToolTipText(FpStringUtils.getOptionalText(getDescription()));
+			layout(builder, mButton);
 		}
 
 		public void setEnabled(final boolean pEnabled) {
@@ -296,7 +295,7 @@ public class AutomaticLayout extends PersistentNodeHook implements IMapChangeLis
 	}
 
 	public void nodeChanged(final NodeChangeEvent event) {
-		if(setStyleActive){
+		if (setStyleActive) {
 			return;
 		}
 		final NodeModel node = event.getNode();
@@ -397,8 +396,8 @@ public class AutomaticLayout extends PersistentNodeHook implements IMapChangeLis
 		}
 	}
 
-	public void onPreNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
-	    // TODO Auto-generated method stub
-	    
-    }
+	public void onPreNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
+	                           final NodeModel child, final int newIndex) {
+		// TODO Auto-generated method stub
+	}
 }

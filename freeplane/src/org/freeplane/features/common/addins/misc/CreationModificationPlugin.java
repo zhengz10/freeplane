@@ -44,7 +44,7 @@ import org.freeplane.n3.nanoxml.XMLElement;
 @ActionLocationDescriptor(locations = { "/menu_bar/extras/first/nodes/change" })
 public class CreationModificationPlugin extends PersistentNodeHook implements INodeChangeListener, IExtension {
 	private boolean nodeChangeListenerDisabled;
-	private String tooltipFormat = "<html>Created:  {0,date} {0,time}<br>Modified: {1,date} {1,time}</html>";
+	private String tooltipFormat = null;
 
 	/**
 	 *
@@ -83,7 +83,7 @@ public class CreationModificationPlugin extends PersistentNodeHook implements IN
 		if (nodeChangeListenerDisabled) {
 			return;
 		}
-		if (! event.getProperty().equals(HistoryInformationModel.class)) {
+		if (!event.getProperty().equals(HistoryInformationModel.class)) {
 			return;
 		}
 		final NodeModel node = event.getNode();
@@ -120,7 +120,13 @@ public class CreationModificationPlugin extends PersistentNodeHook implements IN
 		final Object[] messageArguments = { node.getHistoryInformation().getCreatedAt(),
 		        node.getHistoryInformation().getLastModifiedAt() };
 		if (tooltipFormat == null) {
-			tooltipFormat = ResourceBundles.getText("CreationModificationPlugin.tooltip_format");
+			final StringBuilder sb = new StringBuilder();
+			sb.append("<html>");
+			sb.append(ResourceBundles.getText("plugins/TimeList.xml_Created"));
+			sb.append(":  {0,date} {0,time}<br>");
+			sb.append(ResourceBundles.getText("plugins/TimeList.xml_Modified"));
+			sb.append(": {1,date} {1,time}</html>");
+			tooltipFormat = sb.toString();
 		}
 		final MessageFormat formatter = new MessageFormat(tooltipFormat);
 		final String message = formatter.format(messageArguments);
@@ -131,7 +137,7 @@ public class CreationModificationPlugin extends PersistentNodeHook implements IN
 	 */
 	private void setStyleRecursive(final NodeModel node) {
 		setStyle(node);
-		for (final Iterator<NodeModel> i = getModeController().getMapController().childrenFolded(node); i.hasNext();) {
+		for (final Iterator<NodeModel> i = getModeController().getMapController().childrenUnfolded(node); i.hasNext();) {
 			final NodeModel child = i.next();
 			setStyleRecursive(child);
 		}
@@ -139,22 +145,22 @@ public class CreationModificationPlugin extends PersistentNodeHook implements IN
 
 	protected void setToolTip(final NodeModel node, final String key, final String value) {
 		final ITooltipProvider tooltipProvider;
-		if(value != null){
-		tooltipProvider = new ITooltipProvider() {
-			public String getTooltip() {
-				return value;
-			}
-		};
+		if (value != null) {
+			tooltipProvider = new ITooltipProvider() {
+				public String getTooltip() {
+					return value;
+				}
+			};
 		}
-		else{
+		else {
 			tooltipProvider = null;
 		}
 		final boolean nodeChangeListenerDisabled = this.nodeChangeListenerDisabled;
 		this.nodeChangeListenerDisabled = true;
-		try{
-		(getModeController().getMapController()).setToolTip(node, key, tooltipProvider);
+		try {
+			(getModeController().getMapController()).setToolTip(node, key, tooltipProvider);
 		}
-		finally{
+		finally {
 			this.nodeChangeListenerDisabled = nodeChangeListenerDisabled;
 		}
 	}

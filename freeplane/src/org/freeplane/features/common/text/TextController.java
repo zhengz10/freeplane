@@ -22,15 +22,21 @@ package org.freeplane.features.common.text;
 import org.freeplane.core.controller.Controller;
 import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.filter.FilterController;
+import org.freeplane.core.filter.condition.ISelectableCondition;
 import org.freeplane.core.io.ReadManager;
 import org.freeplane.core.io.WriteManager;
 import org.freeplane.core.modecontroller.MapController;
 import org.freeplane.core.modecontroller.ModeController;
+import org.freeplane.core.model.NodeModel;
 
 /**
  * @author Dimitry Polivaev
  */
 public class TextController implements IExtension {
+	public enum Direction {
+		BACK, BACK_N_FOLD, FORWARD, FORWARD_N_FOLD
+	}
+
 	public static TextController getController(final ModeController modeController) {
 		return (TextController) modeController.getExtension(TextController.class);
 	}
@@ -62,12 +68,113 @@ public class TextController implements IExtension {
 	 * @param modeController
 	 */
 	private void createActions(final ModeController modeController) {
-		final FindAction find = new FindAction(modeController.getController());
-		modeController.addAction(find);
-		modeController.addAction(new FindNextAction(modeController, find));
+		Controller controller = modeController.getController();
+		if(controller.getAction(FindAction.KEY) != null){
+			return;
+		}
+		final FindAction find = new FindAction(controller);
+		controller.addAction(find);
+		controller.addAction(new FindNextAction(modeController, find));
 	}
 
 	public ModeController getModeController() {
 		return modeController;
+	}
+
+	NodeModel findNext(final NodeModel from, final NodeModel end, final Direction direction,
+	                   final ISelectableCondition condition) {
+		NodeModel next = from;
+		for (;;) {
+			do {
+				switch (direction) {
+					case FORWARD:
+					case FORWARD_N_FOLD:
+						next = getNext(direction, next, end);
+						break;
+					case BACK:
+					case BACK_N_FOLD:
+						next = getPrevious(direction, next, end);
+						break;
+				}
+				if (next == null) {
+					return null;
+				}
+			} while (!next.isVisible());
+			if (next == from) {
+				break;
+			}
+			if (condition == null || condition.checkNode(next)) {
+				return next;
+			}
+		}
+		return null;
+	}
+
+	private NodeModel getNext(final Direction direction, NodeModel current, final NodeModel end) {
+		if (current.getChildCount() != 0) {
+			final NodeModel next = (NodeModel) current.getChildAt(0);
+			if (next.equals(end)) {
+				return null;
+			}
+			return next;
+		}
+		for (;;) {
+			final NodeModel parentNode = current.getParentNode();
+			if (parentNode == null) {
+				return current;
+			}
+			final int index = parentNode.getIndex(current) + 1;
+			final int childCount = parentNode.getChildCount();
+			if (index < childCount) {
+				if (direction == Direction.FORWARD_N_FOLD) {
+					getModeController().getMapController().setFolded(current, true);
+				}
+				final NodeModel next = (NodeModel) parentNode.getChildAt(index);
+				if (next.equals(end)) {
+					return null;
+				}
+				return next;
+			}
+			current = parentNode;
+			if (current.equals(end)) {
+				return null;
+			}
+		}
+	}
+
+	private NodeModel getPrevious(final Direction direction, NodeModel current, final NodeModel end) {
+		for (;;) {
+			final NodeModel parentNode = current.getParentNode();
+			if (parentNode == null) {
+				break;
+			}
+			if (direction == Direction.BACK_N_FOLD) {
+				getModeController().getMapController().setFolded(current, true);
+			}
+			final int index = parentNode.getIndex(current) - 1;
+			if (index < 0) {
+				if (direction == Direction.BACK_N_FOLD) {
+					getModeController().getMapController().setFolded(parentNode, true);
+				}
+				if (parentNode.equals(end)) {
+					return null;
+				}
+				return parentNode;
+			}
+			current = (NodeModel) parentNode.getChildAt(index);
+			if (current.equals(end)) {
+				return null;
+			}
+			break;
+		}
+		for (;;) {
+			if (current.getChildCount() == 0) {
+				if (current.equals(end)) {
+					return null;
+				}
+				return current;
+			}
+			current = (NodeModel) current.getChildAt(current.getChildCount() - 1);
+		}
 	}
 }

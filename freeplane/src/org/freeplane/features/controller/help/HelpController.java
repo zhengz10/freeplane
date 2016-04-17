@@ -42,18 +42,22 @@ public class HelpController implements IExtension {
 	public HelpController(final Controller controller) {
 		super();
 		controller.addAction(new AboutAction(controller));
-		final ResourceController resourceController = ResourceController
-		    .getResourceController();
-		controller.addAction(new OpenURLAction("OpenFreeplaneSiteAction", controller, resourceController.getProperty("webFreeplaneLocation")));
-		controller.addAction(new OpenSourceForgeURLAction("ReportBugAction", controller, resourceController.getProperty("bugTrackerLocation")));
-		controller.addAction(new OpenSourceForgeURLAction("RequestFeatureAction", controller, resourceController.getProperty("featureTrackerLocation")));
-		controller.addAction(new OpenSourceForgeURLAction("AskForHelp", controller, resourceController.getProperty("helpForumLocation")));
+		final ResourceController resourceController = ResourceController.getResourceController();
+		controller.addAction(new OpenURLAction("OpenFreeplaneSiteAction", controller, resourceController
+		    .getProperty("webFreeplaneLocation")));
+		controller.addAction(new OpenSourceForgeURLAction("ReportBugAction", controller, resourceController
+		    .getProperty("bugTrackerLocation")));
+		controller.addAction(new OpenSourceForgeURLAction("RequestFeatureAction", controller, resourceController
+		    .getProperty("featureTrackerLocation")));
+		controller.addAction(new OpenSourceForgeURLAction("AskForHelp", controller, resourceController
+		    .getProperty("helpForumLocation")));
 		controller.addAction(new KeyDocumentationAction(controller));
-		webDocu = new OpenURLAction("WebDocuAction", controller, resourceController
-		    .getProperty("webDocuLocation"));
+		webDocu = new OpenURLAction("WebDocuAction", controller, resourceController.getProperty("webDocuLocation"));
 		controller.addAction(webDocu);
-		final String defaultMap = resourceController.getProperty("browsemode_initial_map");
+		final String defaultMap = resourceController.getProperty("docu_map");
 		controller.addAction(new DocumentationAction(controller, "DocumentationAction", defaultMap));
+		final String referenceMap = resourceController.getProperty("menuref_map");
+		controller.addAction(new DocumentationAction(controller, "MenuReferenceAction", referenceMap));
 		final String hotKeyInfo = resourceController.getProperty("hot_key_info");
 		controller.addAction(new DocumentationAction(controller, "HotKeyInfoAction", hotKeyInfo));
 		controller.addAction(new LicenseAction(controller));
