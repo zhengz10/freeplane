@@ -50,7 +50,10 @@ import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.text.BadLocationException;
 import javax.swing.text.JTextComponent;
+
+import jsyntaxpane.actions.ActionUtils;
 
 import org.freeplane.core.ui.MenuBuilder;
 import org.freeplane.core.ui.UIBuilder;
@@ -59,7 +62,7 @@ import org.freeplane.core.ui.components.UITools;
 import org.freeplane.core.util.LogUtils;
 import org.freeplane.core.util.TextUtils;
 import org.freeplane.features.mode.Controller;
-import org.freeplane.plugin.script.ScriptingEngine.IErrorHandler;
+import org.freeplane.plugin.script.IFreeplaneScriptErrorHandler;
 
 /**
  */
@@ -108,7 +111,7 @@ class ScriptEditorPanel extends JDialog {
 
 		void endDialog(boolean pIsCanceled);
 
-		Object executeScript(int pIndex, PrintStream outStream, IErrorHandler pErrorHandler);
+		Object executeScript(int pIndex, PrintStream outStream, IFreeplaneScriptErrorHandler pErrorHandler);
 
 		int getAmountOfScripts();
 
@@ -351,9 +354,14 @@ class ScriptEditorPanel extends JDialog {
 		mScriptTextField.addCaretListener(new CaretListener() {
 			public void caretUpdate(final CaretEvent arg0) {
 				final int caretPosition = mScriptTextField.getCaretPosition();
-				final int lineOfOffset = JSyntaxPaneProxy.getLineOfOffset(mScriptTextField, caretPosition);
-				mStatus.setText("Line: " + (lineOfOffset + 1) + ", Column: "
-					+ (caretPosition - JSyntaxPaneProxy.getLineOfOffset(mScriptTextField, lineOfOffset) + 1));
+				try {
+	                final int lineOfOffset = ActionUtils.getLineNumber(mScriptTextField, caretPosition);
+	                mStatus.setText("Line: " + (lineOfOffset + 1) + ", Column: "
+	                	+ (caretPosition - ActionUtils.getLineNumber(mScriptTextField, lineOfOffset) + 1));
+                }
+                catch (Exception e) {
+	                e.printStackTrace();
+                }
 			}
 		});
 		updateFields();
@@ -417,10 +425,10 @@ class ScriptEditorPanel extends JDialog {
 		mScriptModel.endDialog(pIsCanceled);
 	}
 
-	IErrorHandler getErrorHandler() {
-		return new IErrorHandler() {
+	IFreeplaneScriptErrorHandler getErrorHandler() {
+		return new IFreeplaneScriptErrorHandler() {
 			public void gotoLine(final int pLineNumber) {
-				JSyntaxPaneProxy.gotoPosition(mScriptTextField, pLineNumber, 1);
+				ActionUtils.setCaretPosition(mScriptTextField, pLineNumber, 1);
 			}
 		};
 	}

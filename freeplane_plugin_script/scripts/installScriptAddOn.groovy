@@ -31,6 +31,7 @@ import org.freeplane.features.mode.Controller
 import org.freeplane.main.addons.AddOnProperties
 import org.freeplane.main.addons.AddOnsController
 import org.freeplane.plugin.script.ExecuteScriptAction
+import org.freeplane.plugin.script.ScriptResources;
 import org.freeplane.plugin.script.ScriptingEngine
 import org.freeplane.plugin.script.ScriptingPermissions
 import org.freeplane.plugin.script.addons.AddOnDetailsPanel
@@ -260,7 +261,6 @@ def parseScripts(Map childNodeMap) {
 	configMap[property] = propertyNode.children.inject([]){ scripts, scriptNode ->
 		def script = new ScriptAddOnProperties.Script()
 		script.name = expandVariables(scriptNode.plainText)
-		script.file = new File(ScriptingEngine.getUserScriptDir(), script.name)
 		script.scriptBody = ensureNoHtml(theOnlyChild(scriptNode)).text
 		mapStructureAssert( ! htmlUtils.isHtmlNode(script.scriptBody), textUtils.getText('addons.installer.html.script'))
 		scriptNode.attributes.map.each { k,v ->
@@ -270,7 +270,7 @@ def parseScripts(Map childNodeMap) {
 				script[k] = expandVariables(v)
 		}
 		script.permissions = parsePermissions(scriptNode, script.name)
-		mapStructureAssert(script.name.endsWith('.groovy'), textUtils.format('addons.installer.groovy.script.name', script.name))
+		mapStructureAssert(script.name.matches('.*\\.\\w+'), textUtils.format('addons.installer.script.name.suffix', script.name))
 		mapStructureAssert(script.menuTitleKey, textUtils.format('addons.installer.script.no.menutitle', script))
 		mapStructureAssert(script.menuLocation, textUtils.format('addons.installer.script.no.menulocation', script))
 		mapStructureAssert(script.executionMode, textUtils.format('addons.installer.script.no.execution_mode', script))
@@ -391,8 +391,8 @@ def addOnDir() {
 
 def createScripts() {
 	List<ScriptAddOnProperties.Script> scripts = configMap['scripts']
-	scripts.each { script -> 
-		File file = script.file
+	scripts.each { script ->
+		File file = new File(ScriptResources.getUserScriptDir(), script.name)
 		try {
 			file.text = script.scriptBody
 		}
@@ -404,10 +404,10 @@ def createScripts() {
 	}
 }
 
-def expandVariables(String string) {
+def expandVariables(Object o) {
 	Map variableMap = configMap['properties']
 	// expands strings like "${name}.groovy"
-	string.replaceAll(/\$\{([^}]+)\}/, { match, key -> variableMap[key] ? variableMap[key] : match })
+	String.valueOf(o).replaceAll(/\$\{([^}]+)\}/, { match, key -> variableMap[key] ? variableMap[key] : match })
 }
 
 AddOnProperties parse() {
@@ -469,7 +469,7 @@ boolean confirmInstall(ScriptAddOnProperties addOn, ScriptAddOnProperties instal
 	def dialogPrefSize = new Dimension((int) screenSize.getWidth() * 3 / 5, (int) screenSize.getHeight() * 1 / 2);
 	def warning = textUtils.removeTranslateComment(textUtils.getText('addons.installer.warning'))
 	def addOnDetailsPanel = new AddOnDetailsPanel(addOn, warning)
-	addOnDetailsPanel.maxWidth = 600
+	addOnDetailsPanel.maxWidth = 500
 	def installButtonText = installedAddOn ? textUtils.format('addons.installer.update', installedAddOn.version)
 		: textUtils.getText('addons.installer.install')
 
@@ -480,9 +480,15 @@ boolean confirmInstall(ScriptAddOnProperties addOn, ScriptAddOnProperties instal
 						locationRelativeTo:ui.frame, owner:ui.frame, pack:true, preferredSize:dialogPrefSize) {
 		scrollPane() {
 			panel() {
+				panel(alignmentX:0.05) {
+					flowLayout(alignment:FlowLayout.LEFT)
+					button(action: action(name: textUtils.getText('cancel'), mnemonic: 'C', closure: {dispose()}))
+					defaultButton = button(id:'defBtn', action: action(name: installButtonText,
+						mnemonic: 'I', defaultButton:true, selected:true, closure: {vars.ok = true; dispose()}))
+				}
 				boxLayout(axis:BoxLayout.Y_AXIS)
 				widget(addOnDetailsPanel)
-				panel(alignmentX:0f) {
+				panel(alignmentX:0.05) {
 					flowLayout(alignment:FlowLayout.RIGHT)
 					button(action: action(name: textUtils.getText('cancel'), mnemonic: 'C', closure: {dispose()}))
 					defaultButton = button(id:'defBtn', action: action(name: installButtonText,

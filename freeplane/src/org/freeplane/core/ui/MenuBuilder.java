@@ -372,7 +372,7 @@ public class MenuBuilder extends UIBuilder {
 		private ButtonGroup buttonGroup;
 		final private ReadManager readManager;
 
-		MenuStructureReader() {
+		public MenuStructureReader() {
 			readManager = new ReadManager();
 			readManager.addElementHandler("menu_structure", new StructureCreator());
 			readManager.addElementHandler("menu_category", new CategoryCreator());
@@ -807,7 +807,7 @@ public class MenuBuilder extends UIBuilder {
 		return super.getParentComponentCount(parentComponent);
 	}
 
-	String getShortcutKey(final String key) {
+	public String getShortcutKey(final String key) {
 		return SHORTCUT_PROPERTY_PREFIX + modeController.getModeName() + "/" + key;
 	}
 
