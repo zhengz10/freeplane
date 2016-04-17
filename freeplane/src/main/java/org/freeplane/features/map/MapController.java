@@ -84,7 +84,7 @@ public class MapController extends SelectionController implements IExtension{
 		}
 
 		public void nodeChanged(final NodeChangeEvent event) {
-			action.setEnabled();
+			setActionEnabled();
 		}
 
 		public void onDeselect(final NodeModel node) {
@@ -862,7 +862,7 @@ public class MapController extends SelectionController implements IExtension{
 			nodesToRefresh.put(key, old);
 		}
         if (startThread) {
-			EventQueue.invokeLater(new Runnable() {
+			final Runnable refresher = new Runnable() {
 				public void run() {
 					final ModeController currentModeController = Controller.getCurrentModeController();
 					final Iterator<Entry<NodeRefreshKey, NodeRefreshValue>> it = nodesToRefresh.entrySet().iterator();
@@ -876,7 +876,8 @@ public class MapController extends SelectionController implements IExtension{
 					    it.remove();
 					}
 				}
-			});
+			};
+			EventQueue.invokeLater(refresher);
 		}
 	}
 
@@ -938,8 +939,13 @@ public class MapController extends SelectionController implements IExtension{
     }
 
 	public void select(final NodeModel node) {
+		final MapModel map = node.getMap();
+		final Controller controller = Controller.getCurrentController();
+		if (! map.equals(controller.getMap())){
+			controller.getMapViewManager().changeToMap(map);
+		}
 		displayNode(node);
-		Controller.getCurrentController().getSelection().selectAsTheOnlyOneSelected(node);
+		controller.getSelection().selectAsTheOnlyOneSelected(node);
 	}
 
 	public void selectMultipleNodes(final NodeModel focussed, final Collection<NodeModel> selecteds) {
