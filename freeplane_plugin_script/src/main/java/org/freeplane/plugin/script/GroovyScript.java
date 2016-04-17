@@ -21,7 +21,6 @@ package org.freeplane.plugin.script;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 
 import org.codehaus.groovy.ast.ASTNode;
@@ -34,7 +33,6 @@ import org.freeplane.plugin.script.proxy.ProxyFactory;
 
 import groovy.lang.Binding;
 import groovy.lang.GroovyRuntimeException;
-import groovy.lang.GroovyShell;
 import groovy.lang.Script;
 
 /**
@@ -56,6 +54,8 @@ public class GroovyScript implements IScript {
     private ScriptContext scriptContext;
 
     private CompileTimeStrategy compileTimeStrategy;
+
+	private ScriptClassLoader scriptClassLoader;
 
     public GroovyScript(String script) {
         this((Object) script);
@@ -124,19 +124,13 @@ public class GroovyScript implements IScript {
             if (errorsInScript != null && compileTimeStrategy.canUseOldCompiledScript()) {
                 throw new ExecuteScriptException(errorsInScript.getMessage(), errorsInScript);
             }
-            final ScriptingSecurityManager scriptingSecurityManager = createScriptingSecurityManager();
             final PrintStream oldOut = System.out;
             try {
                 compileAndCache();
                 final Binding binding = createBinding(node);
                 compiledScript.setBinding(binding);
                 System.setOut(outStream);
-                return scriptingSecurityManager.call(new Callable<Object>() {
-                    @Override
-                    public Object call() throws Exception {
-                        return compiledScript.run();
-                    }
-                });
+				return compiledScript.run();
             } finally {
                 System.setOut(oldOut);
             }
@@ -161,7 +155,9 @@ public class GroovyScript implements IScript {
     }
 
     private Script compileAndCache() throws Throwable {
+		final ScriptingSecurityManager scriptingSecurityManager = createScriptingSecurityManager();
         if (compileTimeStrategy.canUseOldCompiledScript()) {
+			scriptClassLoader.setSecurityManager(scriptingSecurityManager);
             return compiledScript;
         }
         removeOldScript();
@@ -171,8 +167,9 @@ public class GroovyScript implements IScript {
         } else {
             try {
                 final Binding binding = createBindingForCompilation();
-                final ClassLoader classLoader = GroovyScript.class.getClassLoader();
-                final GroovyShell shell = new GroovyShell(classLoader, binding,
+				scriptClassLoader = ScriptClassLoader.createClassLoader();
+				scriptClassLoader.setSecurityManager(scriptingSecurityManager);
+				final GroovyShell shell = new GroovyShell(scriptClassLoader, binding,
                         createCompilerConfiguration());
                 compileTimeStrategy.scriptCompileStart();
                 if (script instanceof String) {

@@ -20,6 +20,7 @@
 package org.freeplane.launcher;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 
@@ -30,7 +31,17 @@ public class Launcher {
 	private int argCount;
 
 	public Launcher() {
-		frameworkDir = getPathToJar();
+		if (isDefineNotSet("org.freeplane.basedirectory")) {
+			frameworkDir = getPathToJar();
+		}
+		else {
+			try {
+				frameworkDir = new File(System.getProperty("org.freeplane.basedirectory")).getCanonicalFile();
+			}
+			catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		}
 		argCount = 0;
 	}
 
@@ -48,10 +59,17 @@ public class Launcher {
 	private void setDefines() {
 		setDefine("org.knopflerfish.framework.readonly", "true");
 		setDefine("org.knopflerfish.gosg.jars", "reference:file:" + getAbsolutePath("core") + '/');
-		if(isDefineNotSet("org.freeplane.globalresourcedir"))
-			setDefine("org.freeplane.globalresourcedir", getAbsolutePath("resources"));
-		setDefine("org.freeplane.basedirectory", frameworkDir.getAbsolutePath());
-		
+		setDefine("org.freeplane.basedirectory", getAbsolutePath());
+		setDefineIfNeeded("org.freeplane.globalresourcedir", getAbsolutePath("resources"));
+		setDefineIfNeeded("java.security.policy", getAbsolutePath("freeplane.policy"));
+		setDefine("org.osgi.framework.storage", getAbsolutePath("fwdir"));
+		System.setSecurityManager(new SecurityManager());
+	}
+
+	private void setDefineIfNeeded(String name, String value) {
+		if (isDefineNotSet(name)) {
+			setDefine(name, value);
+		}
 	}
 
 	private boolean isDefineNotSet(String name) {
@@ -59,6 +77,7 @@ public class Launcher {
 	}
 
 	private String setDefine(String name, String value) {
+		System.out.println(name + "=" + value);
 		return System.setProperty(name, value);
 	}
 
@@ -72,6 +91,10 @@ public class Launcher {
 		Main.main(args);
 	}
 
+	private String getAbsolutePath() {
+		return frameworkDir.getAbsolutePath();
+	}
+
 	private String getAbsolutePath(String relativePath) {
 		return new File(frameworkDir, relativePath).getAbsolutePath();
 	}
@@ -79,8 +102,9 @@ public class Launcher {
 	private File getPathToJar() {
 		URL frameworkUrl = Main.class.getProtectionDomain().getCodeSource().getLocation();
 		try {
-			return new File(frameworkUrl.toURI()).getAbsoluteFile().getParentFile();
-		} catch (URISyntaxException e) {
+			return new File(frameworkUrl.toURI()).getCanonicalFile().getParentFile();
+		}
+		catch (URISyntaxException | IOException e) {
 			throw new RuntimeException(e);
 		}
 	}
