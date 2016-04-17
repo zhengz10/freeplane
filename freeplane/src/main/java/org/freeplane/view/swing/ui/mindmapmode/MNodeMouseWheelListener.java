@@ -7,14 +7,15 @@ import javax.swing.SwingUtilities;
 
 import org.freeplane.core.ui.LengthUnits;
 import org.freeplane.core.util.Quantity;
+import org.freeplane.features.map.IMapSelection;
 import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
-import org.freeplane.features.nodestyle.NodeSizeModel;
 import org.freeplane.features.nodestyle.NodeStyleController;
 import org.freeplane.features.nodestyle.mindmapmode.MNodeStyleController;
 import org.freeplane.view.swing.map.MainView;
 import org.freeplane.view.swing.map.MapView;
+import org.freeplane.view.swing.map.NodeView;
 import org.freeplane.view.swing.ui.DefaultNodeMouseWheelListener;
 
 public class MNodeMouseWheelListener extends DefaultNodeMouseWheelListener {
@@ -25,18 +26,30 @@ public class MNodeMouseWheelListener extends DefaultNodeMouseWheelListener {
 
 	@Override
 	public void mouseWheelMoved(MouseWheelEvent e) {
+		if(! e.isShiftDown()){
+			super.mouseWheelMoved(e);
+			return;
+		}
 		final MainView view = (MainView) e.getComponent();
 		final MapView map = (MapView) SwingUtilities.getAncestorOfClass(MapView.class, view);
 		final int wheelRotation = e.getWheelRotation();
-		final int factor = e.isShiftDown() ? 1 : 6;
-		final NodeModel node = view.getNodeView().getModel();
-		float newZoomedWidth =  (view.getWidth() - wheelRotation * factor) / map.getZoom();
+		final NodeView nodeView = view.getNodeView();
+		if(! nodeView.isSelected())
+			map.selectAsTheOnlyOneSelected(nodeView);
+		
+		final double factor = e.isControlDown() ? 1 : 6 * LengthUnits.pt.factor();
+		double newZoomedWidth =  (view.getWidth() - wheelRotation * factor) / map.getZoom();
+		final IMapSelection selection = Controller.getCurrentController().getSelection();
 		Quantity<LengthUnits> newZoomedWidthQuantity = new Quantity<>(newZoomedWidth, LengthUnits.px).in(LengthUnits.pt);
 		final ModeController modeController = map.getModeController();
 		final MNodeStyleController styleController = (MNodeStyleController) modeController.getExtension(NodeStyleController.class);
-		Controller.getCurrentController().getSelection().keepNodePosition(node, 0.5f, 0.5f);
-		styleController.setMinNodeWidth(node, newZoomedWidthQuantity);
-		styleController.setMaxNodeWidth(node, newZoomedWidthQuantity);
+		
+		selection.keepNodePosition(nodeView.getModel(), 0f, 0f);
+		
+		for (final NodeModel node: selection.getSelection()) { 
+			styleController.setMinNodeWidth(node, newZoomedWidthQuantity);
+			styleController.setMaxNodeWidth(node, newZoomedWidthQuantity);
+		}
 	}
 	
 	
