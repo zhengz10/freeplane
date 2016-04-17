@@ -120,28 +120,33 @@ public class GenericScript implements IScript {
     @Override
     public Object execute(final NodeModel node) {
         try {
-            if (errorsInScript != null)
+            if (errorsInScript != null && compileTimeStrategy.canUseOldCompiledScript()) {
                 throw new ExecuteScriptException(errorsInScript.getMessage(), errorsInScript);
+            }
+            final ScriptingSecurityManager scriptingSecurityManager = createScriptingSecurityManager();
             final ScriptingPermissions originalScriptingPermissions = new ScriptingPermissions(ResourceController
                 .getResourceController().getProperties());
-            final ScriptingSecurityManager scriptingSecurityManager = createScriptingSecurityManager();
             final FreeplaneSecurityManager securityManager = (FreeplaneSecurityManager) System.getSecurityManager();
             final boolean needToSetFinalSecurityManager = securityManager.needToSetFinalSecurityManager();
+            final PrintStream oldOut = System.out;
             try {
                 final SimpleScriptContext context = createScriptContext(node);
                 if (compilationEnabled && engine instanceof Compilable) {
                     compileAndCache((Compilable) engine);
                     if (needToSetFinalSecurityManager)
                         securityManager.setFinalSecurityManager(scriptingSecurityManager);
+                    System.setOut(outStream);
                     return compiledScript.eval(context);
                 }
                 else {
                     if (needToSetFinalSecurityManager)
                         securityManager.setFinalSecurityManager(scriptingSecurityManager);
+                    System.setOut(outStream);
                     return engine.eval(script, context);
                 }
             }
             finally {
+                System.setOut(oldOut);
                 if (needToSetFinalSecurityManager && securityManager.hasFinalSecurityManager())
                     securityManager.removeFinalSecurityManager(scriptingSecurityManager);
                 /* restore preferences (and assure that the values are unchanged!). */
@@ -172,9 +177,9 @@ public class GenericScript implements IScript {
 
     private SimpleScriptContext createScriptContext(final NodeModel node) {
         final SimpleScriptContext context = new SimpleScriptContext();
-        // FIXME: two writer for one stream?
-        context.setWriter(new OutputStreamWriter(outStream));
-        context.setErrorWriter(new OutputStreamWriter(outStream));
+        final OutputStreamWriter outWriter = new OutputStreamWriter(outStream);
+        context.setWriter(outWriter);
+        context.setErrorWriter(outWriter);
         context.setBindings(createBinding(node), javax.script.ScriptContext.ENGINE_SCOPE);
         return context;
     }
@@ -222,17 +227,16 @@ public class GenericScript implements IScript {
         if (compileTimeStrategy.canUseOldCompiledScript())
             return;
         compiledScript = null;
-        if (errorsInScript != null)
-            throw errorsInScript;
-        else
-            try {
-                compiledScript = engine.compile(script);
-                compileTimeStrategy.scriptCompiled();
-            }
-            catch (Throwable e) {
-                errorsInScript = e;
-                throw e;
-            }
+        errorsInScript = null;
+        try {
+            compileTimeStrategy.scriptCompileStart();
+            compiledScript = engine.compile(script);
+            compileTimeStrategy.scriptCompiled();
+        }
+        catch (Throwable e) {
+            errorsInScript = e;
+            throw e;
+        }
     }
 
     private static ScriptEngine findScriptEngine(String scriptEngineName) {
