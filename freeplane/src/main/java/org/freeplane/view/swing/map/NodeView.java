@@ -737,7 +737,7 @@ public class NodeView extends JComponent implements INodeView {
 	}
 	
 	public NodeView getChildDistanceContainer(){
-		if (model.isVisible() || model.isHiddenSummary()) {
+		if (model.isVisible()) {
 			return this;
 		}
 		NodeView parentView = getParentView();
@@ -940,9 +940,9 @@ public class NodeView extends JComponent implements INodeView {
 		if (preferred == null) {
 			preferred = this;
 		}
+		revalidate();
 		if(getMap().getSelected() ==  null)
 			getMap().selectVisibleAncestorOrSelf(preferred);
-		revalidate();
 	}
 
 	public void onNodeInserted(final NodeModel parent, final NodeModel child, final int index) {
@@ -1425,11 +1425,15 @@ public class NodeView extends JComponent implements INodeView {
 			return color;
 		}
 		final NodeModel parentNode = model.getParentNode();
-		if(rule == EdgeController.Rules.BY_BRANCH && parentNode.isRoot()){
+		if(rule == EdgeController.Rules.BY_BRANCH && parentNode.isRoot()
+				|| rule == EdgeController.Rules.BY_LEVEL){
+			final int index;
+			if (rule == EdgeController.Rules.BY_BRANCH)
+				index = parentNode.getIndex(model) + 1;
+			else
+				index = model.getNodeLevel(false) + (model.isHiddenSummary() ? 1 : 0);
 			ModeController modeController = getMap().getModeController();
 			AutomaticLayoutController automaticLayoutController = modeController.getExtension(AutomaticLayoutController.class);
-			final NodeModel childNode = model;
-			int index = parentNode.getIndex(childNode) + 1;
 			NodeModel styleNode = automaticLayoutController.getStyleNode(map.getModel(), index, true);
 			if(styleNode != null){
 				Color color = modeController.getExtension(EdgeController.class).getColor(styleNode);
@@ -1437,7 +1441,8 @@ public class NodeView extends JComponent implements INodeView {
 				return color;
 			}
 		}
-		else if(rule == EdgeController.Rules.BY_PARENT) {
+		else
+			if(rule == EdgeController.Rules.BY_PARENT) {
 			final NodeView parentView = getParentView();
 			if (parentView != null) {
 				final Color color = parentView.getEdgeColor();
@@ -1597,7 +1602,7 @@ public class NodeView extends JComponent implements INodeView {
 	@Override
 	public void setBounds(int x, int y, int width, int height) {
 		Rules rule = edgeColor.getRule();
-		if(EdgeController.Rules.BY_COLUMN == rule || EdgeController.Rules.BY_BRANCH == rule)
+		if(EdgeController.Rules.BY_PARENT != rule)
 			edgeColor.resetCache();
 		super.setBounds(x, y, width, height);
 	}

@@ -44,7 +44,6 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.print.PageFormat;
 import java.awt.print.Printable;
-import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -183,10 +182,10 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			mapScroller.anchorToNode(getNodeView(node), horizontalPoint, verticalPoint);
 		}
 		
-		public void scrollNodeTreeToVisible(final NodeModel  node, boolean slow) {
+		public void scrollNodeTreeToVisible(final NodeModel  node) {
 			final NodeView nodeView = getNodeView(node);
 			if(nodeView != null)
-				mapScroller.scrollNodeTreeToVisible(nodeView, slow);
+				mapScroller.scrollNodeTreeToVisible(nodeView);
 		}
 
 
@@ -371,6 +370,11 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
             for(NodeView view : newSelection)
                 if (selectedSet.add(view))
                 	selectedList.add(view);
+			if(!selectedSet.contains(selectionStart))
+				selectionEnd = selectionStart = selectedNode;
+			else if (!selectedSet.contains(selectionEnd))
+				selectionEnd = selectionStart;
+
             if (selectedChanges) {
                 addSelectionForHooks(selectedNode);
             }
@@ -1168,10 +1172,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 				}
 			});
 		}
-		catch (final MalformedURLException e1) {
-			LogUtils.severe(e1);
-		}
-		catch (final IOException e1) {
+		catch (final Exception e1) {
 			LogUtils.severe(e1);
 		}
 	}
@@ -1768,10 +1769,10 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 */
 	public void selectAsTheOnlyOneSelected(final NodeView newSelected) {
 		final NodeModel node = newSelected.getModel();
-		if(! node.isVisible())
-			node.getFilterInfo().reset();
-		if(! node.hasVisibleContent())
+		if(node.isHiddenSummary())
 			throw new AssertionError("select invisible node");
+		if(node.isVisible())
+			node.getFilterInfo().reset();
 		if (ResourceController.getResourceController().getBooleanProperty("center_selected_node")) {
 			mapScroller.scrollNode(newSelected, ScrollingDirective.SCROLL_NODE_TO_CENTER, ResourceController.getResourceController().getBooleanProperty("slow_scroll_selected_node"));
 		}
@@ -2031,17 +2032,17 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 
 	@Override
     public void setSize(int width, int height) {
-		if(getWidth() != width || getHeight() != height) {
+		final boolean sizeChanged = getWidth() != width || getHeight() != height;
+		if(sizeChanged) {
 			super.setSize(width, height);
 			validate();
-			if(isDisplayable())
-				mapScroller.scrollView();
-		}
-		else{
-			mapScroller.setAnchorView(getRoot());
-			mapScroller.setAnchorContentLocation();
 		}
     }
+
+	void scrollView() {
+		if(isDisplayable())
+			mapScroller.scrollView();
+	}
 
 	@Override
     public void setLocation(int x, int y) {
