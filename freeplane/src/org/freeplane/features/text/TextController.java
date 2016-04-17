@@ -27,8 +27,6 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.swing.Icon;
-
 import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.io.ReadManager;
 import org.freeplane.core.io.WriteManager;
@@ -151,18 +149,6 @@ public class TextController implements IExtension {
 			return new HighlightedTransformedObject(object);
 		else
 			return object;
-	}
-	
-	public Icon getIcon(Object object, final NodeModel nodeModel, Object extension){
-		if(object instanceof HighlightedTransformedObject){
-			return getIcon(((HighlightedTransformedObject)object).getObject(), nodeModel, extension);
-		}
-		for (IContentTransformer textTransformer : getTextTransformers()) {
-			Icon icon = textTransformer.getIcon(this, object, nodeModel, extension);
-			if( icon != null)
-				return icon;
-		}
-		return null;
 	}
 
 	public boolean isTextFormattingDisabled(final NodeModel nodeModel) {
@@ -368,8 +354,4 @@ public class TextController implements IExtension {
 		}
 		return false;
     }
-	public ModeController getModeController() {
-    	return modeController;
-    }
-
 }

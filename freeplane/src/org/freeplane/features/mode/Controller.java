@@ -85,7 +85,7 @@ public class Controller extends AController {
 		getMapViewManager().close(withoutSave);
 	}
 
-	public <T extends IExtension> T getExtension(final Class<T> clazz){
+	public IExtension getExtension(final Class<? extends IExtension> clazz) {
 		return extensionContainer.getExtension(clazz);
 	}
 

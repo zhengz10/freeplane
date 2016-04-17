@@ -153,14 +153,16 @@ public class Compat {
 			}
 		}
 	}
-	final private static String CURRENT_VERSION_DIR= File.separatorChar + "1.3.x";
+	final private static String PREVIEW_DIR=File.separatorChar + "1.2.x";
 	
 	public static String getFreeplaneUserDirectory() {
 		String userFpDir = System.getProperty("org.freeplane.userfpdir");
 		if(userFpDir == null){
 			userFpDir = System.getProperty("user.home")+ File.separator + ".freeplane";
 		}
-		return userFpDir + CURRENT_VERSION_DIR;
+		if(PREVIEW_DIR != null)
+			return userFpDir + PREVIEW_DIR;
+		return userFpDir;
 	}
 
 	static public String smbUri2unc(final URI uri) {

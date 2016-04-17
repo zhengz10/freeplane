@@ -57,7 +57,6 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.RootPaneContainer;
@@ -242,7 +241,6 @@ abstract public class ViewController implements IMapViewChangeListener, IFreepla
 		}) ;
 		
 		controller.addAction(new ToggleMenubarAction(this));
-		controller.addAction(new ToggleScrollbarsAction(this));
 		controller.addAction(new ToggleToolbarAction("ToggleToolbarAction", "/main_toolbar"));
 		controller.addAction(new ToggleToolbarAction("ToggleStatusAction", "/status"));
 		toolbarPanel = new JComponent[4];
@@ -480,25 +478,17 @@ abstract public class ViewController implements IMapViewChangeListener, IFreepla
 	abstract public boolean isApplet();
 
 	public boolean isMenubarVisible() {
-		return isComponentVisible("menubar");
-	}
-
-	public boolean areScrollbarsVisible() {
-		return isComponentVisible("scrollbars");
-	}
-
-	private boolean isComponentVisible(String component) {
-	    final String property;
+		final String property;
 		if (isFullScreenEnabled()) {
-			property = component+"Visible.fullscreen";
+			property = "menubarVisible.fullscreen";
 		}
 		else {
-			property = component +"Visible";
+			property = "menubarVisible";
 		}
 		final boolean booleanProperty = ResourceController.getResourceController().getBooleanProperty(
 		    getPropertyKeyPrefix() + property);
 		return booleanProperty;
-    }
+	}
 
 	public void obtainFocusForSelected() {
 		SwingUtilities.invokeLater(new Runnable() {
@@ -639,15 +629,8 @@ abstract public class ViewController implements IMapViewChangeListener, IFreepla
 			}
 		}
 		setFreeplaneMenuBar(newUserInputListenerFactory.getMenuBar());
-		setUIComponentsVisible();
+		getFreeplaneMenuBar().setVisible(isMenubarVisible());
 	}
-
-	private void setUIComponentsVisible() {
-	    getFreeplaneMenuBar().setVisible(isMenubarVisible());
-		final boolean areScrollbarsVisible = areScrollbarsVisible();
-		scrollPane.setHorizontalScrollBarPolicy(areScrollbarsVisible ? JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS : JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		scrollPane.setVerticalScrollBarPolicy(areScrollbarsVisible ? JScrollPane.VERTICAL_SCROLLBAR_ALWAYS : JScrollPane.VERTICAL_SCROLLBAR_NEVER);
-    }
 
 	public void setAntialiasAll(final boolean antialiasAll) {
 		this.antialiasAll = antialiasAll;
@@ -671,27 +654,16 @@ abstract public class ViewController implements IMapViewChangeListener, IFreepla
 	abstract protected void setFreeplaneMenuBar(FreeplaneMenuBar menuBar);
 
 	public void setMenubarVisible(final boolean visible) {
-		final FreeplaneMenuBar freeplaneMenuBar = getFreeplaneMenuBar();
-		setComponentVisibleProperty("menubar", visible);
-		freeplaneMenuBar.setVisible(visible);
-	}
-
-	public void setScrollbarsVisible(final boolean visible) {
-		setComponentVisibleProperty("scrollbars", visible);
-		scrollPane.setHorizontalScrollBarPolicy(visible ? JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS : JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		scrollPane.setVerticalScrollBarPolicy(visible ? JScrollPane.VERTICAL_SCROLLBAR_ALWAYS : JScrollPane.VERTICAL_SCROLLBAR_NEVER);
-	}
-
-	private void setComponentVisibleProperty(final String componentName, final boolean visible) {
-	    final String property;
+		final String property;
 		if (isFullScreenEnabled()) {
-			property = componentName+"Visible.fullscreen";
+			property = "menubarVisible.fullscreen";
 		}
 		else {
-			property = componentName+"Visible";
+			property = "menubarVisible";
 		}
-		ResourceController.getResourceController().setProperty(getPropertyKeyPrefix() + property, visible);		
-    }
+		ResourceController.getResourceController().setProperty(getPropertyKeyPrefix() + property, visible);
+		getFreeplaneMenuBar().setVisible(visible);
+	}
 
 	public void setTextRenderingHint(final Graphics2D g) {
 		if (getAntialiasAll()) {
@@ -817,7 +789,7 @@ abstract public class ViewController implements IMapViewChangeListener, IFreepla
 			frame.setBounds(0, 0, screenSize.width, screenSize.height);
 			frame.setUndecorated(true);
 			frame.setResizable(false);
-			setUIComponentsVisible();
+			getFreeplaneMenuBar().setVisible(isMenubarVisible());
 			for (int j = 0; j < 4; j++) {
 				final Iterable<JComponent> toolBars = getController().getModeController().getUserInputListenerFactory()
 				    .getToolBars(j);
@@ -833,7 +805,7 @@ abstract public class ViewController implements IMapViewChangeListener, IFreepla
 			frame.setResizable(true);
 			frame.setBounds(frameSize);
 			frame.setExtendedState(winState);
-			setUIComponentsVisible();
+			getFreeplaneMenuBar().setVisible(isMenubarVisible());
 			for (int j = 0; j < 4; j++) {
 				final Iterable<JComponent> toolBars = getController().getModeController().getUserInputListenerFactory()
 				    .getToolBars(j);
