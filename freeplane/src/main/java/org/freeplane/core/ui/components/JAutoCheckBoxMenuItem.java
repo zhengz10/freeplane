@@ -31,12 +31,11 @@ import org.freeplane.core.ui.IFreeplaneAction;
 import org.freeplane.core.ui.SelectableAction;
 
 
-public class JAutoCheckBoxMenuItem extends JCheckBoxMenuItem implements PropertyChangeListener, IKeyBindingManager {
+public class JAutoCheckBoxMenuItem extends JCheckBoxMenuItem implements IKeyBindingManager {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private PropertyChangeListener defaultPropertyChanegListener;
 
 	public JAutoCheckBoxMenuItem(final IFreeplaneAction a) {
 		super();
@@ -49,26 +48,14 @@ public class JAutoCheckBoxMenuItem extends JCheckBoxMenuItem implements Property
 	@Override
     protected void configurePropertiesFromAction(Action a) {
 	    super.configurePropertiesFromAction(a);
-	    setSelected(((IFreeplaneAction)a).isSelected());
+	    if(a != null)
+	    	setSelected(((IFreeplaneAction)a).isSelected());
     }
-
-
 
 	@Override
 	protected PropertyChangeListener createActionPropertyChangeListener(final Action a) {
-		defaultPropertyChanegListener = super.createActionPropertyChangeListener(a);
-		return this;
+		return new PropertyChangeListenerWithSelectionSupport(this, super.createActionPropertyChangeListener(a));
 	};
-
-	public void propertyChange(final PropertyChangeEvent e) {
-		if (e.getPropertyName().equals(SelectableAction.SELECTION_PROPERTY)) {
-			final Boolean isSelected = (Boolean) e.getNewValue();
-			setSelected(isSelected.booleanValue());
-		}
-		else {
-			defaultPropertyChanegListener.propertyChange(e);
-		}
-	}
 
 	private boolean isKeyBindingProcessed = false;
 

@@ -200,8 +200,9 @@ public class NodeModel{
 			return;
 		}
 		final Iterator<INodeView> iterator = views.iterator();
+		final NodeDeletionEvent nodeDeletionEvent = new NodeDeletionEvent(this, child, index);
 		while (iterator.hasNext()) {
-			iterator.next().onNodeDeleted(this, child, index);
+			iterator.next().onNodeDeleted(nodeDeletionEvent);
 		}
 	}
 
@@ -210,7 +211,7 @@ public class NodeModel{
 	};
 
 	public NodeModel getChildAt(final int childIndex) {
-		return getChildrenInternal().get(childIndex);
+		return childIndex >= 0 ? getChildrenInternal().get(childIndex) : null; 
 	}
 
 	public int getChildCount() {
@@ -652,5 +653,33 @@ public class NodeModel{
 	
 	public boolean isCloneTreeNode(){
 		return parent != null && clones.size() > 1 && parent.clones.size() == clones.size();
+	}
+	
+	public int nextNodeIndex(int index, final boolean leftSide) {
+		return nextNodeIndex(index, leftSide, +1);
+	}
+
+	public int previousNodeIndex(int index, final boolean leftSide) {
+		return nextNodeIndex(index, leftSide, -1);
+	}
+
+	private int nextNodeIndex(int index, final boolean leftSide, final int step) {
+		for(int i = index  + step; i >= 0 && i < getChildCount(); i+=step){
+			final NodeModel followingNode = getChildAt(i);
+			if(followingNode.isLeft() == leftSide) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	public NodeModel previousNode(int start, boolean isLeft) {
+		final int previousNodeIndex = previousNodeIndex(start, isLeft);
+		return parent.getChildAt(previousNodeIndex);
+	}
+
+	public int getIndex() {
+		final NodeModel parentNode = getParentNode();
+		return parentNode != null ? parentNode.getIndex(this) : -1;
 	}
 }

@@ -5,19 +5,19 @@ abstract public class AMapChangeListenerAdapter implements IMapChangeListener, I
 	public void mapChanged(MapChangeEvent event) {
 	}
 
-	public void onNodeDeleted(NodeModel parent, NodeModel child, int index) {
+	public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
 	}
 
 	public void onNodeInserted(NodeModel parent, NodeModel child, int newIndex) {
 	}
 
-	public void onNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
+	public void onNodeMoved(NodeMoveEvent nodeMoveEvent) {
 	}
 
-	public void onPreNodeDelete(NodeModel oldParent, NodeModel selectedNode, int index) {
+	public void onPreNodeDelete(NodeDeletionEvent nodeDeletionEvent) {
 	}
 
-	public void onPreNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
+	public void onPreNodeMoved(NodeMoveEvent nodeMoveEvent) {
 	}
 
 	public void nodeChanged(NodeChangeEvent event) {

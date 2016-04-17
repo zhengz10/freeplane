@@ -94,29 +94,26 @@ public class MapController extends SelectionController implements IExtension{
 		}
 
 		public void mapChanged(MapChangeEvent event) {
-			action.setEnabled();
+			setActionEnabled();
 		}
 
-		public void onNodeDeleted(NodeModel parent, NodeModel child, int index) {
-			action.setEnabled();
+		public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
+			setActionEnabled();
 		}
 
 		public void onNodeInserted(NodeModel parent, NodeModel child,
 				int newIndex) {
-			action.setEnabled();
+			setActionEnabled();
 		}
 
-		public void onNodeMoved(NodeModel oldParent, int oldIndex,
-				NodeModel newParent, NodeModel child, int newIndex) {
-			action.setEnabled();
+		public void onNodeMoved(NodeMoveEvent nodeMoveEvent) {
+			setActionEnabled();
 		}
 
-		public void onPreNodeMoved(NodeModel oldParent, int oldIndex,
-				NodeModel newParent, NodeModel child, int newIndex) {
+		public void onPreNodeMoved(NodeMoveEvent nodeMoveEvent) {
 		}
 
-		public void onPreNodeDelete(NodeModel oldParent,
-				NodeModel selectedNode, int index) {
+		public void onPreNodeDelete(NodeDeletionEvent nodeDeletionEvent) {
 			setActionEnabled();
 		}
 
@@ -168,7 +165,7 @@ public class MapController extends SelectionController implements IExtension{
 			setActionSelected();
 		}
 
-		public void onNodeDeleted(final NodeModel parent, final NodeModel child, final int index) {
+		public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
 			setActionSelected();
 		}
 
@@ -176,17 +173,15 @@ public class MapController extends SelectionController implements IExtension{
 			setActionSelected();
 		}
 
-		public void onNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
-		                        final NodeModel child, final int newIndex) {
+		public void onNodeMoved(NodeMoveEvent nodeMoveEvent) {
 			setActionSelected();
 		}
 
-		public void onPreNodeDelete(final NodeModel oldParent, final NodeModel selectedNode, final int index) {
+		public void onPreNodeDelete(NodeDeletionEvent nodeDeletionEvent) {
 			setActionSelected();
 		}
 
-		public void onPreNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
-		                           final NodeModel child, final int newIndex) {
+		public void onPreNodeMoved(NodeMoveEvent nodeMoveEvent) {
 			setActionSelected();
 		}
 	}
@@ -513,12 +508,13 @@ public class MapController extends SelectionController implements IExtension{
 	    node.fireNodeChanged(nodeChangeListeners, nodeChangeEvent);
 	}
 
-	protected void fireNodeDeleted(final NodeModel parent, final NodeModel child, final int index) {
+	protected void fireNodeDeleted(final NodeDeletionEvent nodeDeletionEvent) {
 		final IMapChangeListener[] list = mapChangeListeners.toArray(new IMapChangeListener[]{});
 		for (final IMapChangeListener next : list) {
-			next.onNodeDeleted(parent, child, index);
+			next.onNodeDeleted(nodeDeletionEvent);
 		}
-		child.getMap().unregistryNodes(child);
+		NodeModel node = nodeDeletionEvent.node;
+		node.getMap().unregistryNodes(node);
 	}
 
 	protected void fireNodeInserted(final NodeModel parent, final NodeModel child, final int index) {
@@ -529,26 +525,24 @@ public class MapController extends SelectionController implements IExtension{
 		}
 	}
 
-	protected void fireNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
-	                             final NodeModel child, final int newIndex) {
+	protected void fireNodeMoved(final NodeMoveEvent nodeMoveEvent) {
 		final IMapChangeListener[] list = mapChangeListeners.toArray(new IMapChangeListener[]{});
 		for (final IMapChangeListener next : list) {
-			next.onNodeMoved(oldParent, oldIndex, newParent, child, newIndex);
+			next.onNodeMoved(nodeMoveEvent);
 		}
 	}
 
-	protected void firePreNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
-	                                final NodeModel child, final int newIndex) {
+	protected void firePreNodeMoved(final NodeMoveEvent nodeMoveEvent) {
 		final IMapChangeListener[] list = mapChangeListeners.toArray(new IMapChangeListener[]{});
 		for (final IMapChangeListener next : list) {
-			next.onPreNodeMoved(oldParent, oldIndex, newParent, child, newIndex);
+			next.onPreNodeMoved(nodeMoveEvent);
 		}
 	}
 
-	protected void firePreNodeDelete(final NodeModel parent, final NodeModel selectedNode, final int index) {
+	protected void firePreNodeDelete(final NodeDeletionEvent nodeDeletionEvent) {
 		final IMapChangeListener[] list = mapChangeListeners.toArray(new IMapChangeListener[]{});
 		for (final IMapChangeListener next : list) {
-			next.onPreNodeDelete(parent, selectedNode, index);
+			next.onPreNodeDelete(nodeDeletionEvent);
 		}
 	}
 
@@ -564,19 +558,20 @@ public class MapController extends SelectionController implements IExtension{
 				continue;
 			}
 			if (state == null) {
-				if (Controller.getCurrentController().getMapViewManager().isFoldedOnCurrentView(node))
-					state = true;
-				else
-					state = hasHiddenChildren(node);
+				state = canBeUnfolded(node);
 			}
 			else {
-				if (hasHiddenChildren(node) != state) {
-					// no common state
+				if (canBeUnfolded(node) != state) {
 					return null;
 				}
 			}
 		}
 		return state;
+	}
+
+
+	private boolean canBeUnfolded(final NodeModel node) {
+		return Controller.getCurrentController().getMapViewManager().isFoldedOnCurrentView(node) ||  hasHiddenChildren(node);
 	}
 
 	public MapReader getMapReader() {

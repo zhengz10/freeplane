@@ -17,7 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.freeplane.features.map;
+package org.freeplane.features.map;	
 
 import org.freeplane.core.extension.IExtension;
 import org.freeplane.features.map.mindmapmode.MMapController;
@@ -42,7 +42,7 @@ public class SummaryNode extends PersistentNodeHook implements IExtension{
 	};
 	
 	static public boolean isFirstGroupNode(final NodeModel nodeModel) {
-		return nodeModel.containsExtension(FirstGroupNode.class);
+		return nodeModel.containsExtension(FirstGroupNodeFlag.class);
 	}
 	
 	
@@ -53,15 +53,15 @@ public class SummaryNode extends PersistentNodeHook implements IExtension{
 		modeController.getMapController().addMapChangeListener(new IMapChangeListener() {
 			
 			@Override
-			public void onPreNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
+			public void onPreNodeMoved(NodeMoveEvent nodeMoveEvent) {
 			}
 			
 			@Override
-			public void onPreNodeDelete(NodeModel oldParent, NodeModel selectedNode, int index) {
+			public void onPreNodeDelete(NodeDeletionEvent nodeDeletionEvent) {
 			}
 			
 			@Override
-			public void onNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
+			public void onNodeMoved(NodeMoveEvent nodeMoveEvent) {
 			}
 			
 			@Override
@@ -69,7 +69,8 @@ public class SummaryNode extends PersistentNodeHook implements IExtension{
 			}
 			
 			@Override
-			public void onNodeDeleted(NodeModel parent, NodeModel child, int index) {
+			public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
+				final NodeModel parent = nodeDeletionEvent.parent;
 				if (!modeController.isUndoAction() && ! parent.isFolded() && ! parent.hasChildren() && isSummaryNode(parent)&& parent.getText().isEmpty()){
 					MMapController mapController =  (MMapController) modeController.getMapController();
 					mapController.deleteNode(parent);
@@ -78,23 +79,31 @@ public class SummaryNode extends PersistentNodeHook implements IExtension{
 			
 			@Override
 			public void mapChanged(MapChangeEvent event) {
-				// TODO Auto-generated method stub
-				
 			}
 		});
 	}
 
 	@Override
 	protected IExtension createExtension(NodeModel node, XMLElement element) {
-		return this;
+		return SummaryNodeFlag.SUMMARY;
 	}
 	
+	@Override
+	protected Class<? extends IExtension> getExtensionClass() {
+		return SummaryNodeFlag.class;
+	}
+	
+	@Override
+	protected HookAction createHookAction() {
+		return null;
+	}
+
 	static public boolean isSummaryNode(final NodeModel nodeModel) {
-		return nodeModel.containsExtension(SummaryNode.class);
+		return nodeModel.containsExtension(SummaryNodeFlag.class);
 	}
 
 	static public boolean isHidden(final NodeModel nodeModel) {
-		return ! nodeModel.isFolded() && nodeModel.hasChildren() && isSummaryNode(nodeModel)&& nodeModel.getText().isEmpty(); 
+		return ! nodeModel.isFolded()  && (nodeModel.hasChildren() && isSummaryNode(nodeModel) || isFirstGroupNode(nodeModel))&& nodeModel.getText().isEmpty(); 
 	}
 
 	public static int getSummaryLevel(NodeModel node) {
@@ -115,6 +124,5 @@ public class SummaryNode extends PersistentNodeHook implements IExtension{
 		}
 		return level;
     }
-	
 }
 

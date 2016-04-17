@@ -38,7 +38,9 @@ import org.freeplane.features.map.INodeView;
 import org.freeplane.features.map.MapChangeEvent;
 import org.freeplane.features.map.MapController;
 import org.freeplane.features.map.MapModel;
+import org.freeplane.features.map.NodeDeletionEvent;
 import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.map.NodeMoveEvent;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.NodeHookDescriptor;
 import org.freeplane.features.mode.PersistentNodeHook;
@@ -113,8 +115,8 @@ public class BlinkingNodeHook extends PersistentNodeHook {
 		public void mapChanged(final MapChangeEvent event) {
 		}
 
-		public void onNodeDeleted(final NodeModel parent, final NodeModel child, final int index) {
-			if (Controller.getCurrentModeController().isUndoAction() || !(node.equals(child) || node.isDescendantOf(child))) {
+		public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
+			if (Controller.getCurrentModeController().isUndoAction() || !(node.equals(nodeDeletionEvent.node) || node.isDescendantOf(nodeDeletionEvent.node))) {
 				return;
 			}
 			final IActor actor = new IActor() {
@@ -140,15 +142,13 @@ public class BlinkingNodeHook extends PersistentNodeHook {
 		public void onNodeInserted(final NodeModel parent, final NodeModel child, final int newIndex) {
 		}
 
-		public void onNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
-		                        final NodeModel child, final int newIndex) {
+		public void onNodeMoved(NodeMoveEvent nodeMoveEvent) {
 		}
 
-		public void onPreNodeDelete(final NodeModel oldParent, final NodeModel selectedNode, final int index) {
+		public void onPreNodeDelete(NodeDeletionEvent nodeDeletionEvent) {
 		}
 
-		public void onPreNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
-		                           final NodeModel child, final int newIndex) {
+		public void onPreNodeMoved(NodeMoveEvent nodeMoveEvent) {
 		}
 
 		public void onCreate(final MapModel map) {

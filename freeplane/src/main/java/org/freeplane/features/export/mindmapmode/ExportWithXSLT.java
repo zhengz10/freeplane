@@ -129,12 +129,11 @@ public class ExportWithXSLT implements IExportEngine {
 		return success;
 	}
 
-	private boolean copyMap(final MapModel map, final String pDirectoryName) {
+	private boolean copyMap(final MapModel map, final String pDirectoryName, final Mode mode) {
 		boolean success = true;
 		try {
 			final BufferedWriter fileout = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(
 			    pDirectoryName + File.separator + "map" + UrlManager.FREEPLANE_FILE_EXTENSION)));
-			final Mode mode = Mode.valueOf(getProperty("copymode", Mode.EXPORT.name()));
 			Controller.getCurrentModeController().getMapController().getFilteredXml(map, fileout, mode, Mode.EXPORT.equals(mode));
 		}
 		catch (final IOException e) {
@@ -249,10 +248,12 @@ public class ExportWithXSLT implements IExportEngine {
 				}
 				if (success && StringUtils.equals(getProperty("copy_map"), "true")) {
 	                String copyМapХsltFile = getProperty("copy_map_xslt_file");
-					if (copyМapХsltFile != null)
-	                    success = transformMapWithXslt(copyМapХsltFile, new File(directoryName, "map.mm"), "", Mode.EXPORT, new String[]{});
-                    else
-						success = copyMap(map, directoryName);
+	                final Mode copymode = Mode.valueOf(getProperty("copymode", Mode.EXPORT.name()));
+					if (copyМapХsltFile != null){
+	                    success = transformMapWithXslt(copyМapХsltFile, new File(directoryName, "map.mm"), "", copymode, new String[]{});
+					} else {
+						success = copyMap(map, directoryName, copymode);
+					}
 				}
 				if (success && create_image) {
 					success = createImageFromMap(map, directoryName);

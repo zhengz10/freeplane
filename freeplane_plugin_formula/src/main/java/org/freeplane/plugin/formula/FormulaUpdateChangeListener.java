@@ -7,7 +7,9 @@ import org.freeplane.features.map.IMapChangeListener;
 import org.freeplane.features.map.INodeChangeListener;
 import org.freeplane.features.map.MapChangeEvent;
 import org.freeplane.features.map.NodeChangeEvent;
+import org.freeplane.features.map.NodeDeletionEvent;
 import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.map.NodeMoveEvent;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 import org.freeplane.features.styles.LogicalStyleModel;
@@ -30,8 +32,8 @@ public class FormulaUpdateChangeListener implements INodeChangeListener, IMapCha
 		}
 	}
 
-	public void onNodeDeleted(NodeModel parent, NodeModel child, int index) {
-		nodeChangedImpl(true, parent);
+	public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
+		nodeChangedImpl(true, nodeDeletionEvent.parent);
 	}
 
 	public void onNodeInserted(NodeModel parent, NodeModel child, int newIndex) {
@@ -39,16 +41,16 @@ public class FormulaUpdateChangeListener implements INodeChangeListener, IMapCha
 		nodeChangedImpl(true, parent);
 	}
 
-	public void onNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
+	public void onNodeMoved(NodeMoveEvent nodeMoveEvent) {
 		// - all formulas dependent on the child via getChildren() are also dependent on its parent
 		// FIXME: is child updated or do we have to force that here?
-		nodeChangedImpl(true, oldParent, newParent);
+		nodeChangedImpl(true, nodeMoveEvent.oldParent, nodeMoveEvent.newParent);
 	}
 
-	public void onPreNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
+	public void onPreNodeMoved(NodeMoveEvent nodeMoveEvent) {
 	}
 
-	public void onPreNodeDelete(NodeModel oldParent, NodeModel selectedNode, int index) {
+	public void onPreNodeDelete(NodeDeletionEvent nodeDeletionEvent) {
 	}
 	
 	public void mapChanged(MapChangeEvent event) {

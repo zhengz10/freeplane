@@ -61,8 +61,10 @@ import org.freeplane.features.map.HistoryInformationModel;
 import org.freeplane.features.map.INodeView;
 import org.freeplane.features.map.MapChangeEvent;
 import org.freeplane.features.map.NodeChangeEvent;
+import org.freeplane.features.map.NodeDeletionEvent;
 import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.map.NodeModel.NodeChangeType;
+import org.freeplane.features.map.NodeMoveEvent;
 import org.freeplane.features.map.SummaryNode;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
@@ -73,8 +75,6 @@ import org.freeplane.features.nodestyle.NodeStyleModel;
 import org.freeplane.features.nodestyle.NodeStyleModel.Shape;
 import org.freeplane.features.nodestyle.ShapeConfigurationModel;
 import org.freeplane.features.styles.AutomaticLayoutController;
-import org.freeplane.features.styles.IStyle;
-import org.freeplane.features.styles.MapStyleModel;
 import org.freeplane.features.styles.MapViewLayout;
 import org.freeplane.features.text.ShortenedTextModel;
 import org.freeplane.features.text.TextController;
@@ -427,7 +427,7 @@ public class NodeView extends JComponent implements INodeView {
 			final double ctgRect = Math.abs((double) getContent().getWidth() / getContent().getHeight());
 			final double ctgLine = Math.abs((double) x / y);
 			int absLinkX, absLinkY;
-			if (ctgRect > ctgLine) {
+			if (ctgRect >= ctgLine) {
 				absLinkX = Math.abs(x * getContent().getHeight() / (2 * y));
 				absLinkY = getContent().getHeight() / 2;
 			}
@@ -895,15 +895,15 @@ public class NodeView extends JComponent implements INodeView {
 			getParentView().numberingChanged(node.getParentNode().getIndex(node) + 1);
 	}
 
-	public void onNodeDeleted(final NodeModel parent, final NodeModel child, final int index) {
+	public void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent) {
 		if (isFolded) {
 			return;
 		}
 		final boolean preferredChildIsLeft = preferredChild != null && preferredChild.isLeft();
-		final NodeView node = (NodeView) getComponent(index);
+		final NodeView node = (NodeView) getComponent(nodeDeletionEvent.index);
 		if (node == preferredChild) {
 			preferredChild = null;
-			for (int j = index + 1; j < getComponentCount(); j++) {
+			for (int j = nodeDeletionEvent.index + 1; j < getComponentCount(); j++) {
 				final Component c = getComponent(j);
 				if (!(c instanceof NodeView)) {
 					break;
@@ -915,7 +915,7 @@ public class NodeView extends JComponent implements INodeView {
 				}
 			}
 			if (preferredChild == null) {
-				for (int j = index - 1; j >= 0; j--) {
+				for (int j = nodeDeletionEvent.index - 1; j >= 0; j--) {
 					final Component c = getComponent(j);
 					if (!(c instanceof NodeView)) {
 						break;
@@ -928,7 +928,7 @@ public class NodeView extends JComponent implements INodeView {
 				}
 			}
 		}
-		numberingChanged(index+1);
+		numberingChanged(nodeDeletionEvent.index+1);
 		node.remove();
 		NodeView preferred = getPreferredVisibleChild(false, preferredChildIsLeft);
 		if (preferred == null) {
@@ -949,11 +949,10 @@ public class NodeView extends JComponent implements INodeView {
 		revalidate();
 	}
 
-	public void onNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
-	                        final NodeModel child, final int newIndex) {
+	public void onNodeMoved(NodeMoveEvent nodeMoveEvent) {
 	}
 
-	public void onPreNodeDelete(final NodeModel oldParent, final NodeModel child, final int oldIndex) {
+	public void onPreNodeDelete(NodeDeletionEvent nodeDeletionEvent) {
 	}
 
 	// updates children, starting from firstChangedIndex, if necessary.
@@ -1495,8 +1494,7 @@ public class NodeView extends JComponent implements INodeView {
 		return isSelected() && !MapView.standardDrawRectangleForSelection && !map.isPrinting();
 	}
 
-	public void onPreNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
-	                           final NodeModel child, final int newIndex) {
+	public void onPreNodeMoved(NodeMoveEvent nodeMoveEvent) {
 	}
 
 	@Override

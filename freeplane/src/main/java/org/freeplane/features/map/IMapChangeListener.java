@@ -25,13 +25,13 @@ package org.freeplane.features.map;
 public interface IMapChangeListener {
 	public void mapChanged(MapChangeEvent event);
 
-	void onNodeDeleted(NodeModel parent, NodeModel child, int index);
+	void onNodeDeleted(NodeDeletionEvent nodeDeletionEvent);
 
 	void onNodeInserted(NodeModel parent, NodeModel child, int newIndex);
 
-	void onNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex);
+	void onNodeMoved(NodeMoveEvent nodeMoveEvent);
 
-	void onPreNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex);
+	void onPreNodeMoved(NodeMoveEvent nodeMoveEvent);
 
-	void onPreNodeDelete(NodeModel oldParent, NodeModel selectedNode, int index);
+	void onPreNodeDelete(NodeDeletionEvent nodeDeletionEvent);
 }

@@ -30,9 +30,20 @@ import org.freeplane.n3.nanoxml.XMLElement;
  */
 @NodeHookDescriptor(hookName = "FirstGroupNode", onceForMap = false)
 public class FirstGroupNode extends PersistentNodeHook implements IExtension{
+	
 	@Override
 	protected IExtension createExtension(NodeModel node, XMLElement element) {
-		return this;
+		return FirstGroupNodeFlag.FIRST_GROUP;
 	}
 	
+	@Override
+	protected Class<? extends IExtension> getExtensionClass() {
+		return FirstGroupNodeFlag.class;
+	}
+	
+	@Override
+	protected HookAction createHookAction() {
+		return null;
+	}
+
 }

@@ -70,6 +70,7 @@ import org.freeplane.features.map.MapWriter.Hint;
 import org.freeplane.features.map.MapWriter.Mode;
 import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.map.mindmapmode.MMapController;
+import org.freeplane.features.map.mindmapmode.SummaryGroupEdgeListAdder;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 import org.freeplane.features.text.TextController;
@@ -509,12 +510,8 @@ public class MClipboardController extends ClipboardController {
 
 	Transferable cut(final List<NodeModel> collection) {
 		Controller.getCurrentModeController().getMapController().sortNodesByDepth(collection);
-		final MindMapNodesSelection transferable = copy(collection, true);
-		for (final NodeModel node : collection) {
-			if (node.getParentNode() != null) {
-				((MMapController) Controller.getCurrentModeController().getMapController()).deleteNode(node);
-			}
-		}
+		final MindMapNodesSelection transferable = copy(new SummaryGroupEdgeListAdder(collection).addSummaryEdgeNodes(), true);
+		((MMapController) Controller.getCurrentModeController().getMapController()).deleteNodes(collection);
 		setClipboardContents(transferable);
 		return transferable;
 	}
@@ -828,10 +825,11 @@ public class MClipboardController extends ClipboardController {
 		try {
 	        @SuppressWarnings("unchecked")
 	        final List<NodeModel> clonedNodes = (List<NodeModel>) transferable.getTransferData(MindMapNodesSelection.mindMapNodeObjectsFlavor);
+	        final List<NodeModel> movedNodes = new ArrayList<>(clonedNodes.size());
+	        final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController();
 	        for(NodeModel clonedNode:clonedNodes){
 	        	if(clonedNode.getParentNode() == null || ! clonedNode.getMap().equals(target.getMap()))
 	        		return;
-	        	final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController();
 	        	if (!clonedNode.isRoot() && ! clonedNode.subtreeContainsCloneOf(target)) {
 	        		switch(operation){
 	        			case CLONE:
@@ -839,10 +837,16 @@ public class MClipboardController extends ClipboardController {
 	        				mapController.addNewNode(clone, target, target.getChildCount(), target.isNewChildLeft());
 	        				break;
 	        			case MOVE:
-	        				mapController.moveNodeAsChild(clonedNode, target, target.isNewChildLeft(), target.isNewChildLeft()!=clonedNode.isLeft());
+	        				movedNodes.add(clonedNode);
 	        				break;
 	        		}
 	        	}
+	        }
+	        switch(operation){
+	        case MOVE:
+				mapController.moveNodesAsChildren(movedNodes, target, target.isNewChildLeft(), true);
+			default:
+				break;
 	        }
         }
         catch (Exception e) {
