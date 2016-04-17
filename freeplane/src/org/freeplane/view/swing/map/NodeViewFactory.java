@@ -87,14 +87,20 @@ class NodeViewFactory {
 		case small_bubble:
 			view =  new SmallBubbleMainView();
 			break;
-		case big_oval:
+		case oval:
 			view =  new BigOvalMainView();
-			break;
-		case small_oval:
-			view =  new SmallOvalMainView();
 			break;
 		case circle:
 			view = new CircleMainView();
+			break;
+		case wide_hexagon:
+			view = new WideHexagonMainView();
+			break;
+		case small_wide_hexagon:
+			view = new SmallWideHexagonMainView();
+			break;
+		case narrow_hexagon:
+			view = new NarrowHexagonMainView();
 			break;
 		default:
 			System.err.println("Tried to create a NodeView of unknown Style " + String.valueOf(shape));

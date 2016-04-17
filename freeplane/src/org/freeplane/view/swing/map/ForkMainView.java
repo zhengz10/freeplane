@@ -93,15 +93,14 @@ class ForkMainView extends MainView {
 	public void paintComponent(final Graphics graphics) {
 		final Graphics2D g = (Graphics2D) graphics;
 		final NodeView nodeView = getNodeView();
-		final NodeModel model = nodeView.getModel();
-		if (model == null) {
+		if (nodeView.getModel() == null) {
 			return;
 		}
 		paintBackgound(g);
 		paintDragOver(g);
 		super.paintComponent(g);
 	}
-
+	
 	@Override
 	protected void paintBackground(final Graphics2D graphics, final Color color) {
 		graphics.setColor(color);
