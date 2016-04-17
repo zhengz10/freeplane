@@ -152,6 +152,8 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 			}
 	        addDockedWindow(pNewMap);
         }
+		else if(mapViews.contains(pNewMap))
+			return;
 		mapViews.add(pNewMap);
 	}
 
@@ -260,7 +262,7 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 	private void selectMapViewLater() {
 		Timer timer = new Timer(40, new ActionListener() {
 			MapView mapView = null;
-			int retryCount = 3;
+			int retryCount = 5;
 		    public void actionPerformed(ActionEvent e) {
 		    	if(mapView == null){
 		    		for(Component mapView : mapViews){
