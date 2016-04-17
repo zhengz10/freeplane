@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Vector;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
@@ -56,11 +57,13 @@ import org.freeplane.core.resources.components.IPropertyControl;
 import org.freeplane.core.resources.components.NextColumnProperty;
 import org.freeplane.core.resources.components.NextLineProperty;
 import org.freeplane.core.resources.components.NumberProperty;
+import org.freeplane.core.resources.components.QuantityProperty;
 import org.freeplane.core.resources.components.SeparatorProperty;
 import org.freeplane.core.ui.AFreeplaneAction;
 import org.freeplane.core.ui.components.UITools;
 import org.freeplane.core.util.ColorUtils;
 import org.freeplane.core.util.HtmlUtils;
+import org.freeplane.core.util.Quantity;
 import org.freeplane.core.util.TextUtils;
 import org.freeplane.features.cloud.CloudController;
 import org.freeplane.features.cloud.CloudModel;
@@ -87,8 +90,10 @@ import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 import org.freeplane.features.nodestyle.NodeSizeModel;
+import org.freeplane.features.nodestyle.NodeSizeModel.LengthUnits;
 import org.freeplane.features.nodestyle.NodeStyleController;
 import org.freeplane.features.nodestyle.NodeStyleModel;
+import org.freeplane.features.nodestyle.NodeStyleModel.TextAlign;
 import org.freeplane.features.nodestyle.mindmapmode.MNodeStyleController;
 import org.freeplane.features.styles.AutomaticLayout;
 import org.freeplane.features.styles.AutomaticLayoutController;
@@ -97,6 +102,7 @@ import org.freeplane.features.styles.LogicalStyleController;
 import org.freeplane.features.styles.LogicalStyleModel;
 import org.freeplane.features.styles.MapStyle;
 import org.freeplane.features.text.TextController;
+import org.freeplane.features.text.mindmapmode.MTextController;
 import org.freeplane.features.ui.IMapViewChangeListener;
 import org.freeplane.features.ui.IMapViewManager;
 
@@ -249,6 +255,21 @@ public class StyleEditorPanel extends JPanel {
 			styleController.setStyle(node, enabled ? EdgeStyle.getStyle(mEdgeStyle.getValue()) : null);
 		}
 	}
+	private class TextAlignmentChangeListener extends ChangeListener {
+		public TextAlignmentChangeListener(final BooleanProperty mSet, final IPropertyControl mProperty) {
+			super(mSet, mProperty);
+		}
+
+		@Override
+		void applyValue(final boolean enabled, final NodeModel node,
+				final PropertyChangeEvent evt) {
+			final MNodeStyleController styleController = (MNodeStyleController) Controller
+					.getCurrentModeController().getExtension(NodeStyleController.class);
+			styleController.setTextAlign(node, enabled ? TextAlign.valueOf(mNodeTextAlignment.getValue()) : null);
+		}
+	}
+	
+	
 
 	private class EdgeWidthChangeListener extends ChangeListener {
 		public EdgeWidthChangeListener(final BooleanProperty mSet, final IPropertyControl mProperty) {
@@ -273,7 +294,7 @@ public class StyleEditorPanel extends JPanel {
 		void applyValue(final boolean enabled, final NodeModel node, final PropertyChangeEvent evt) {
 			final MNodeStyleController styleController = (MNodeStyleController) Controller
 			.getCurrentModeController().getExtension(NodeStyleController.class);
-			styleController.setMaxNodeWidth(node, enabled ? Integer.parseInt(mMaxNodeWidth.getValue()): NodeSizeModel.NOT_SET);
+			styleController.setMaxNodeWidth(node, enabled ? mMaxNodeWidth.getQuantifiedValue(): null);
 		}
 	}
 
@@ -286,7 +307,7 @@ public class StyleEditorPanel extends JPanel {
 		void applyValue(final boolean enabled, final NodeModel node, final PropertyChangeEvent evt) {
 			final MNodeStyleController styleController = (MNodeStyleController) Controller
 			.getCurrentModeController().getExtension(NodeStyleController.class);
-			styleController.setMinNodeWidth(node, enabled ? Integer.parseInt(mMinNodeWidth.getValue()): NodeSizeModel.NOT_SET);
+			styleController.setMinNodeWidth(node, enabled ? mMinNodeWidth.getQuantifiedValue(): null);
 		}
 	}
 
@@ -432,6 +453,8 @@ public class StyleEditorPanel extends JPanel {
 	private static final String NODE_SHAPE = "nodeshape";
 	private static final String NODE_TEXT_COLOR = "standardnodetextcolor";
 	private static final String NODE_FORMAT = "nodeformat";
+	private static final String TEXT_ALIGNMENT = "textalignment";
+	private static final String[] TEXT_ALIGNMENTS = StyleEditorPanel.initializeTextAlignments();
 	/**
 	* 
 	*/
@@ -444,6 +467,15 @@ public class StyleEditorPanel extends JPanel {
 		final EdgeStyle[] enumConstants = EdgeStyle.class.getEnumConstants();
 		final String[] strings = new String[enumConstants.length-1];
 		for (int i = 0; i < enumConstants.length-1; i++) {
+			strings[i] = enumConstants[i].toString();
+		}
+		return strings;
+	}
+
+	private static String[] initializeTextAlignments() {
+		final TextAlign[] enumConstants = TextAlign.class.getEnumConstants();
+		final String[] strings = new String[enumConstants.length];
+		for (int i = 0; i < strings.length; i++) {
 			strings[i] = enumConstants[i].toString();
 		}
 		return strings;
@@ -476,8 +508,9 @@ public class StyleEditorPanel extends JPanel {
 	private BooleanProperty mNodeNumbering;
 	private ComboProperty mNodeShape;
 	private EditablePatternComboProperty mNodeFormat;
-	private NumberProperty mMaxNodeWidth;
-	private NumberProperty mMinNodeWidth;
+	private QuantityProperty<LengthUnits> mMaxNodeWidth;
+	private QuantityProperty<LengthUnits> mMinNodeWidth;
+	private ComboProperty mNodeTextAlignment;
 
 	
 	private BooleanProperty mSetCloud;
@@ -497,6 +530,7 @@ public class StyleEditorPanel extends JPanel {
 	private BooleanProperty mSetStyle;
 	private BooleanProperty mSetMaxNodeWidth;
 	private BooleanProperty mSetMinNodeWidth;
+	private BooleanProperty mSetNodeTextAlignment;
 	
 	
 	private final boolean addStyleBox;
@@ -629,7 +663,7 @@ public class StyleEditorPanel extends JPanel {
 	private void addMaxNodeWidthControl(final List<IPropertyControl> controls) {
 		mSetMaxNodeWidth = new BooleanProperty(StyleEditorPanel.SET_RESOURCE);
 		controls.add(mSetMaxNodeWidth);
-		mMaxNodeWidth = new NumberProperty(StyleEditorPanel.MAX_TEXT_WIDTH, 1, Integer.MAX_VALUE, 1);
+		mMaxNodeWidth = new QuantityProperty<LengthUnits>(StyleEditorPanel.MAX_TEXT_WIDTH, 0, 100000, 0.1, LengthUnits.class);
 		controls.add(mMaxNodeWidth);
 		final MaxNodeWidthChangeListener listener = new MaxNodeWidthChangeListener(mSetMaxNodeWidth, mMaxNodeWidth);
 		mSetMaxNodeWidth.addPropertyChangeListener(listener);
@@ -640,7 +674,7 @@ public class StyleEditorPanel extends JPanel {
 	private void addMinNodeWidthControl(final List<IPropertyControl> controls) {
 		mSetMinNodeWidth = new BooleanProperty(StyleEditorPanel.SET_RESOURCE);
 		controls.add(mSetMinNodeWidth);
-		mMinNodeWidth = new NumberProperty(StyleEditorPanel.MIN_NODE_WIDTH, 1, Integer.MAX_VALUE, 1);
+		mMinNodeWidth = new QuantityProperty<LengthUnits>(StyleEditorPanel.MIN_NODE_WIDTH, 0, 100000, 0.1, LengthUnits.class);
 		controls.add(mMinNodeWidth);
 		final MinNodeWidthChangeListener listener = new MinNodeWidthChangeListener(mSetMinNodeWidth, mMinNodeWidth);
 		mSetMinNodeWidth.addPropertyChangeListener(listener);
@@ -717,6 +751,22 @@ public class StyleEditorPanel extends JPanel {
 		mNodeShape.fireOnMouseClick();
 	}
 
+	private void addNodeTextAlignmentControl(final List<IPropertyControl> controls) {
+		mSetNodeTextAlignment = new BooleanProperty(StyleEditorPanel.SET_RESOURCE);
+		controls.add(mSetNodeTextAlignment);
+		final Vector<String> possibleTranslations = new Vector<String>(TEXT_ALIGNMENTS.length);
+		for (int i = 0; i < TEXT_ALIGNMENTS.length; i++) {
+			possibleTranslations.add(TextUtils.getText("TextAlignAction." + TEXT_ALIGNMENTS[i] + ".text"));
+		}
+		Vector<String> translations = possibleTranslations;
+		mNodeTextAlignment = new ComboProperty(StyleEditorPanel.TEXT_ALIGNMENT, Arrays.asList(TEXT_ALIGNMENTS), translations);
+		controls.add(mNodeTextAlignment);
+		final TextAlignmentChangeListener listener = new TextAlignmentChangeListener(mSetNodeTextAlignment, mNodeTextAlignment);
+		mSetNodeTextAlignment.addPropertyChangeListener(listener);
+		mNodeTextAlignment.addPropertyChangeListener(listener);
+		mNodeTextAlignment.fireOnMouseClick();
+	}
+
 	private List<IPropertyControl> getControls() {
 		final List<IPropertyControl> controls = new ArrayList<IPropertyControl>();
 		controls.add(new SeparatorProperty("OptionPanel.separator.NodeColors"));
@@ -735,6 +785,7 @@ public class StyleEditorPanel extends JPanel {
 		addFontSizeControl(controls);
 		addFontBoldControl(controls);
 		addFontItalicControl(controls);
+		addNodeTextAlignmentControl(controls);
 		addFontHyperlinkControl(controls);
 		controls.add(new NextLineProperty());
 		controls.add(new SeparatorProperty("OptionPanel.separator.EdgeControls"));
@@ -898,16 +949,16 @@ public class StyleEditorPanel extends JPanel {
 			}
 			final NodeSizeModel nodeSizeModel = NodeSizeModel.getModel(node);
 			{
-				final int width = nodeSizeModel != null ? nodeSizeModel.getMaxNodeWidth() : NodeSizeModel.NOT_SET;
-				final int viewWidth = styleController.getMaxWidth(node);
-				mSetMaxNodeWidth.setValue(width != NodeSizeModel.NOT_SET);
-				mMaxNodeWidth.setValue(Integer.toString(viewWidth));
+				final Quantity<LengthUnits> width = nodeSizeModel != null ? nodeSizeModel.getMaxNodeWidth() : null;
+				final Quantity<LengthUnits> viewWidth = styleController.getMaxWidth(node);
+				mSetMaxNodeWidth.setValue(width != null);
+				mMaxNodeWidth.setQuantifiedValue(viewWidth);
 			}
 			{
-				final int width = nodeSizeModel != null ? nodeSizeModel.getMinNodeWidth() : NodeSizeModel.NOT_SET;
-				final int viewWidth = styleController.getMinWidth(node);
-				mSetMinNodeWidth.setValue(width != NodeSizeModel.NOT_SET);
-				mMinNodeWidth.setValue(Integer.toString(viewWidth));
+				final Quantity<LengthUnits> width = nodeSizeModel != null ? nodeSizeModel.getMinNodeWidth() : null;
+				final Quantity<LengthUnits> viewWidth = styleController.getMinWidth(node);
+				mSetMinNodeWidth.setValue(width != null);
+				mMinNodeWidth.setQuantifiedValue(viewWidth);
 			}
 			final EdgeController edgeController = EdgeController.getController();
 			final EdgeModel edgeModel = EdgeModel.getModel(node);
@@ -962,6 +1013,12 @@ public class StyleEditorPanel extends JPanel {
 				final Boolean viewitalic = styleController.isItalic(node);
 				mSetNodeFontItalic.setValue(italic != null);
 				mNodeFontItalic.setValue(viewitalic);
+			}
+			{
+				final TextAlign style = NodeStyleModel.getTextAlign(node);
+				final TextAlign viewStyle = styleController.getTextAlign(node);
+				mSetNodeTextAlignment.setValue(style != null);
+				mNodeTextAlignment.setValue(viewStyle.toString());
 			}
 			{
 				final Boolean hyperlink = NodeLinks.formatNodeAsHyperlink(node);

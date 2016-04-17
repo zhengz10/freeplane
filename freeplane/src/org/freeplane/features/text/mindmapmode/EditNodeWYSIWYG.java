@@ -34,6 +34,7 @@ import javax.swing.JEditorPane;
 import javax.swing.JPanel;
 import javax.swing.JRootPane;
 import javax.swing.RootPaneContainer;
+import javax.swing.SwingConstants;
 import javax.swing.text.JTextComponent;
 import javax.swing.text.html.HTMLDocument;
 import javax.swing.text.html.StyleSheet;
@@ -41,11 +42,13 @@ import javax.swing.text.html.StyleSheet;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.MenuBuilder;
 import org.freeplane.core.ui.components.UITools;
+import org.freeplane.core.ui.components.html.CssRuleBuilder;
 import org.freeplane.core.util.ColorUtils;
 import org.freeplane.core.util.HtmlUtils;
 import org.freeplane.core.util.LogUtils;
 import org.freeplane.core.util.TextUtils;
 import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.nodestyle.NodeStyleModel.TextAlign;
 import org.freeplane.features.spellchecker.mindmapmode.SpellCheckerController;
 
 import com.lightdev.app.shtm.SHTMLEditorPane;
@@ -191,6 +194,8 @@ public class EditNodeWYSIWYG extends EditNodeBase {
 	private Color textColor = Color.BLACK;
 	private Dimension preferredSize = PREFERRED_SIZE;
 
+	private int horizontalAlignment = TextAlign.DEFAULT.swingConstant;
+
 	public String getTitle() {
     	return title;
     }
@@ -238,21 +243,11 @@ public class EditNodeWYSIWYG extends EditNodeBase {
 			final SHTMLPanel htmlEditorPanel = (htmlEditorWindow).getHtmlEditorPanel();
 			final StringBuilder ruleBuilder = new StringBuilder(100);
 			ruleBuilder.append("body {");
-			if(font != null){
-				ruleBuilder.append("font-family: ").append(font.getFamily()).append(";");
-				final int fontSize = Math.round(font.getSize() / UITools.FONT_SCALE_FACTOR);
-				ruleBuilder.append("font-size: ").append(fontSize).append("pt;");
-				if (font.isItalic()) {
-					ruleBuilder.append("font-style: italic; ");
-				}
-				if (font.isBold()) {
-					ruleBuilder.append("font-weight: bold; ");
-				}
-			}
-			if(textColor != null)
-				ruleBuilder.append("color: ").append(ColorUtils.colorToString(textColor)).append(";");
-		    final Color bgColor = getBackground();
-			ruleBuilder.append("background-color: ").append(ColorUtils.colorToString(bgColor)).append(";");
+			ruleBuilder.append(new CssRuleBuilder()
+					.withFont(font, UITools.FONT_SCALE_FACTOR)
+					.withColor(textColor)
+					.withBackground(getBackground())
+					.withAlignment(horizontalAlignment));
 			ruleBuilder.append("}\n");
 			ruleBuilder.append("p {margin-top:0;}\n");
 			final HTMLDocument document = htmlEditorPanel.getDocument();
@@ -317,4 +312,8 @@ public class EditNodeWYSIWYG extends EditNodeBase {
 		}
 	    return htmlEditorWindow;
     }
+
+	public void setTextAlignment(int horizontalAlignment) {
+		this.horizontalAlignment = horizontalAlignment;
+	}
 }

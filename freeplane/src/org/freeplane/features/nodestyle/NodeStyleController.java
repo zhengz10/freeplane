@@ -26,6 +26,7 @@ import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.io.ReadManager;
 import org.freeplane.core.io.WriteManager;
 import org.freeplane.core.resources.ResourceController;
+import org.freeplane.core.util.Quantity;
 import org.freeplane.features.map.MapController;
 import org.freeplane.features.map.MapModel;
 import org.freeplane.features.map.NodeModel;
@@ -34,6 +35,8 @@ import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ExclusivePropertyChain;
 import org.freeplane.features.mode.IPropertyHandler;
 import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.nodestyle.NodeSizeModel.LengthUnits;
+import org.freeplane.features.nodestyle.NodeStyleModel.TextAlign;
 import org.freeplane.features.styles.IStyle;
 import org.freeplane.features.styles.LogicalStyleController;
 import org.freeplane.features.styles.MapStyleModel;
@@ -63,7 +66,11 @@ public class NodeStyleController implements IExtension {
  	final private ModeController modeController;
 	final private ExclusivePropertyChain<String, NodeModel> shapeHandlers;
 	final private ExclusivePropertyChain<Color, NodeModel> textColorHandlers;
+	final private ExclusivePropertyChain<TextAlign, NodeModel> textAlignHandlers;
 	public static final String NODE_NUMBERING = "NodeNumbering";
+	
+	private static final Quantity<LengthUnits> DEFAULT_MINIMUM_WIDTH = new Quantity<LengthUnits>(0, LengthUnits.cm);
+	private static final Quantity<LengthUnits> DEFAULT_MAXIMUM_WIDTH = new Quantity<LengthUnits>(10, LengthUnits.cm);
 
 	public NodeStyleController(final ModeController modeController) {
 		this.modeController = modeController;
@@ -72,6 +79,8 @@ public class NodeStyleController implements IExtension {
 		textColorHandlers = new ExclusivePropertyChain<Color, NodeModel>();
 		backgroundColorHandlers = new ExclusivePropertyChain<Color, NodeModel>();
 		shapeHandlers = new ExclusivePropertyChain<String, NodeModel>();
+		textAlignHandlers = new ExclusivePropertyChain<TextAlign, NodeModel>();
+		
 		addFontGetter(IPropertyHandler.DEFAULT, new IPropertyHandler<Font, NodeModel>() {
 			public Font getProperty(final NodeModel node, final Font currentValue) {
 				final Font defaultFont = NodeStyleController.getDefaultFont();
@@ -117,6 +126,19 @@ public class NodeStyleController implements IExtension {
 				return NodeStyleModel.SHAPE_AS_PARENT;
 			}
 		});
+		
+		addTextAlignGetter(IPropertyHandler.DEFAULT, new IPropertyHandler<TextAlign, NodeModel>() {
+			public TextAlign getProperty(final NodeModel node, final TextAlign currentValue) {
+				return TextAlign.DEFAULT;
+			}
+		});
+		
+		addTextAlignGetter(IPropertyHandler.STYLE, new IPropertyHandler<TextAlign, NodeModel>() {
+			public TextAlign getProperty(final NodeModel node, final TextAlign currentValue) {
+				return getTextAlign(node.getMap(), LogicalStyleController.getController(modeController).getStyles(node));
+			}
+		});
+		
 		final MapController mapController = modeController.getMapController();
 		final ReadManager readManager = mapController.getReadManager();
 		final WriteManager writeManager = mapController.getWriteManager();
@@ -130,8 +152,13 @@ public class NodeStyleController implements IExtension {
 	}
 
 	public IPropertyHandler<Color, NodeModel> addColorGetter(final Integer key,
-	                                                         final IPropertyHandler<Color, NodeModel> getter) {
+            final IPropertyHandler<Color, NodeModel> getter) {
 		return textColorHandlers.addGetter(key, getter);
+	}
+
+	public IPropertyHandler<TextAlign, NodeModel> addTextAlignGetter(final Integer key,
+            final IPropertyHandler<TextAlign, NodeModel> getter) {
+		return textAlignHandlers.addGetter(key, getter);
 	}
 
 	public IPropertyHandler<Font, NodeModel> addFontGetter(final Integer key,
@@ -172,7 +199,7 @@ public class NodeStyleController implements IExtension {
 		return null;
 	}
 
-	private int getStyleMaxNodeWidth(final MapModel map, final Collection<IStyle> styleKeys) {
+	private Quantity<LengthUnits> getStyleMaxNodeWidth(final MapModel map, final Collection<IStyle> styleKeys) {
 		final MapStyleModel model = MapStyleModel.getExtension(map);
 		for(IStyle styleKey : styleKeys){
 			final NodeModel styleNode = model.getStyleNode(styleKey);
@@ -183,16 +210,16 @@ public class NodeStyleController implements IExtension {
 			if (sizeModel == null) {
 				continue;
 			}
-			final int maxTextWidth = sizeModel.getMaxNodeWidth();
-			if (maxTextWidth == NodeSizeModel.NOT_SET) {
+			final Quantity<LengthUnits> maxTextWidth = sizeModel.getMaxNodeWidth();
+			if (maxTextWidth == null) {
 				continue;
 			}
 			return maxTextWidth;
 		}
-		return 600;
+		return DEFAULT_MAXIMUM_WIDTH;
 	}
 	
-	private int getStyleMinWidth(final MapModel map, final Collection<IStyle> styleKeys) {
+	private Quantity<LengthUnits> getStyleMinWidth(final MapModel map, final Collection<IStyle> styleKeys) {
 		final MapStyleModel model = MapStyleModel.getExtension(map);
 		for(IStyle styleKey : styleKeys){
 			final NodeModel styleNode = model.getStyleNode(styleKey);
@@ -203,13 +230,13 @@ public class NodeStyleController implements IExtension {
 			if (sizeModel == null) {
 				continue;
 			}
-			final int minWidth = sizeModel.getMinNodeWidth();
-			if (minWidth == NodeSizeModel.NOT_SET) {
+			final Quantity<LengthUnits> minWidth = sizeModel.getMinNodeWidth();
+			if (minWidth == null) {
 				continue;
 			}
 			return minWidth;
 		}
-		return 1;
+		return DEFAULT_MINIMUM_WIDTH;
 	}
 	
 	public static Font getDefaultFont() {
@@ -261,6 +288,10 @@ public class NodeStyleController implements IExtension {
 			if(bold != null && italic != null && fontFamilyName != null && fontSize != null) break;
 		}
 		return createFont(baseFont, fontFamilyName, fontSize, bold, italic);
+	}
+
+	public TextAlign getTextAlign(final NodeModel node) {
+		return textAlignHandlers.getProperty(node);
 	}
 
 	private Font createFont(final Font baseFont, String family, Integer size, Boolean bold, Boolean italic) {
@@ -329,6 +360,25 @@ public class NodeStyleController implements IExtension {
 		return null;
 	}
 
+	private TextAlign getTextAlign(final MapModel map, final Collection<IStyle> style) {
+		final MapStyleModel model = MapStyleModel.getExtension(map);
+		for(IStyle styleKey : style){
+			final NodeModel styleNode = model.getStyleNode(styleKey);
+			if (styleNode == null) {
+				continue;
+			}
+			final NodeStyleModel styleModel = NodeStyleModel.getModel(styleNode);
+			if (styleModel == null) {
+				continue;
+			}
+			final TextAlign textAlign = styleModel.getTextAlign();
+			if (textAlign == null) {
+				continue;
+			}
+			return textAlign;
+		}
+		return null;
+	}
 	public Font getFont(final NodeModel node) {
 		final Font font = fontHandlers.getProperty(node, null);
 		return font;
@@ -357,22 +407,6 @@ public class NodeStyleController implements IExtension {
 		return getFont(node).isItalic();
 	}
 
-	public IPropertyHandler<Color, NodeModel> removeBackgroundColorGetter(final Integer key) {
-		return backgroundColorHandlers.removeGetter(key);
-	}
-
-	public IPropertyHandler<Color, NodeModel> removeColorGetter(final Integer key) {
-		return textColorHandlers.removeGetter(key);
-	}
-
-	public IPropertyHandler<Font, NodeModel> removeFontGetter(final Integer key) {
-		return fontHandlers.removeGetter(key);
-	}
-
-	public IPropertyHandler<String, NodeModel> removeShapeGetter(final Integer key) {
-		return shapeHandlers.removeGetter(key);
-	}
-
 	public Boolean getNodeNumbering(NodeModel node) {
 		final NodeStyleModel style = (NodeStyleModel) node.getExtension(NodeStyleModel.class);
 		if (style == null)
@@ -386,19 +420,19 @@ public class NodeStyleController implements IExtension {
 		return style == null ? null : style.getNodeFormat();
 	}
 
-	public int getMaxWidth(NodeModel node) {
+	public Quantity<LengthUnits> getMaxWidth(NodeModel node) {
 		final MapModel map = node.getMap();
 		final LogicalStyleController styleController = LogicalStyleController.getController(modeController);
 		final Collection<IStyle> style = styleController.getStyles(node);
-		final int maxTextWidth = getStyleMaxNodeWidth(map, style);
+		final Quantity<LengthUnits> maxTextWidth = getStyleMaxNodeWidth(map, style);
 		return maxTextWidth;
     }
 
-	public int getMinWidth(NodeModel node) {
+	public Quantity<LengthUnits> getMinWidth(NodeModel node) {
 		final MapModel map = node.getMap();
 		final LogicalStyleController styleController = LogicalStyleController.getController(modeController);
 		final Collection<IStyle> style = styleController.getStyles(node);
-		final int minWidth = getStyleMinWidth(map, style);
+		final Quantity<LengthUnits> minWidth = getStyleMinWidth(map, style);
 		return minWidth;
     }
 
