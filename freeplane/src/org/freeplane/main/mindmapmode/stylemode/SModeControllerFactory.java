@@ -32,7 +32,6 @@ import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.ShowSelectionAsRectangleAction;
 import org.freeplane.core.ui.components.FreeplaneToolBar;
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.ui.ribbon.RibbonBuilder;
 import org.freeplane.features.attribute.AttributeController;
 import org.freeplane.features.attribute.ModelessAttributeController;
 import org.freeplane.features.attribute.mindmapmode.MAttributeController;
@@ -68,12 +67,10 @@ import org.freeplane.features.styles.MapStyle;
 import org.freeplane.features.styles.MapStyleModel;
 import org.freeplane.features.styles.MapViewLayout;
 import org.freeplane.features.styles.mindmapmode.MLogicalStyleController;
-import org.freeplane.features.styles.mindmapmode.MUIFactory;
 import org.freeplane.features.styles.mindmapmode.StyleEditorPanel;
 import org.freeplane.features.text.TextController;
 import org.freeplane.features.text.mindmapmode.MTextController;
 import org.freeplane.features.ui.ToggleToolbarAction;
-import org.freeplane.features.ui.UIComponentVisibilityDispatcher;
 import org.freeplane.features.ui.ViewController;
 import org.freeplane.features.url.mindmapmode.MFileManager;
 import org.freeplane.view.swing.map.MapViewController;
@@ -115,12 +112,11 @@ public class SModeControllerFactory {
 		modeController.addAction(new DeleteUserStyleAction());
 		modeController.addAction(new NewLevelStyleAction());
 		modeController.addAction(new DeleteLevelStyleAction());
-		final UserInputListenerFactory userInputListenerFactory = new UserInputListenerFactory(modeController, false);
+		final UserInputListenerFactory userInputListenerFactory = new UserInputListenerFactory(modeController);
 		userInputListenerFactory.setNodeMouseMotionListener(new DefaultNodeMouseMotionListener());
 		modeController.setUserInputListenerFactory(userInputListenerFactory);
 		controller.addExtension(ModelessAttributeController.class, new ModelessAttributeController());
 		new MMapController(modeController);
-		userInputListenerFactory.getMenuBuilder(RibbonBuilder.class).setEnabled(false);
 		TextController.install(new MTextController(modeController));
 		SpellCheckerController.install(modeController);
 		IconController.install(new MIconController(modeController));
@@ -128,7 +124,7 @@ public class SModeControllerFactory {
 		EdgeController.install(new MEdgeController(modeController));
 		CloudController.install(new MCloudController(modeController));
 		NoteController.install(new MNoteController(modeController));
-		LinkController.install(new MLinkController());
+		LinkController.install(new MLinkController(modeController));
 		MFileManager.install(new MFileManager());
 		MMapIO.install(modeController);
 		final MLogicalStyleController logicalStyleController = new MLogicalStyleController(modeController);
@@ -144,7 +140,7 @@ public class SModeControllerFactory {
 		final JPopupMenu popupmenu = new JPopupMenu();
 		userInputListenerFactory.setNodePopupMenu(popupmenu);
 		final FreeplaneToolBar toolBar = new FreeplaneToolBar("main_toolbar", SwingConstants.HORIZONTAL);
-		UIComponentVisibilityDispatcher.install(viewController, toolBar, "toolbarVisible");
+		toolBar.putClientProperty(ViewController.VISIBLE_PROPERTY_KEY, "toolbarVisible");
 		userInputListenerFactory.addToolBar("/main_toolbar", ViewController.TOP, toolBar);
 		userInputListenerFactory.addToolBar("/icon_toolbar", ViewController.LEFT, ((MIconController) IconController
 		    .getController()).getIconToolBarScrollPane());
@@ -184,12 +180,12 @@ public class SModeControllerFactory {
 					}
 				});
 			}
-
+			
 
 			public void onDeselect(final NodeModel node) {
 			}
 		});
-
+		
 		mapController.addNodeChangeListener(new INodeChangeListener() {
 			public void nodeChanged(NodeChangeEvent event) {
 				final NodeModel node = event.getNode();
@@ -198,14 +194,13 @@ public class SModeControllerFactory {
 				}
 			}
 		});
-
-
+		
+		
 		final JScrollPane styleScrollPane = new JScrollPane(styleEditorPanel, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
 		    JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 		UITools.setScrollbarIncrement(styleScrollPane);
 		//		styleEditorPanel.setPreferredSize(new Dimension(200, 200));
 		userInputListenerFactory.addToolBar("/format", ViewController.RIGHT, styleScrollPane);
-		modeController.addExtension(MUIFactory.class, new MUIFactory());
 		final Set<String> emptySet = Collections.emptySet();
 		modeController.updateMenus("/xml/stylemodemenu.xml", emptySet);
 		this.modeController = null;

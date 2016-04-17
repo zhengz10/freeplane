@@ -154,12 +154,11 @@ public class AddOnDetailsPanel extends JPanel {
 
 	private String formatMenuLocation(ScriptAddOnProperties.Script script) {
 		final String location = script.menuLocation == null ? "main_menu_scripting" : script.menuLocation;
-		MenuBuilder menuBuilder = Controller.getCurrentModeController().getUserInputListenerFactory().getMenuBuilder(MenuBuilder.class);
+		MenuBuilder menuBuilder = Controller.getCurrentModeController().getUserInputListenerFactory().getMenuBuilder();
 		// "/menu_bar/edit/menu_extensions" -> [Node Extensions, Edit]
 		final List<String> pathElements = getMenuPathElements(menuBuilder, location);
 		Collections.reverse(pathElements);
 		pathElements.add(TextUtils.getText(script.menuTitleKey));
-		//TODO - impl. ribbons contribution
 		return StringUtils.join(pathElements.iterator(), "->");
 	}
 

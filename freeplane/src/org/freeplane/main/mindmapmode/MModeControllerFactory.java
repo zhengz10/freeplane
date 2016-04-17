@@ -19,6 +19,7 @@
  */
 package org.freeplane.main.mindmapmode;
 
+import java.awt.Dimension;
 import java.awt.event.KeyEvent;
 
 import javax.swing.Box;
@@ -31,14 +32,16 @@ import javax.swing.SwingConstants;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.IEditHandler;
 import org.freeplane.core.ui.IMouseListener;
-import org.freeplane.core.ui.KeyBindingProcessor;
 import org.freeplane.core.ui.SetAcceleratorOnNextClickAction;
 import org.freeplane.core.ui.components.FButtonBar;
 import org.freeplane.core.ui.components.FreeplaneToolBar;
 import org.freeplane.core.ui.components.JResizer.Direction;
+import org.freeplane.core.ui.components.OneTouchCollapseResizer;
+import org.freeplane.core.ui.components.OneTouchCollapseResizer.CollapseDirection;
+import org.freeplane.core.ui.components.OneTouchCollapseResizer.ComponentCollapseListener;
+import org.freeplane.core.ui.components.ResizeEvent;
+import org.freeplane.core.ui.components.ResizerListener;
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.ui.ribbon.RibbonBuilder;
-import org.freeplane.core.ui.ribbon.RibbonMapChangeAdapter;
 import org.freeplane.core.util.TextUtils;
 import org.freeplane.features.attribute.AttributeController;
 import org.freeplane.features.attribute.mindmapmode.AddAttributeAction;
@@ -58,10 +61,7 @@ import org.freeplane.features.export.mindmapmode.ExportController;
 import org.freeplane.features.export.mindmapmode.ImportMindmanagerFiles;
 import org.freeplane.features.filter.FilterController;
 import org.freeplane.features.icon.HierarchicalIcons;
-import org.freeplane.features.icon.IStateIconProvider;
 import org.freeplane.features.icon.IconController;
-import org.freeplane.features.icon.UIIcon;
-import org.freeplane.features.icon.factory.IconStoreFactory;
 import org.freeplane.features.icon.mindmapmode.IconSelectionPlugin;
 import org.freeplane.features.icon.mindmapmode.MIconController;
 import org.freeplane.features.link.LinkController;
@@ -70,7 +70,6 @@ import org.freeplane.features.map.AlwaysUnfoldedNode;
 import org.freeplane.features.map.FoldingController;
 import org.freeplane.features.map.FreeNode;
 import org.freeplane.features.map.MapController;
-import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.map.SummaryNode;
 import org.freeplane.features.map.mindmapmode.ChangeNodeLevelController;
 import org.freeplane.features.map.mindmapmode.MMapController;
@@ -98,10 +97,7 @@ import org.freeplane.features.text.mindmapmode.MTextController;
 import org.freeplane.features.text.mindmapmode.SortNodes;
 import org.freeplane.features.text.mindmapmode.SplitNode;
 import org.freeplane.features.time.CreationModificationPlugin;
-import org.freeplane.features.ui.CollapseableBoxBuilder;
-import org.freeplane.features.ui.FrameController;
 import org.freeplane.features.ui.ToggleToolbarAction;
-import org.freeplane.features.ui.UIComponentVisibilityDispatcher;
 import org.freeplane.features.ui.ViewController;
 import org.freeplane.features.url.UrlManager;
 import org.freeplane.features.url.mindmapmode.MFileManager;
@@ -195,8 +191,8 @@ public class MModeControllerFactory {
 	private void createStandardControllers() {
 		final Controller controller = Controller.getCurrentController();
 		modeController = new MModeController(controller);
-		final UserInputListenerFactory userInputListenerFactory = new UserInputListenerFactory(modeController, UITools.useRibbonsMenu());
-
+		final UserInputListenerFactory userInputListenerFactory = new UserInputListenerFactory(modeController);
+		
         final IMouseListener nodeMouseMotionListener = new MNodeMotionListener();
         userInputListenerFactory.setNodeMouseMotionListener(nodeMouseMotionListener);
 		final JPopupMenu popupmenu = new JPopupMenu();
@@ -205,14 +201,6 @@ public class MModeControllerFactory {
 		controller.addModeController(modeController);
 		controller.selectModeForBuild(modeController);
 		new MMapController(modeController);
-		if(userInputListenerFactory.useRibbonMenu()) {
-			RibbonBuilder builder = userInputListenerFactory.getMenuBuilder(RibbonBuilder.class);
-			final RibbonMapChangeAdapter mapChangeAdapter = builder.getMapChangeAdapter();
-			modeController.getMapController().addNodeSelectionListener(mapChangeAdapter);
-			modeController.getMapController().addNodeChangeListener(mapChangeAdapter);
-			modeController.getMapController().addMapChangeListener(mapChangeAdapter);
-			controller.getMapViewManager().addMapSelectionListener(mapChangeAdapter);
-		}
 		final MFileManager fileManager = new MFileManager();
 		UrlManager.install(fileManager);
 		MMapIO.install(modeController);
@@ -226,7 +214,7 @@ public class MModeControllerFactory {
 		userInputListenerFactory.setMapMouseListener(new MMapMouseListener());
 		final MTextController textController = new MTextController(modeController);
 		TextController.install(textController);
-		LinkController.install(new MLinkController());
+		LinkController.install(new MLinkController(modeController));
 		NodeStyleController.install(new MNodeStyleController(modeController));
 		ClipboardController.install(new MClipboardController());
 		userInputListenerFactory.setNodeDragListener(new MNodeDragListener());
@@ -248,91 +236,80 @@ public class MModeControllerFactory {
 		ExportController.install(new ExportController("/xml/ExportWithXSLT.xml"));
 		MapStyle.install(true);
 		final FreeplaneToolBar toolbar = new FreeplaneToolBar("main_toolbar", SwingConstants.HORIZONTAL);
-		final FrameController frameController = (FrameController) controller.getViewController();
-		UIComponentVisibilityDispatcher.install(frameController, toolbar, "toolbarVisible");
-		if(!userInputListenerFactory.useRibbonMenu()) {
-			userInputListenerFactory.addToolBar("/main_toolbar", ViewController.TOP, toolbar);
-		}
-		userInputListenerFactory.addToolBar("/filter_toolbar", ViewController.BOTTOM, FilterController.getController(controller).getFilterToolbar());
-		userInputListenerFactory.addToolBar("/status", ViewController.BOTTOM, frameController
+		toolbar.putClientProperty(ViewController.VISIBLE_PROPERTY_KEY, "toolbarVisible");
+		userInputListenerFactory.addToolBar("/main_toolbar", ViewController.TOP, toolbar);
+		userInputListenerFactory.addToolBar("/filter_toolbar", ViewController.TOP, FilterController.getController(
+		    controller).getFilterToolbar());
+		userInputListenerFactory.addToolBar("/status", ViewController.BOTTOM, controller.getViewController()
 		    .getStatusBar());
-		final JTabbedPane formattingPanel = new JTabbedPane();
-		Box resisableTabs = new CollapseableBoxBuilder(frameController).setPropertyNameBase("styleScrollPaneVisible").createBox(formattingPanel, Direction.RIGHT);
+		final JTabbedPane tabs = new JTabbedPane();
+		Box resisableTabs = Box.createHorizontalBox();
+		//DOCEAR - new OneTouchCollapseResizer
+		final String TABBEDPANE_VIEW_COLLAPSED = "tabbed_pane.collapsed";
+		final String TABBEDPANE_VIEW_WIDTH = "tabbed_pane.width";
+		boolean expanded = true;
+		try {
+			expanded = !Boolean.parseBoolean(ResourceController.getResourceController().getProperty(TABBEDPANE_VIEW_COLLAPSED, "false"));
+		}
+		catch (Exception e) {
+			// ignore -> default is true
+		}
+		
+		OneTouchCollapseResizer otcr = new OneTouchCollapseResizer(Direction.RIGHT, CollapseDirection.COLLAPSE_RIGHT);
+		resisableTabs.add(otcr);
+		//resisableTabs.add(new JResizer(Direction.RIGHT));
+		resisableTabs.add(tabs);
+		otcr.addResizerListener(new ResizerListener() {			
+			public void componentResized(ResizeEvent event) {
+				if(event.getSource().equals(tabs)) {
+					ResourceController.getResourceController().setProperty(TABBEDPANE_VIEW_WIDTH, String.valueOf(((JComponent) event.getSource()).getPreferredSize().width));
+				}
+			}
+		});
+		otcr.addCollapseListener(new ComponentCollapseListener() {			
+			public void componentCollapsed(ResizeEvent event) {
+				if(event.getSource().equals(tabs)) {
+					ResourceController.getResourceController().setProperty(TABBEDPANE_VIEW_COLLAPSED, "true");
+				}
+			}
+
+			public void componentExpanded(ResizeEvent event) {
+				if(event.getSource().equals(tabs)) {
+					ResourceController.getResourceController().setProperty(TABBEDPANE_VIEW_COLLAPSED, "false");
+				}
+			}
+		});
+		try {
+			int width = Integer.parseInt(ResourceController.getResourceController().getProperty(TABBEDPANE_VIEW_WIDTH, "350"));
+			tabs.setPreferredSize(new Dimension(width, 40));
+		}
+		catch (Exception e) {
+			// blindly accept
+		}
+		otcr.setExpanded(expanded);
+		resisableTabs.putClientProperty(ViewController.VISIBLE_PROPERTY_KEY, "styleScrollPaneVisible");
 		modeController.getUserInputListenerFactory().addToolBar("/format", ViewController.RIGHT, resisableTabs);
-		KeyBindingProcessor keyProcessor = new KeyBindingProcessor();
-		modeController.addExtension(KeyBindingProcessor.class, keyProcessor);
-		keyProcessor.addKeyStrokeProcessor(userInputListenerFactory.getAcceleratorManager());
-		final FButtonBar fButtonToolBar = new FButtonBar(frameController.getRootPaneContainer().getRootPane(), keyProcessor);
-		UIComponentVisibilityDispatcher.install(frameController, fButtonToolBar, "fbarVisible");
+		final FButtonBar fButtonToolBar = new FButtonBar(controller.getViewController().getRootPaneContainer().getRootPane());
+		fButtonToolBar.putClientProperty(ViewController.VISIBLE_PROPERTY_KEY, "fbarVisible");
 		fButtonToolBar.setVisible(ResourceController.getResourceController().getBooleanProperty("fbarVisible"));
 		userInputListenerFactory.addToolBar("/fbuttons", ViewController.TOP, fButtonToolBar);
 		controller.addAction(new ToggleToolbarAction("ToggleFBarAction", "/fbuttons"));
 		SModeControllerFactory.install();
 		modeController.addAction(new SetAcceleratorOnNextClickAction());
 		modeController.addAction(new ShowNotesInMapAction());
-		//userInputListenerFactory.getMenuBuilder().setAcceleratorChangeListener(fButtonToolBar);
-		userInputListenerFactory.getAcceleratorManager().addAcceleratorChangeListener(fButtonToolBar);
+		userInputListenerFactory.getMenuBuilder().setAcceleratorChangeListener(fButtonToolBar);
 		userInputListenerFactory.addToolBar("/icon_toolbar", ViewController.LEFT, ((MIconController) IconController
 		    .getController()).getIconToolBarScrollPane());
 		modeController.addAction(new ToggleToolbarAction("ToggleLeftToolbarAction", "/icon_toolbar"));
 		new RevisionPlugin();
 		FoldingController.install(new FoldingController());
-
+		
 		uiFactory = new MUIFactory();
 		mapController.addNodeChangeListener(uiFactory);
 		mapController.addNodeSelectionListener(uiFactory);
 		mapController.addMapChangeListener(uiFactory);
 		controller.getMapViewManager().addMapSelectionListener(uiFactory);
 		final MToolbarContributor menuContributor = new MToolbarContributor(uiFactory);
-		modeController.addExtension(MUIFactory.class, uiFactory);
 		modeController.addMenuContributor(menuContributor);
-		registerStateIconProvider();
-
-//		IconController.getController(modeController).addStateIconProvider(new IStateIconProvider() {
-//			public UIIcon getStateIcon(NodeModel node) {
-//				final URI link = NodeLinks.getLink(node);
-//				return wrapIcon(LinkController.getLinkIcon(link, node));
-//			}
-//
-//			private UIIcon wrapIcon(final Icon linkIcon) {
-//				UIIcon icon = null;
-//				if(linkIcon != null) {
-//					if(linkIcon instanceof UIIcon) {
-//						icon = (UIIcon) linkIcon;
-//					}
-//					else {
-//    					icon = new UIIcon("ownIcon", null) {
-//    						public Icon getIcon() {
-//    							return linkIcon;
-//    						}
-//    					};
-//					}
-//				}
-//				return icon;
-//			}
-//		});
 	}
-	private static UIIcon cloneIcon;
-	private static UIIcon cloneRootIcon;
-	private void registerStateIconProvider() {
-	    IconController.getController().addStateIconProvider(new IStateIconProvider() {
-
-			public UIIcon getStateIcon(NodeModel node) {
-				if (node.clones().size() <= 1) {
-					return null;
-				}
-				final NodeModel parentNode = node.getParentNode();
-				if(parentNode != null && parentNode.clones().size() == node.clones().size()){
-					if (cloneIcon == null) {
-						cloneIcon = IconStoreFactory.create().getUIIcon("clone.png");
-					}
-					return cloneIcon;
-				}
-				if (cloneRootIcon == null) {
-					cloneRootIcon = IconStoreFactory.create().getUIIcon("cloneroot.png");
-				}
-				return cloneRootIcon;
-			}
-		});
-    }
 }

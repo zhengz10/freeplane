@@ -36,7 +36,7 @@ class NodeUpAction extends AFreeplaneAction {
 
 	public void actionPerformed(final ActionEvent e) {
 		final MMapController mapController = (MMapController) Controller.getCurrentModeController().getMapController();
-		mapController.moveNodesInGivenDirection(mapController.getSelectedNode(), mapController.getSelectedNodes(), -1);
+		mapController.moveNodes(mapController.getSelectedNode(), mapController.getSelectedNodes(), -1);
 	}
 
 

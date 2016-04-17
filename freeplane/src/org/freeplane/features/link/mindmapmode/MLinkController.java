@@ -69,6 +69,7 @@ import org.freeplane.features.link.ConnectorModel;
 import org.freeplane.features.link.ConnectorModel.Shape;
 import org.freeplane.features.link.HyperTextLinkModel;
 import org.freeplane.features.link.LinkController;
+import org.freeplane.features.link.LinkModel;
 import org.freeplane.features.link.MapLinks;
 import org.freeplane.features.link.NodeLinkModel;
 import org.freeplane.features.link.NodeLinks;
@@ -110,7 +111,7 @@ public class MLinkController extends LinkController {
 			if (!key.equals(LogicalStyleKeys.NODE_STYLE)) {
 				return;
 			}
-			final NodeLinks model = NodeLinks.getLinkExtension(from);
+			final NodeLinks model = NodeLinks.getModel(from);
 			if(model != null)
 				model.setFormatNodeAsHyperlink(null);
         }
@@ -137,7 +138,11 @@ public class MLinkController extends LinkController {
 		}
 
 		public void act() {
-			NodeLinks nodeLinks = NodeLinks.createLinkExtension(source);
+			NodeLinks nodeLinks = source.getExtension(NodeLinks.class);
+			if (nodeLinks == null) {
+				nodeLinks = new NodeLinks();
+				source.addExtension(nodeLinks);
+			}
 			arrowLink = new ConnectorModel(source, targetID,
 				getStandardConnectorColor(), getStandardConnectorAlpha(),
 				getStandardConnectorShape(), getStandardConnectorWidth(),
@@ -151,7 +156,7 @@ public class MLinkController extends LinkController {
 		}
 
 		public void undo() {
-			final NodeLinks nodeLinks = NodeLinks.getLinkExtension(source);
+			final NodeLinks nodeLinks = source.getExtension(NodeLinks.class);
 			nodeLinks.removeArrowlink(arrowLink);
 			fireNodeConnectorChange(source, arrowLink);
 		}
@@ -246,7 +251,7 @@ public class MLinkController extends LinkController {
 		}
 
 		public void onNodeInserted(final NodeModel parent, final NodeModel child, final int newIndex) {
-			if (((MModeController) Controller.getCurrentModeController()).isUndoAction() || child.clones().size() > 1) {
+			if (((MModeController) Controller.getCurrentModeController()).isUndoAction()) {
 				return;
 			}
 			EventQueue.invokeLater(new Runnable() {
@@ -273,73 +278,69 @@ public class MLinkController extends LinkController {
 			if (links == null) {
 				return;
 			}
-			updateMapLinksForSourceTree(links, model, delete);
-			updateMapLinksForTargetTree(links, model);
+			removeLinksForDeletedSource(links, model, delete);
+			removeLinksForDeletedTarget(links, model);
 		}
 
-		private void updateMapLinksForSourceTree(final MapLinks links, final NodeModel model, final boolean delete) {
+		private void removeLinksForDeletedSource(final MapLinks links, final NodeModel model, final boolean delete) {
 			final List<NodeModel> children = model.getChildren();
 			for (final NodeModel child : children) {
-				updateMapLinksForSourceTree(links, child, delete);
+				removeLinksForDeletedSource(links, child, delete);
 			}
-			if(model.clones().size() == 1)
-				updateMapLinksForSourceNodeWithoutClones(links, model, delete);
-			else
-				updateMapLinksForDeletedSourceClone(links, model);
+			final NodeLinks nodeLinks = NodeLinks.getLinkExtension(model);
+			if (nodeLinks == null) {
+				return;
+			}
+			for (final LinkModel link : nodeLinks.getLinks()) {
+				if (!(link instanceof NodeLinkModel)) {
+					continue;
+				}
+				final IActor actor = new IActor() {
+					public void act() {
+						if (delete) {
+							delete();
+						}
+						else {
+							insert();
+						}
+					}
+
+					public void undo() {
+						if (delete) {
+							insert();
+						}
+						else {
+							delete();
+						}
+					}
+
+					private void delete() {
+						links.remove(link);
+					}
+
+					public String getDescription() {
+						return null;
+					}
+
+					private void insert() {
+						links.add(link);
+					}
+				};
+				final MapModel map = model.getMap();
+				Controller.getCurrentModeController().execute(actor, map);
+			}
 		}
 
-		private void updateMapLinksForDeletedSourceClone(MapLinks links, NodeModel model) {
-	        final NodeLinks nodeLinks = NodeLinks.getLinkExtension(model);
-	        if (nodeLinks != null) {
-	        	for (final NodeLinkModel link : nodeLinks.getLinks()) {
-	        		links.remove(link);
-	        	}
-	        	nodeLinks.setSource(model.clones().otherThan(model));
-	        	for (final NodeLinkModel link : nodeLinks.getLinks()) {
-	        		links.add(link);
-	        	}
-	        }
-        }
-
-		private void updateMapLinksForSourceNodeWithoutClones(final MapLinks links, final NodeModel model, final boolean delete) {
-	        final NodeLinks nodeLinks = NodeLinks.getLinkExtension(model);
-	        if (nodeLinks != null) {
-	        	for (final NodeLinkModel link : nodeLinks.getLinks()) {
-	        		final IActor actor = new IActor() {
-	        			public void act() {
-	        				if (delete)
-	        					links.remove(link);
-	        				else
-	        					links.add(link);
-	        			}
-
-	        			public void undo() {
-	        				if (delete)
-	        					links.add(link);
-	        				else
-	        					links.remove(link);
-	        			}
-
-	        			public String getDescription() {
-	        				return null;
-	        			}
-	        		};
-	        		final MapModel map = model.getMap();
-	        		Controller.getCurrentModeController().execute(actor, map);
-	        	}
-	        }
-        }
-
-		private void updateMapLinksForTargetTree(final MapLinks links, final NodeModel model) {
+		private void removeLinksForDeletedTarget(final MapLinks links, final NodeModel model) {
 			final List<NodeModel> children = model.getChildren();
 			for (final NodeModel child : children) {
-				updateMapLinksForTargetTree(links, child);
+				removeLinksForDeletedTarget(links, child);
 			}
 			final String id = model.getID();
 			if (id == null) {
 				return;
 			}
-			final Set<NodeLinkModel> linkModels = links.get(id);
+			final Set<LinkModel> linkModels = links.get(id);
 			if (linkModels == null || linkModels.isEmpty()) {
 				return;
 			}
@@ -353,7 +354,7 @@ public class MLinkController extends LinkController {
 				}
 
 				private void refresh() {
-					for (final NodeLinkModel link : linkModels) {
+					for (final LinkModel link : linkModels) {
 						if (link instanceof HyperTextLinkModel) {
 							final NodeModel source = ((HyperTextLinkModel) link).getSource();
 							Controller.getCurrentModeController().getMapController().delayedNodeRefresh(source, NodeModel.NODE_ICON,
@@ -378,24 +379,20 @@ public class MLinkController extends LinkController {
 	static private SetLinkByFileChooserAction setLinkByFileChooser;
 	static private SetLinkByTextFieldAction setLinkByTextField;
 	private String anchorID;
-	private ModeController modeController;
+	private final ModeController modeController;
 
-	public MLinkController() {
+	public MLinkController(ModeController modeController) {
 		super();
+		this.modeController = modeController;
+		this.anchorID = "";
 	}
 
 	@Override
-    protected void init(ModeController modeController) {
-		super.init(modeController);
-		setModeController(modeController);
-		this.anchorID = "";
+    protected void init() {
+		super.init();
 		createActions();
 		modeController.registerExtensionCopier(new StyleCopier());
 		(modeController.getMapController()).addMapChangeListener(new NodeDeletionListener());
-	}
-
-	protected void setModeController(ModeController modeController) {
-		this.modeController = modeController;
 	}
 
 	public ConnectorModel addConnector(final NodeModel source, final NodeModel target) {
@@ -811,7 +808,7 @@ public class MLinkController extends LinkController {
 			public void act() {
 				NodeLinks links = NodeLinks.getLinkExtension(node);
 				if (links != null) {
-					oldlink = links.getHyperLink(node);
+					oldlink = links.getHyperLink();
 					oldTargetID = links.removeLocalHyperLink(node);
 				}
 				else {
@@ -820,9 +817,12 @@ public class MLinkController extends LinkController {
 				if (uri != null && uri.toString().startsWith("#")) {
 					links.setLocalHyperlink(node, uri.toString().substring(1));
 				}
-				else
-					links.setHyperLink(uri);
-				Controller.getCurrentModeController().getMapController().nodeChanged(node, NodeLinks.HYPERLINK_CHANGED, oldlink, uri);
+
+				//DOCEAR - replaced old nodeChanged event and use new LinkChanged property
+				URI oldHyperLink = links.getHyperLink();
+				links.setHyperLink(uri);
+				//Controller.getCurrentModeController().getMapController().nodeChanged(node);
+				Controller.getCurrentModeController().getMapController().nodeChanged(node, NodeLinks.HYPERLINK_CHANGED, oldHyperLink, uri);
 
 			}
 
@@ -832,7 +832,7 @@ public class MLinkController extends LinkController {
 
 			public void undo() {
 				final NodeLinks links = NodeLinks.getLinkExtension(node);
-				URI undoneLink = links.getHyperLink(node);
+				URI undoneLink = links.getHyperLink();
 				links.setLocalHyperlink(node, oldTargetID);
 				links.setHyperLink(oldlink);
 				Controller.getCurrentModeController().getMapController().nodeChanged(node, NodeLinks.HYPERLINK_CHANGED, undoneLink, oldlink);
@@ -900,7 +900,7 @@ public class MLinkController extends LinkController {
 		final IActor actor = new IActor() {
 			public void act() {
 				final NodeModel source = arrowLink.getSource();
-				final NodeLinks nodeLinks = NodeLinks.getLinkExtension(source);
+				final NodeLinks nodeLinks = source.getExtension(NodeLinks.class);
 				nodeLinks.removeArrowlink(arrowLink);
 				fireNodeConnectorChange(source, arrowLink);
 			}
@@ -911,7 +911,11 @@ public class MLinkController extends LinkController {
 
 			public void undo() {
 				final NodeModel source = arrowLink.getSource();
-				NodeLinks nodeLinks = NodeLinks.createLinkExtension(source);
+				NodeLinks nodeLinks = source.getExtension(NodeLinks.class);
+				if (nodeLinks == null) {
+					nodeLinks = new NodeLinks();
+					source.addExtension(nodeLinks);
+				}
 				nodeLinks.addArrowlink(arrowLink);
 				fireNodeConnectorChange(source, arrowLink);
 			}

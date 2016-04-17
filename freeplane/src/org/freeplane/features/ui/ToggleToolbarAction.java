@@ -23,6 +23,7 @@ import java.awt.event.ActionEvent;
 
 import javax.swing.JComponent;
 
+import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.AFreeplaneAction;
 import org.freeplane.core.ui.SelectableAction;
 import org.freeplane.features.mode.Controller;
@@ -30,7 +31,7 @@ import org.freeplane.features.mode.Controller;
 @SelectableAction(checkOnPopup = true)
 public class ToggleToolbarAction extends AFreeplaneAction {
 	/**
-	 *
+	 * 
 	 */
 	private static final long serialVersionUID = 1L;
 	/**
@@ -43,17 +44,25 @@ public class ToggleToolbarAction extends AFreeplaneAction {
 		this.toolbarName = toolbarName;
 	}
 
-	protected JComponent getToolbar() {
+	public void actionPerformed(final ActionEvent event) {
+		final ResourceController resourceController = ResourceController.getResourceController();
+		final JComponent toolBar = getToolbar();
+		final String propertyName = Controller.getCurrentController().getViewController().completeVisiblePropertyKey(toolBar);
+		final boolean wasVisible = resourceController.getBooleanProperty(propertyName);
+		final boolean visible = !wasVisible;
+		resourceController.setProperty(propertyName, visible);
+		setVisible(toolBar, visible);
+	}
+
+	protected void setVisible(final JComponent toolBar, final boolean visible) {
+	    toolBar.setVisible(visible);
+		((JComponent) toolBar.getParent()).revalidate();
+    }
+
+	private JComponent getToolbar() {
 		final JComponent toolBar = Controller.getCurrentModeController().getUserInputListenerFactory().getToolBar(toolbarName);
 		return toolBar;
 	}
-
-	public void actionPerformed(final ActionEvent event) {
-		final JComponent toolBar = getToolbar();
-		if(toolBar != null)
-			UIComponentVisibilityDispatcher.dispatcher(toolBar).toggleVisibility();
-	}
-
 
 	@Override
 	public void setSelected() {
@@ -61,12 +70,13 @@ public class ToggleToolbarAction extends AFreeplaneAction {
 		setSelected(isVisible);
 	}
 
-	@Override
-	public void afterMapChange(final Object newMap) {
-	}
-
 	public boolean isVisible() {
 		final JComponent toolBar = getToolbar();
-		return toolBar != null && UIComponentVisibilityDispatcher.dispatcher(toolBar).isVisible();
+		final boolean isVisible = ((FrameController) Controller.getCurrentController().getViewController()).isToolbarVisible(toolBar);
+		return isVisible;
+	}
+	
+	@Override
+	public void afterMapChange(final Object newMap) {
 	}
 }

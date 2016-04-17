@@ -10,6 +10,7 @@ import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 
 import org.freeplane.core.ui.components.BitmapImagePreview;
+import org.freeplane.core.ui.components.BitmapViewerComponent;
 import org.freeplane.core.util.LogUtils;
 import org.freeplane.view.swing.features.filepreview.ViewerController.FactoryFileFilter;
 
@@ -29,7 +30,7 @@ public class ImagePreview extends BitmapImagePreview {
 		size.height -= 2 * BORDER_WIDTH;
 		JComponent viewer;
 		try {
-			viewer = (JComponent) filter.getFactory().createViewer(file.getAbsoluteFile().toURI(), size);
+			viewer = filter.getFactory().createViewer(file.getAbsoluteFile().toURI(), size);
 		}
 		catch (final MalformedURLException e) {
 			LogUtils.warn(e);

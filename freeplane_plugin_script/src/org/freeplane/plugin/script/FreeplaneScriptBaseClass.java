@@ -9,7 +9,6 @@ import groovy.lang.Script;
 import java.net.URI;
 import java.util.Date;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.regex.Pattern;
@@ -128,13 +127,16 @@ public abstract class FreeplaneScriptBaseClass extends Script {
     }
 
 	private Binding addStaticBindings(Binding binding) {
-	    for (Entry<String, Object> entry : ScriptingConfiguration.getStaticProperties().entrySet()) {
-            binding.setProperty(entry.getKey(), entry.getValue());
-        }
+		binding.setProperty("logger", new LogUtils());
+		binding.setProperty("ui", new UITools());
+		binding.setProperty("htmlUtils", HtmlUtils.getInstance());
+		binding.setProperty("textUtils", new TextUtils());
+		binding.setProperty("menuUtils", new MenuUtils());
+		binding.setProperty("config", new ConfigProperties());
 	    return binding;
     }
 
-    /* <ul>
+	/* <ul>
 	 * <li> translate raw node ids to nodes.
 	 * <li> "imports" node's methods into the script's namespace
 	 * </ul>

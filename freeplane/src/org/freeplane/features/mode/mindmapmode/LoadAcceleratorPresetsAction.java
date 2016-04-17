@@ -68,8 +68,7 @@ public class LoadAcceleratorPresetsAction extends AFreeplaneAction {
 		        LoadAcceleratorPresetsAction.getAcceleratorsSysDirectory() };
 		final Controller controller = Controller.getCurrentController();
 		ModeController modecontroller = controller.getModeController(MModeController.MODENAME);
-		final MenuBuilder menuBuilder = modecontroller.getUserInputListenerFactory().getMenuBuilder(MenuBuilder.class);
-		//TODO RIBBONS: impl. eventually
+		final MenuBuilder menuBuilder = modecontroller.getUserInputListenerFactory().getMenuBuilder();
 		for (final File dir : dirs) {
 			final File[] fileList = dir.listFiles();
 			if (fileList == null) {

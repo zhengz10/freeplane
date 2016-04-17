@@ -38,7 +38,6 @@ import javax.swing.border.MatteBorder;
 
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.util.LogUtils;
-import org.freeplane.view.swing.features.filepreview.BitmapViewerComponent;
 
 public class BitmapImagePreview extends JComponent implements PropertyChangeListener {
 	/**

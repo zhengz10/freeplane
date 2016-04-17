@@ -30,7 +30,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -106,7 +105,7 @@ public class LinkController extends SelectionController implements IExtension {
 	public static void install( final LinkController linkController) {
 		final ModeController modeController = Controller.getCurrentModeController();
 		modeController.addExtension(LinkController.class, linkController);
-		linkController.init(modeController);
+		linkController.init();
 	}
 
 	public static final String LINK_ICON = ResourceController.getResourceController().getProperty("link_icon");
@@ -119,8 +118,9 @@ public class LinkController extends SelectionController implements IExtension {
 //		this.modeController = modeController;
 	}
 
-	protected void init(ModeController modeController) {
+	protected void init() {
 		createActions();
+		final ModeController modeController = Controller.getCurrentModeController();
 		final MapController mapController = modeController.getMapController();
 		final ReadManager readManager = mapController.getReadManager();
 		final WriteManager writeManager = mapController.getWriteManager();
@@ -199,25 +199,27 @@ public class LinkController extends SelectionController implements IExtension {
 
     private class LinkMenuContributor implements IMenuContributor {
     	final String key;
+        final String menuKey;
 	    public LinkMenuContributor(String menuKey, String key) {
 	        super();
+	        this.menuKey = menuKey;
 	        this.key = key;
         }
 		public void updateMenus(final ModeController modeController, final MenuBuilder builder) {
 			if(builder.contains(key)) {
-				builder.addPopupMenuListener((DefaultMutableTreeNode)builder.get(key).getParent(), new PopupMenuListener(
+	            builder.addPopupMenuListener(menuKey, new PopupMenuListener(
 	            		) {
 	            		public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
 	            			final IMapSelection selection = modeController.getController().getSelection();
 	            			if(selection == null)
 	            				return;
 							final NodeModel node = selection.getSelected();
-	            			Set<NodeLinkModel> links = new LinkedHashSet<NodeLinkModel>( NodeLinks.getLinks(node));
+	            			Set<LinkModel> links = new LinkedHashSet<LinkModel>( NodeLinks.getLinks(node));
 	            			links.addAll(getLinksTo(node));
 	            			if(links.isEmpty())
 	            				return;
 	            			builder.addSeparator(key, MenuBuilder.AS_CHILD);
-	            			for(NodeLinkModel link : links){
+	            			for(LinkModel link : links){
 	            				final String targetID = link.getTargetID();
 	            				final NodeModel target;
 	            				if(node.getID().equals(targetID)){
@@ -309,7 +311,7 @@ public class LinkController extends SelectionController implements IExtension {
 		return adaptedText;
 	}
 
-	public Collection<NodeLinkModel> getLinksTo(final NodeModel target) {
+	public Collection<LinkModel> getLinksTo(final NodeModel target) {
 		if (target.hasID() == false) {
 			return Collections.emptySet();
 		}
@@ -317,18 +319,11 @@ public class LinkController extends SelectionController implements IExtension {
 		if (links == null) {
 			return Collections.emptySet();
 		}
-		final Set<NodeLinkModel> set = links.get(target.createID());
+		final Set<LinkModel> set = links.get(target.createID());
 		if (set == null) {
 			return Collections.emptySet();
 		}
-		ArrayList<NodeLinkModel> clonedLinks = new ArrayList<NodeLinkModel>(set.size() * 3);
-		for(NodeLinkModel sharedLink : set){
-			final Collection<NodeLinkModel> linkClones = sharedLink.clones();
-			for(NodeLinkModel linkClone : linkClones)
-				if(target.equals(linkClone.getTarget()))
-					clonedLinks.add(linkClone);
-		}
-		return clonedLinks;
+		return set;
 	}
 
 	/**
@@ -355,7 +350,7 @@ public class LinkController extends SelectionController implements IExtension {
 		return model.getWidth();
 	}
 
-	public void loadLink(final NodeModel node, String link) {
+	void loadLink(final NodeModel node, String link) {
 		NodeLinks links = NodeLinks.getLinkExtension(node);
 		if (links == null) {
 			links = NodeLinks.createLinkExtension(node);
@@ -363,19 +358,17 @@ public class LinkController extends SelectionController implements IExtension {
 		if (link != null && link.startsWith("#")) {
 			links.setLocalHyperlink(node, link.substring(1));
 		}
-		else {
-			try {
-				if (link.startsWith("\"") && link.endsWith("\"")) {
-					link = link.substring(1, link.length() - 1);
-				}
-				final URI hyperlink = LinkController.createURI(link);
-				links.setHyperLink(hyperlink);
+		try {
+			if (link.startsWith("\"") && link.endsWith("\"")) {
+				link = link.substring(1, link.length() - 1);
 			}
-			catch (final URISyntaxException e1) {
-				LogUtils.warn(e1);
-				UITools.errorMessage(TextUtils.format("link_error", link));
-				return;
-			}
+			final URI hyperlink = LinkController.createURI(link);
+			links.setHyperLink(hyperlink);
+		}
+		catch (final URISyntaxException e1) {
+			LogUtils.warn(e1);
+			UITools.errorMessage(TextUtils.format("link_error", link));
+			return;
 		}
 	}
 
@@ -410,7 +403,7 @@ public class LinkController extends SelectionController implements IExtension {
 				if (e == null) {
 					throw new IllegalArgumentException("ActionEvent is needed for menu item links");
 				}
-				final MenuBuilder menuBuilder = modeController.getUserInputListenerFactory().getMenuBuilder(MenuBuilder.class);
+				final MenuBuilder menuBuilder = modeController.getUserInputListenerFactory().getMenuBuilder();
 				final DefaultMutableTreeNode treeNode = menuBuilder.get(LinkController.parseMenuItemLink(link));
 				if (treeNode == null || !treeNode.isLeaf() || !(treeNode.getUserObject() instanceof JMenuItem)) {
 					LogUtils.warn("node " + link + " should have been an executable action");
@@ -841,7 +834,7 @@ public class LinkController extends SelectionController implements IExtension {
 	}
 
 	private Boolean ownFormatNodeAsHyperlink(final NodeModel node){
-		final NodeLinks linkModel = NodeLinks.getLinkExtension(node);
+		final NodeLinks linkModel = NodeLinks.getModel(node);
 		if(linkModel == null){
 			return null;
 		}

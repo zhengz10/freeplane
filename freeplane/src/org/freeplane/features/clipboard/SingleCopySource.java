@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.swing.tree.MutableTreeNode;
+import javax.swing.tree.TreeNode;
 
 import org.freeplane.core.extension.IExtension;
 import org.freeplane.features.filter.FilterInfo;
@@ -45,193 +46,160 @@ class SingleCopySource extends NodeModel {
 
 	private static final String METHOD_NOT_SUPPORTED = "method not supported";
 	private final NodeModel delegate;
-
-	@Override
-    protected List<NodeModel> getChildrenInternal() {
+	
+	protected List<NodeModel> getChildrenInternal() {
 	    return Collections.emptyList();
     }
-
-	@Override
-    protected void init(final Object userObject) {
+	
+	protected void init(final Object userObject) {
     }
 
 	public SingleCopySource(NodeModel delegate) {
 	    super(null);
 	    this.delegate =delegate;
     }
-
-	@Override
-    public int hashCode() {
+	
+	public int hashCode() {
 	    return super.hashCode();
     }
 
-	@Override
-    public Object getUserObject() {
+	public Object getUserObject() {
 	    return delegate.getUserObject();
     }
 
-	@Override
-    public boolean equals(Object obj) {
+	public boolean equals(Object obj) {
 	    return super.equals(obj);
     }
 
-	@Override
-    public void acceptViewVisitor(INodeViewVisitor visitor) {
+	public void acceptViewVisitor(INodeViewVisitor visitor) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void addExtension(IExtension extension) {
+	public void addExtension(IExtension extension) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public IExtension putExtension(IExtension extension) {
+	public IExtension putExtension(IExtension extension) {
 	   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void addIcon(MindIcon icon) {
+	public void addIcon(MindIcon icon) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void addIcon(MindIcon icon, int position) {
+	public void addIcon(MindIcon icon, int position) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void addViewer(INodeView viewer) {
+	public void addViewer(INodeView viewer) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public boolean areViewsEmpty() {
+	public boolean areViewsEmpty() {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public Enumeration<NodeModel> children() {
+	public Enumeration<NodeModel> children() {
 	    return super.children();
     }
 
-	@Override
-    public boolean containsExtension(Class<? extends IExtension> clazz) {
+	public boolean containsExtension(Class<? extends IExtension> clazz) {
 	    return delegate.containsExtension(clazz);
     }
 
-	@Override
-    public String createID() {
+	public String createID() {
 	    return delegate.createID();
     }
 
-	@Override
-    public void fireNodeChanged(NodeChangeEvent nodeChangeEvent) {
+	public void fireNodeChanged(NodeChangeEvent nodeChangeEvent) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public boolean getAllowsChildren() {
+	public boolean getAllowsChildren() {
 	    return delegate.getAllowsChildren();
     }
 
-	@Override
-    public NodeModel getChildAt(int childIndex) {
-	    return super.getChildAt(childIndex);
+	public TreeNode getChildAt(int childIndex) {
+	    return  super.getChildAt(childIndex);
     }
 
-	@Override
-    public int getChildCount() {
+	public int getChildCount() {
 	    return super.getChildCount();
     }
 
-	@Override
-    public int getChildPosition(NodeModel childNode) {
+	public int getChildPosition(NodeModel childNode) {
 	    return super.getChildPosition(childNode);
     }
 
-	@Override
-    public List<NodeModel> getChildren() {
+	public List<NodeModel> getChildren() {
 	    return super.getChildren();
     }
 
-	@Override
-    public <T extends IExtension> T getExtension(Class<T> clazz) {
+	public <T extends IExtension> T getExtension(Class<T> clazz) {
 	    return delegate.getExtension(clazz);
     }
 
-	@Override
-    public Map<Class<? extends IExtension>, IExtension> getSharedExtensions() {
-	    return delegate.getSharedExtensions();
+	public Map<Class<? extends IExtension>, IExtension> getExtensions() {
+	    return delegate.getExtensions();
     }
 
-	@Override
-    public FilterInfo getFilterInfo() {
+	public FilterInfo getFilterInfo() {
 	    return delegate.getFilterInfo();
     }
 
-	@Override
-    public HistoryInformationModel getHistoryInformation() {
+	public HistoryInformationModel getHistoryInformation() {
 	    return delegate.getHistoryInformation();
     }
 
-	@Override
-    public MindIcon getIcon(int position) {
+	public MindIcon getIcon(int position) {
 	    return delegate.getIcon(position);
     }
 
-	@Override
-    public List<MindIcon> getIcons() {
+	public List<MindIcon> getIcons() {
 	    return delegate.getIcons();
     }
 
-	@Override
-    public String getID() {
+	public String getID() {
 	    return delegate.getID();
     }
 
-	@Override
-    public int getIndex(NodeModel node) {
+	public int getIndex(TreeNode node) {
 	    return super.getIndex(node);
     }
 
-	@Override
-    public MapModel getMap() {
+	public MapModel getMap() {
 	    return delegate.getMap();
     }
 
-	@Override
-    public int getNodeLevel(boolean countHidden) {
+	public int getNodeLevel(boolean countHidden) {
 	    return delegate.getNodeLevel(countHidden);
     }
 
-	@Override
-    public NodeModel getParentNode() {
+	public TreeNode getParent() {
+	    return delegate.getParent();
+    }
+
+	public NodeModel getParentNode() {
 	    return delegate.getParentNode();
     }
 
-	@Override
-    public NodeModel[] getPathToRoot() {
+	public NodeModel[] getPathToRoot() {
 	    return delegate.getPathToRoot();
     }
 
-	@Override
-    public String getText() {
+	public String getText() {
 	    return delegate.getText();
     }
 
-	@Override
-    public Collection<INodeView> getViewers() {
+	public Collection<INodeView> getViewers() {
 	    return delegate.getViewers();
     }
 
-	@Override
-    public boolean hasChildren() {
+	public boolean hasChildren() {
 	    return false;
     }
 
-	@Override
-    public boolean hasID() {
+	public boolean hasID() {
 	    return delegate.hasID();
     }
 
@@ -239,92 +207,83 @@ class SingleCopySource extends NodeModel {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public boolean isDescendantOf(NodeModel node) {
+	public boolean isDescendantOf(NodeModel node) {
 	    return delegate.isDescendantOf(node);
     }
 
-	@Override
-    public boolean isFolded() {
+	public boolean isFolded() {
 	    return false;
     }
 
-	@Override
-    public boolean isLeaf() {
+	public boolean isLeaf() {
 	    return delegate.isLeaf();
     }
 
-	@Override
-    public boolean isLeft() {
+	public boolean isLeft() {
 	    return delegate.isLeft();
     }
 
-	@Override
-    public boolean isNewChildLeft() {
+	public boolean isNewChildLeft() {
 	    return delegate.isNewChildLeft();
     }
 
-	@Override
-    public boolean isRoot() {
+	public boolean isRoot() {
 	    return delegate.isRoot();
     }
 
-	@Override
-    public boolean isVisible() {
+	public boolean isVisible() {
 	    return delegate.isVisible();
+    }
+
+	public void remove(int index) {
+		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
 	public void remove(MutableTreeNode node) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public <T extends IExtension> T removeExtension(Class<T> clazz) {
+	public <T extends IExtension> T removeExtension(Class<T> clazz) {
 		throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public boolean removeExtension(IExtension extension) {
+	public boolean removeExtension(IExtension extension) {
 		throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public int removeIcon() {
+	public void removeFromParent() {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public int removeIcon(int position) {
+	public int removeIcon() {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void removeViewer(INodeView viewer) {
+	public int removeIcon(int position) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void setFolded(boolean folded) {
+	public void removeViewer(INodeView viewer) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void setHistoryInformation(HistoryInformationModel historyInformation) {
+	public void setFolded(boolean folded) {
+		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
+    }
+
+	public void setHistoryInformation(HistoryInformationModel historyInformation) {
 		throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void setID(String value) {
+	public void setID(String value) {
 		throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void setLeft(boolean isLeft) {
+	public void setLeft(boolean isLeft) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void setMap(MapModel map) {
+	public void setMap(MapModel map) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
@@ -332,30 +291,25 @@ class SingleCopySource extends NodeModel {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public void setParent(NodeModel newParent) {
+	public void setParent(NodeModel newParent) {
 		   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public String toString() {
+	public String toString() {
 	    return delegate.toString();
     }
 
-	@Override
-    public int depth() {
+	public int depth() {
 	    return delegate.depth();
     }
 
-	@Override
-    public void insert(NodeModel newNodeModel) {
+	public void insert(NodeModel newNodeModel) {
 	   throw new RuntimeException(METHOD_NOT_SUPPORTED);
     }
 
-	@Override
-    public NodeModel getVisibleAncestorOrSelf() {
+	public NodeModel getVisibleAncestorOrSelf() {
 	    return delegate.getVisibleAncestorOrSelf();
     }
-
-
+	
+	
 }

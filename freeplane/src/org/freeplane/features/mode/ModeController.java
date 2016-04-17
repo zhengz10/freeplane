@@ -43,6 +43,7 @@ import org.freeplane.features.map.ITooltipProvider;
 import org.freeplane.features.map.MapController;
 import org.freeplane.features.map.MapModel;
 import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.map.mindmapmode.DocuMapAttribute;
 import org.freeplane.features.ui.INodeViewLifeCycleListener;
 
 /**
@@ -112,7 +113,7 @@ public class ModeController extends AController {
 			copyExtensions(key, from, to);
 			return;
 		}
-		final IUndoHandler undoHandler = map.getExtension(IUndoHandler.class);
+		final IUndoHandler undoHandler = (IUndoHandler) map.getExtension(IUndoHandler.class);
 		if (undoHandler == null) {
 			copyExtensions(key, from, to);
 			return;
@@ -156,7 +157,7 @@ public class ModeController extends AController {
 			removeExtensions(key, from, which);
 			return;
 		}
-		final IUndoHandler undoHandler = map.getExtension(IUndoHandler.class);
+		final IUndoHandler undoHandler = (IUndoHandler) map.getExtension(IUndoHandler.class);
 		if (undoHandler == null) {
 			removeExtensions(key, from, which);
 			return;
@@ -193,7 +194,7 @@ public class ModeController extends AController {
 			resolveParentExtensions(key, to);
 			return;
 		}
-		final IUndoHandler undoHandler = map.getExtension(IUndoHandler.class);
+		final IUndoHandler undoHandler = (IUndoHandler) map.getExtension(IUndoHandler.class);
 		if (undoHandler == null) {
 			resolveParentExtensions(key, to);
 			return;
@@ -370,9 +371,8 @@ public class ModeController extends AController {
 
 	public void updateMenus(String menuStructure, final Set<String> plugins) {
 		final IUserInputListenerFactory userInputListenerFactory = getUserInputListenerFactory();
-		userInputListenerFactory.getAcceleratorManager().loadDefaultAcceleratorPresets();
 		userInputListenerFactory.updateMenus(menuStructure, plugins);
-		final MenuBuilder menuBuilder = userInputListenerFactory.getMenuBuilder(MenuBuilder.class);
+		final MenuBuilder menuBuilder = userInputListenerFactory.getMenuBuilder();
 		final Iterator<IMenuContributor> iterator = menuContributors.iterator();
 		while (iterator.hasNext()) {
 			iterator.next().updateMenus(this, menuBuilder);

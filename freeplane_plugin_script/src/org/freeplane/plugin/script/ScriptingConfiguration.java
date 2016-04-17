@@ -40,13 +40,9 @@ import javax.script.ScriptEngineFactory;
 
 import org.apache.commons.lang.StringUtils;
 import org.freeplane.core.resources.ResourceController;
-import org.freeplane.core.ui.components.UITools;
 import org.freeplane.core.util.ConfigurationUtils;
 import org.freeplane.core.util.FileUtils;
-import org.freeplane.core.util.HtmlUtils;
 import org.freeplane.core.util.LogUtils;
-import org.freeplane.core.util.MenuUtils;
-import org.freeplane.core.util.TextUtils;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.main.addons.AddOnProperties;
 import org.freeplane.main.addons.AddOnProperties.AddOnType;
@@ -127,7 +123,6 @@ class ScriptingConfiguration {
 	private static final String JAR_REGEX = ".+\\.jar$";
 	private final TreeMap<String, String> menuTitleToPathMap = new TreeMap<String, String>();
 	private final TreeMap<String, ScriptMetaData> menuTitleToMetaDataMap = new TreeMap<String, ScriptMetaData>();
-    private static Map<String, Object> staticProperties = createStaticProperties();
 
 	ScriptingConfiguration() {
 	    ScriptResources.setClasspath(buildClasspath());
@@ -445,22 +440,7 @@ class ScriptingConfiguration {
 		return ScriptResources.getClasspath();
 	}
 
-	public static Map<String, Object> getStaticProperties() {
-        return staticProperties;
-    }
-
-    private static Map<String, Object> createStaticProperties() {
-        Map<String, Object> properties = new LinkedHashMap<String, Object>();
-    	properties.put("logger", new LogUtils());
-    	properties.put("ui", new UITools());
-    	properties.put("htmlUtils", HtmlUtils.getInstance());
-    	properties.put("textUtils", new TextUtils());
-    	properties.put("menuUtils", new MenuUtils());
-    	properties.put("config", new FreeplaneScriptBaseClass.ConfigProperties());
-        return properties;
-    }
-
-    static String getExecutionModeKey(final ExecuteScriptAction.ExecutionMode executionMode) {
+	static String getExecutionModeKey(final ExecuteScriptAction.ExecutionMode executionMode) {
 		switch (executionMode) {
 			case ON_SINGLE_NODE:
 				return "ExecuteScriptOnSingleNode.text";

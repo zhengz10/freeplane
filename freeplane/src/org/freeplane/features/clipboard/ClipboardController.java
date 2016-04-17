@@ -87,12 +87,12 @@ public class ClipboardController implements IExtension {
 		}
 	}
 
-	public MindMapNodesSelection copy(final Collection<NodeModel> selectedNodes, final boolean copyInvisible) {
+	public Transferable copy(final Collection<NodeModel> selectedNodes, final boolean copyInvisible) {
 		try {
 			final String forNodesFlavor = createForNodesFlavor(selectedNodes, copyInvisible);
 			final String plainText = getAsPlainText(selectedNodes);
 			return new MindMapNodesSelection(forNodesFlavor, plainText, getAsRTF(selectedNodes),
-			    getAsHTML(selectedNodes));
+			    getAsHTML(selectedNodes), null, null);
 		}
 		catch (final UnsupportedFlavorException ex) {
 			LogUtils.severe(ex);
@@ -116,7 +116,7 @@ public class ClipboardController implements IExtension {
 		catch (final IOException e) {
 			LogUtils.severe(e);
 		}
-		return new MindMapNodesSelection(stringWriter.toString());
+		return new MindMapNodesSelection(stringWriter.toString(), null, null, null, null, null);
 	}
 
 	public Transferable copySingle(final Collection<NodeModel> source) {

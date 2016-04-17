@@ -125,8 +125,7 @@ public class HotKeyInfoAction extends AFreeplaneAction{
 		// use the MModeController for the mindmap mode menu if possible - the browse menu doesn't have much entries!
 		final ModeController modeController = ResourceController.getResourceController().isApplet() ? Controller
 		    .getCurrentModeController() : MModeController.getMModeController();
-		final MenuBuilder menuBuilder = modeController.getUserInputListenerFactory().getMenuBuilder(MenuBuilder.class);
-		//TODO - find a similar way to outline the hotkeys for the ribbons
+		final MenuBuilder menuBuilder = modeController.getUserInputListenerFactory().getMenuBuilder();
 		final DefaultMutableTreeNode menuEntryTree = MenuUtils.createAcceleratebleMenuEntryTree(
 		    FreeplaneMenuBar.MENU_BAR_PREFIX, menuBuilder);
 		final String title = TextUtils.getText("hot_keys_table");

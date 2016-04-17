@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
-
 import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.io.IAttributeHandler;
 import org.freeplane.core.io.IAttributeWriter;
@@ -48,7 +47,6 @@ import org.freeplane.features.map.MapModel;
 import org.freeplane.features.map.NodeBuilder;
 import org.freeplane.features.map.NodeChangeEvent;
 import org.freeplane.features.map.NodeModel;
-import org.freeplane.features.map.NodeWriter;
 import org.freeplane.features.mode.CombinedPropertyChain;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.IPropertyHandler;
@@ -61,7 +59,7 @@ import org.freeplane.features.styles.ConditionalStyleModel.Item;
  */
 public class LogicalStyleController implements IExtension {
 // 	final private ModeController modeController;
-
+	
 	private static final int STYLE_TOOLTIP = 0;
 	private WeakReference<NodeModel> cachedNode;
 	private Collection<IStyle>  cachedStyle;
@@ -69,7 +67,7 @@ public class LogicalStyleController implements IExtension {
 
 	public LogicalStyleController(ModeController modeController) {
 //	    this.modeController = modeController;
-		styleHandlers = new CombinedPropertyChain<Collection<IStyle>, NodeModel>(false);
+		styleHandlers = new CombinedPropertyChain<Collection<IStyle>, NodeModel>(false);		
 		createBuilder();
 		registerChangeListener();
 		addStyleGetter(IPropertyHandler.NODE, new IPropertyHandler<Collection<IStyle>, NodeModel>() {
@@ -117,7 +115,7 @@ public class LogicalStyleController implements IExtension {
 		addAll(node, styleModel, set, collection);
 		return set;
 	}
-
+	
 	protected void addAll(NodeModel node, MapStyleModel styleModel, Collection<IStyle> currentValue, Collection<IStyle> collection) {
 		for(IStyle styleKey : collection){
 			add(node, styleModel, currentValue, styleKey);
@@ -128,7 +126,7 @@ public class LogicalStyleController implements IExtension {
 		final MapStyleModel styleModel = MapStyleModel.getExtension(node.getMap());
 		add(node, styleModel, currentValue, style);
     }
-
+	
 	protected void add(NodeModel node, MapStyleModel styleModel, Collection<IStyle> currentValue, IStyle styleKey) {
 			if(!currentValue.add(styleKey)){
 				return;
@@ -143,7 +141,7 @@ public class LogicalStyleController implements IExtension {
 					add(node, styleModel, currentValue, style);
 				}
 			}
-			final ConditionalStyleModel conditionalStyleModel = styleNode.getExtension(ConditionalStyleModel.class);
+			final ConditionalStyleModel conditionalStyleModel = (ConditionalStyleModel) styleNode.getExtension(ConditionalStyleModel.class);
 			if(conditionalStyleModel == null)
 				return;
 			Collection<IStyle> styles = conditionalStyleModel.getStyles(node);
@@ -158,23 +156,23 @@ public class LogicalStyleController implements IExtension {
 			public void onPreNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
 				clearCache();
 			}
-
+			
 			public void onPreNodeDelete(NodeModel oldParent, NodeModel selectedNode, int index) {
 				clearCache();
 			}
-
+			
 			public void onNodeMoved(NodeModel oldParent, int oldIndex, NodeModel newParent, NodeModel child, int newIndex) {
 				clearCache();
 			}
-
+			
 			public void onNodeInserted(NodeModel parent, NodeModel child, int newIndex) {
 				clearCache();
 			}
-
+			
 			public void onNodeDeleted(NodeModel parent, NodeModel child, int index) {
 				clearCache();
 			}
-
+			
 			public void mapChanged(MapChangeEvent event) {
 				clearCache();
 			}
@@ -184,7 +182,7 @@ public class LogicalStyleController implements IExtension {
 				clearCache();
 			}
 		});
-
+	    
     }
 
 	private void createBuilder() {
@@ -206,8 +204,6 @@ public class LogicalStyleController implements IExtension {
 		final WriteManager writeManager = mapController.getWriteManager();
 		writeManager.addAttributeWriter(NodeBuilder.XML_NODE, new IAttributeWriter() {
 			public void writeAttributes(final ITreeWriter writer, final Object node, final String tag) {
-				if(! NodeWriter.shouldWriteSharedContent(writer))
-					return;
 				final LogicalStyleModel extension = LogicalStyleModel.getExtension((NodeModel) node);
 				if (extension == null) {
 					return;
@@ -238,7 +234,7 @@ public class LogicalStyleController implements IExtension {
 	}
 
 	public static LogicalStyleController getController(ModeController modeController) {
-		return modeController.getExtension(LogicalStyleController.class);
+		return (LogicalStyleController) modeController.getExtension(LogicalStyleController.class);
     }
 	public void refreshMap(final MapModel map) {
 		final IActor actor = new IActor() {
@@ -283,7 +279,7 @@ public class LogicalStyleController implements IExtension {
 			}
 		});
 	}
-
+	
 	public IStyle getFirstStyle(final NodeModel node){
 		final Collection<IStyle> styles = getStyles(node);
 		boolean found = false;
@@ -306,7 +302,7 @@ public class LogicalStyleController implements IExtension {
 		cachedNode = new WeakReference<NodeModel>(node);
 		return cachedStyle;
 	}
-
+	
 	public void moveConditionalStyleDown(final ConditionalStyleModel conditionalStyleModel, int index) {
 	    conditionalStyleModel.moveDown(index);
     }
@@ -324,7 +320,7 @@ public class LogicalStyleController implements IExtension {
                                        ASelectableCondition condition, IStyle style, boolean isLast) {
 	    conditionalStyleModel.insertCondition(index, isActive, condition, style, isLast);
     }
-
+	
 	public Item removeConditionalStyle(final ConditionalStyleModel conditionalStyleModel, int index) {
 	    return conditionalStyleModel.removeCondition(index);
     }
@@ -371,8 +367,8 @@ public class LogicalStyleController implements IExtension {
 		if(style != null){
 			condStyles.add(style);
 		}
-
-		final ConditionalStyleModel conditionalStyleModel = node.getExtension(ConditionalStyleModel.class);
+		
+		final ConditionalStyleModel conditionalStyleModel = (ConditionalStyleModel) node.getExtension(ConditionalStyleModel.class);
 		if(conditionalStyleModel != null) {
 			Collection<IStyle> styles = conditionalStyleModel.getStyles(node);
 			clearCache();
@@ -384,7 +380,7 @@ public class LogicalStyleController implements IExtension {
 		}
 		return all;
 	}
-
+	
 	public String getNodeStyleNames(NodeModel node, String separator) {
 		return getStyleNames(getConditionalNodeStyles(node), separator);
     }

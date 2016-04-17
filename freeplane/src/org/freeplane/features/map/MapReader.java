@@ -125,14 +125,6 @@ public class MapReader implements IElementDOMHandler {
 		public void substituteNodeID(final String value, final String realId) {
 			newIds.put(value, realId);
 		}
-
-		public String substitutedID(final String idCandicate){
-			final String substitute = newIds.get(idCandicate);
-			if (substitute != null)
-				return substitute;
-			else
-				return idCandicate;
-		}
 	}
 
 	private final NodeBuilder nodeBuilder;
@@ -152,7 +144,7 @@ public class MapReader implements IElementDOMHandler {
 	public Object createElement(final Object parent, final String tag, final XMLElement attributes) {
 		return nodeTreeCreator.getCreatedMap();
 	}
-
+	
 	public NodeModel createNodeTreeFromXml(final MapModel map, final Reader pReader, final Mode mode)
 	        throws IOException, XMLException {
 		final Map<Object, Object> hints = new HashMap<Object, Object>(1);

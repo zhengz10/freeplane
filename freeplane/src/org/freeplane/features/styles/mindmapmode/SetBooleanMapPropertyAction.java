@@ -22,7 +22,6 @@ package org.freeplane.features.styles.mindmapmode;
 import java.awt.event.ActionEvent;
 
 import org.freeplane.core.ui.AFreeplaneAction;
-import org.freeplane.core.ui.EnabledAction;
 import org.freeplane.core.ui.SelectableAction;
 import org.freeplane.core.util.TextUtils;
 import org.freeplane.features.map.MapModel;
@@ -37,7 +36,6 @@ import org.freeplane.features.styles.MapStyle;
  */
 @SuppressWarnings("serial")
 @SelectableAction(checkOnPopup = true)
-@EnabledAction(checkOnNodeChange = true)
 public class SetBooleanMapPropertyAction extends AFreeplaneAction{
 
 	private String propertyName;
@@ -61,23 +59,13 @@ public class SetBooleanMapPropertyAction extends AFreeplaneAction{
     }
 	@Override
 	public void setSelected() {
-		try {
-			final Controller controller = Controller.getCurrentController();
-			final NodeModel node = controller.getSelection().getSelected();
-			final ModeController modeController = controller.getModeController();
-			final MapStyle mapStyleController = MapStyle.getController(modeController);
-			final String value = mapStyleController.getPropertySetDefault(node.getMap(), propertyName);
-			boolean isSet = Boolean.parseBoolean(value);
-			setSelected(isSet);
-		}
-		catch (Exception e) {
-			setSelected(false);
-		}
-	}
-	
-	public void setEnabled() {
- 		final Controller controller = Controller.getCurrentController();
-		setEnabled(controller.getSelection() != null);
+		final Controller controller = Controller.getCurrentController();
+		final NodeModel node = controller.getSelection().getSelected();
+		final ModeController modeController = controller.getModeController();
+		final MapStyle mapStyleController = MapStyle.getController(modeController);
+		final String value = mapStyleController.getPropertySetDefault(node.getMap(), propertyName);
+		boolean isSet = Boolean.parseBoolean(value);
+		setSelected(isSet);
 	}
 
 }

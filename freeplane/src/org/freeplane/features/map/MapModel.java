@@ -71,7 +71,6 @@ public class MapModel {
 
 	public void createNewRoot() {
 	    root = new NodeModel(TextUtils.getText("new_mindmap"), this);
-	    root.attach();
     }
 
 	public void addExtension(final Class<? extends IExtension> clazz, final IExtension extension) {
@@ -256,7 +255,6 @@ public class MapModel {
 
 	public void setRoot(final NodeModel root) {
 		this.root = root;
-		root.attach();
 		root.setMap(this);
 	}
 

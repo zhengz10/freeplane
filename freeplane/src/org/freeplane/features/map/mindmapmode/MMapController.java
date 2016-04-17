@@ -33,9 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.Vector;
 
@@ -57,7 +55,6 @@ import org.freeplane.features.map.INodeSelectionListener;
 import org.freeplane.features.map.MapController;
 import org.freeplane.features.map.MapModel;
 import org.freeplane.features.map.NodeModel;
-import org.freeplane.features.map.NodeRelativePath;
 import org.freeplane.features.map.SummaryNode;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
@@ -194,11 +191,11 @@ public class MMapController extends MapController {
 		final SummaryNode summary = modeController.getExtension(SummaryNode.class);
 		summary.undoableActivateHook(newNode, summary);
 		final FirstGroupNode firstGroup = modeController.getExtension(FirstGroupNode.class);
-		final NodeModel firstNode = parentNode.getChildAt(start);
+		final NodeModel firstNode = (NodeModel) parentNode.getChildAt(start);
 		firstGroup.undoableActivateHook(firstNode, firstGroup);
 		int level = summaryLevel;
 		for(int i = start+1; i < end; i++){
-			NodeModel node = parentNode.getChildAt(i);
+			NodeModel node = (NodeModel) parentNode.getChildAt(i);
 			if(isLeft != node.isLeft())
 				continue;
 			if(SummaryNode.isSummaryNode(node))
@@ -230,28 +227,6 @@ public class MMapController extends MapController {
 			UITools.errorMessage(TextUtils.getText("node_is_write_protected"));
 			return false;
 		}
-		insertNewNode(newNode, parent, index, newNodeIsLeft);
-		return true;
-    }
-
-	private void insertNewNode(final NodeModel newNode, final NodeModel parent, final int index,
-                               final boolean newNodeIsLeft) {
-		if(newNode.subtreeContainsCloneOf(parent)){
-			UITools.errorMessage("not allowed");
-			return;
-		}
-		stopEditing();
-		insertSingleNewNode(newNode, parent, index, newNodeIsLeft);
-		for(NodeModel parentClone : parent.clones()){
-			if(parentClone != parent) {
-				final NodeModel childClone = newNode.cloneTree();
-				insertSingleNewNode(childClone, parentClone, index, parentClone.isLeft());
-            }
-		}
-    }
-
-	private void insertSingleNewNode(final NodeModel newNode, final NodeModel parent, final int index,
-                                  final boolean newNodeIsLeft) {
 	    final MapModel map = parent.getMap();
 		newNode.setLeft(newNodeIsLeft);
 		final IActor actor = new IActor() {
@@ -264,10 +239,11 @@ public class MMapController extends MapController {
 			}
 
 			public void undo() {
-				deleteWithoutUndo(parent, index);
+				deleteWithoutUndo(newNode);
 			}
 		};
 		Controller.getCurrentModeController().execute(actor, map);
+		return true;
     }
 
 	/**
@@ -312,17 +288,11 @@ public class MMapController extends MapController {
 	}
 
 	public void deleteNode(final NodeModel node) {
-	    final NodeModel parentNode = node.getParentNode();
+		final NodeModel parentNode = node.getParentNode();
 		final int index = parentNode.getIndex(node);
-		for(NodeModel parentClone : parentNode.clones())
-			deleteSingleNode(parentClone, index);
-	}
-
-	private void deleteSingleNode(final NodeModel parentNode, final int index) {
-		final NodeModel node = parentNode.getChildAt(index);
 		final IActor actor = new IActor() {
         	public void act() {
-        		deleteWithoutUndo(parentNode, index);
+        		deleteWithoutUndo(node);
         	}
 
         	public String getDescription() {
@@ -330,20 +300,22 @@ public class MMapController extends MapController {
         	}
 
         	public void undo() {
-				(Controller.getCurrentModeController().getMapController()).insertNodeIntoWithoutUndo(node, parentNode, index);
+        		(Controller.getCurrentModeController().getMapController()).insertNodeIntoWithoutUndo(node, parentNode, index);
         	}
         };
-		Controller.getCurrentModeController().execute(actor, parentNode.getMap());
-    }
+		Controller.getCurrentModeController().execute(actor, node.getMap());
+	}
 
-	private void deleteWithoutUndo(final NodeModel parent, final int index) {
-	    final NodeModel child = parent.getChildAt(index);
-		firePreNodeDelete(parent, child, index);
-		final MapModel map = parent.getMap();
+	/**
+	 */
+	public void deleteWithoutUndo(final NodeModel selectedNode) {
+		final NodeModel oldParent = selectedNode.getParentNode();
+		firePreNodeDelete(oldParent, selectedNode, oldParent.getIndex(selectedNode));
+		final MapModel map = selectedNode.getMap();
 		setSaved(map, false);
-		parent.remove(index);
-		fireNodeDeleted(parent, child, index);
-    }
+		oldParent.remove(selectedNode);
+		fireNodeDeleted(oldParent, selectedNode, oldParent.getIndex(selectedNode));
+	}
 
 	public MModeController getMModeController() {
 		return (MModeController) Controller.getCurrentModeController();
@@ -375,7 +347,20 @@ public class MMapController extends MapController {
 	}
 
 	public void insertNode(final NodeModel node, final NodeModel parentNode, final int index) {
-		insertNewNode(node, parentNode, index, node.isLeft());
+		final IActor actor = new IActor() {
+			public void act() {
+				(Controller.getCurrentModeController().getMapController()).insertNodeIntoWithoutUndo(node, parentNode, index);
+			}
+
+			public String getDescription() {
+				return "insertNode";
+			}
+
+			public void undo() {
+				((MMapController) Controller.getCurrentModeController().getMapController()).deleteWithoutUndo(node);
+			}
+		};
+		Controller.getCurrentModeController().execute(actor, node.getMap());
 	}
 
 	@Override
@@ -396,49 +381,18 @@ public class MMapController extends MapController {
 		   moveNode(node, node.getParentNode(), i);
 	}
 
-	public void moveNode(final NodeModel child, final NodeModel newParent, final int newIndex) {
-		moveNode(child, newParent, newIndex, false, false);
+	public void moveNode(final NodeModel child, final NodeModel newParent, final int childCount) {
+		moveNode(child, newParent, childCount, false, false);
 	}
 
 	public void moveNode(final NodeModel child, final NodeModel newParent, final int newIndex, final boolean isLeft,
 	                     final boolean changeSide) {
-		if(child.subtreeContainsCloneOf(newParent)){
-			UITools.errorMessage("not allowed");
-			return;
-		}
-
-
-
-		final NodeModel oldParent = child.getParentNode();
-		final int oldIndex = oldParent.getChildPosition(child);
-		if (oldParent != newParent || oldIndex != newIndex || changeSide != false) {
-			final Set<NodeModel> oldParentClones = new HashSet<NodeModel>(oldParent.clones().toCollection());
-			final Set<NodeModel> newParentClones = new HashSet<NodeModel>(newParent.clones().toCollection());
-
-			final NodeRelativePath nodeRelativePath = new NodeRelativePath(oldParent, newParent);
-
-			final NodeModel commonAncestor = nodeRelativePath.commonAncestor();
-			for (NodeModel commonAncestorClone: commonAncestor.clones()){
-					NodeModel oldParentClone = nodeRelativePath.pathBegin(commonAncestorClone);
-					NodeModel newParentClone = nodeRelativePath.pathEnd(commonAncestorClone);
-					moveSingleNode(oldParentClone.getChildAt(oldIndex), newParentClone, newIndex, isLeft, changeSide);
-					oldParentClones.remove(oldParentClone);
-					newParentClones.remove(newParentClone);
-			}
-
-			for(NodeModel newParentClone : newParentClones)
-				insertSingleNewNode(child.cloneTree(), newParentClone, newIndex, newParentClone.isLeft());
-
-			for(NodeModel oldParentClone : oldParentClones)
-					deleteSingleNode(oldParentClone, oldIndex);
-		}
-	}
-
-	private void moveSingleNode(final NodeModel child, final NodeModel newParent, final int newIndex,
-                                final boolean isLeft, final boolean changeSide) {
 		final NodeModel oldParent = child.getParentNode();
 		final int oldIndex = oldParent.getChildPosition(child);
 		final boolean wasLeft = child.isLeft();
+		if (oldParent == newParent && oldIndex == newIndex && changeSide == false) {
+			return;
+		}
 		final IActor actor = new IActor() {
 			public void act() {
 				moveNodeToWithoutUndo(child, newParent, newIndex, isLeft, changeSide);
@@ -453,12 +407,13 @@ public class MMapController extends MapController {
 			}
 		};
 		Controller.getCurrentModeController().execute(actor, newParent.getMap());
-    }
+
+	}
 
 	public void moveNodeAsChild(final NodeModel node, final NodeModel selectedParent, final boolean isLeft,
 	                            final boolean changeSide) {
 		int position = selectedParent.getChildCount();
-		if (selectedParent.clones().contains(node.getParentNode())) {
+		if (node.getParent() == selectedParent) {
 			position--;
 		}
 		FreeNode r = Controller.getCurrentModeController().getExtension(FreeNode.class);
@@ -485,8 +440,25 @@ public class MMapController extends MapController {
         moveNode(node, newParent, newIndex, isLeft, changeSide);
 	}
 
-	public void moveNodesInGivenDirection(NodeModel selected, Collection<NodeModel> movedNodes, final int direction) {
+	public void moveNodes(NodeModel selected, Collection<NodeModel> movedNodes, final int direction) {
 		final List<NodeModel> mySelecteds = new ArrayList<NodeModel>(movedNodes);
+        final IActor actor = new IActor() {
+            public void act() {
+				_moveNodes(mySelecteds, direction);
+            }
+
+            public String getDescription() {
+                return "moveNodes";
+            }
+
+            public void undo() {
+				_moveNodes(mySelecteds, -direction);
+            }
+        };
+        Controller.getCurrentModeController().execute(actor, selected.getMap());
+	}
+
+	private void _moveNodes(final List<NodeModel> movedNodes, final int direction) {
         final Comparator<Object> comparator = (direction == -1) ? null : new Comparator<Object>() {
             public int compare(final Object o1, final Object o2) {
                 final int i1 = ((Integer) o1).intValue();
@@ -494,15 +466,16 @@ public class MMapController extends MapController {
                 return i2 - i1;
             }
         };
-		if (mySelecteds.size() == 0)
+		if (movedNodes.size() == 0)
 			return;
+		NodeModel selected = getSelectedNode();
 		Collection<NodeModel> selectedNodes = new ArrayList<NodeModel>(getSelectedNodes());
-		final NodeModel parent = mySelecteds.get(0).getParentNode();
+		final NodeModel parent = movedNodes.get(0).getParentNode();
         if (parent != null) {
             final Vector<NodeModel> sortedChildren = getSortedSiblings(parent);
             final TreeSet<Integer> range = new TreeSet<Integer>(comparator);
-            for (final NodeModel node : mySelecteds) {
-                if (node.getParentNode() != parent) {
+            for (final NodeModel node : movedNodes) {
+                if (node.getParent() != parent) {
                     LogUtils.warn("Not all selected nodes have the same parent.");
                     return;
                 }
@@ -518,7 +491,7 @@ public class MMapController extends MapController {
             }
             for (final Integer position : range) {
                 final NodeModel node = sortedChildren.get(position.intValue());
-                moveSingleNodeInGivenDirection(node, direction);
+                moveNodeTo(node, direction);
             }
             final IMapSelection selection = Controller.getCurrentController().getSelection();
             selection.selectAsTheOnlyOneSelected(selected);
@@ -527,8 +500,7 @@ public class MMapController extends MapController {
             }
         }
     }
-
-    private int moveSingleNodeInGivenDirection(final NodeModel child, final int direction) {
+    private int moveNodeTo(final NodeModel child, final int direction) {
         final NodeModel parent = child.getParentNode();
         final int index = parent.getIndex(child);
         int newIndex = index;
@@ -543,7 +515,8 @@ public class MMapController extends MapController {
         }
         final NodeModel destinationNode = sortedNodesIndices.get(newPositionInVector);
         newIndex = parent.getIndex(destinationNode);
-        ((MMapController) Controller.getCurrentModeController().getMapController()).moveNode(child, parent, newIndex, false, false);
+        ((MMapController) Controller.getCurrentModeController().getMapController()).moveNodeToWithoutUndo(child, parent, newIndex, false,
+            false);
         return newIndex;
     }
     /**
@@ -587,12 +560,12 @@ public class MMapController extends MapController {
 	 *
 	 * @return returns the new index.
 	 */
-	private int moveNodeToWithoutUndo(final NodeModel child, final NodeModel newParent, final int newIndex,
+	int moveNodeToWithoutUndo(final NodeModel child, final NodeModel newParent, final int newIndex,
 	                          final boolean isLeft, final boolean changeSide) {
 		final NodeModel oldParent = child.getParentNode();
 		final int oldIndex = oldParent.getIndex(child);
 		firePreNodeMoved(oldParent, oldIndex, newParent, child, newIndex);
-		oldParent.remove(oldParent.getIndex(child));
+		oldParent.remove(child);
 		if (changeSide) {
 			child.setParent(newParent);
 			child.setLeft(isLeft);
@@ -807,4 +780,6 @@ public class MMapController extends MapController {
 			Controller.getCurrentController().getViewController().setWaitingCursor(false);
 		}
 	}
+
+
 }

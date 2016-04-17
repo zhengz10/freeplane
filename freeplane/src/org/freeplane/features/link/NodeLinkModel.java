@@ -19,25 +19,17 @@
  */
 package org.freeplane.features.link;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-
-import org.freeplane.features.map.Clones;
 import org.freeplane.features.map.NodeModel;
-import org.freeplane.features.map.NodeRelativePath;
 
 /**
  * @author Dimitry Polivaev
  * 08.08.2009
  */
-public abstract class NodeLinkModel{
-
-	private String targetID;
+public class NodeLinkModel extends LinkModel {
 	final private NodeModel source;
 
 	public NodeLinkModel(final NodeModel source, final String targetID) {
-		this.targetID = targetID;
+		super(targetID);
 		this.source = source;
 	}
 
@@ -49,45 +41,8 @@ public abstract class NodeLinkModel{
 		return getSource().getMap().getNodeForID(getTargetID());
 	}
 	
-	public String getTargetID() {
-		return targetID;
-	}
-
-	void setTargetID(final String targetID) {
-		this.targetID = targetID;
-	}
-	
 	public boolean isSelfLink() {
 		return getSource().createID().equals(getTargetID());
 	}
-	
-    public Collection<NodeLinkModel> clones() {
-	    final Clones sourceNodeClones = getSource().clones();
-	    if(sourceNodeClones.size() == 1)
-	    	return Arrays.<NodeLinkModel>asList(this);
-	    ArrayList<NodeLinkModel> clones = new ArrayList<NodeLinkModel>(sourceNodeClones.size());
-	    for(NodeModel sourceClone : sourceNodeClones)
-	    	clones.add(cloneForSource(sourceClone));
-	    return clones;
-    }
 
-    public NodeLinkModel cloneForSource(NodeModel sourceClone) {
-    	final NodeModel source = getSource();
-    	if(sourceClone == source)
-    		return this;
-    	String targetID = getTargetID();
-    	final NodeModel target = getTarget();
-    	if(target != null && target.getParentNode() != null){
-    		final NodeRelativePath nodeRelativePath = new NodeRelativePath(source, target);
-    		final NodeModel commonAncestor = nodeRelativePath.commonAncestor();
-    		final NodeModel ancestorClone = nodeRelativePath.ancestorForBegin(sourceClone);
-    		if(commonAncestor.isCloneOf(ancestorClone)){
-    			final NodeModel targetClone = nodeRelativePath.pathEnd(ancestorClone);
-    			targetID = targetClone.createID();
-    		}
-    	}
-		return cloneForSource(sourceClone, targetID);
-    }
-
-	public abstract NodeLinkModel cloneForSource(NodeModel sourceClone, String targetId);
 }
