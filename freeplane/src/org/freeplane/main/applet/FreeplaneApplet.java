@@ -21,6 +21,7 @@ package org.freeplane.main.applet;
 
 import java.awt.BorderLayout;
 import java.awt.Container;
+import java.awt.HeadlessException;
 
 import javax.swing.JApplet;
 
@@ -53,6 +54,10 @@ public class FreeplaneApplet extends JApplet {
 	private AppletViewController appletViewController;
 	private Controller controller;
 
+	public FreeplaneApplet() throws HeadlessException {
+	    super();
+    }
+
 	@Override
 	public void destroy() {
 		controller.shutdown();
@@ -60,34 +65,37 @@ public class FreeplaneApplet extends JApplet {
 
 	@Override
 	public void init() {
-		if (appletResourceController == null) {
-			appletResourceController = new AppletResourceController(this);
+		synchronized (FreeplaneApplet.class){
+			if (appletResourceController == null) {
+				appletResourceController = new AppletResourceController(this);
+			}
+			updateLookAndFeel();
+			createRootPane();
+			controller = new Controller();
+			appletResourceController.init(controller);
+			final Container contentPane = getContentPane();
+			contentPane.setLayout(new BorderLayout());
+			ResourceController.setResourceController(appletResourceController);
+			appletViewController = new AppletViewController(controller, this, new MapViewController());
+			controller.addAction(new ViewLayoutTypeAction(controller, MapViewLayout.OUTLINE));
+			FilterController.install(controller);
+			PrintController.install(controller);
+			HelpController.install(controller);
+			NodeHistory.install(controller);
+			ModelessAttributeController.install(controller);
+			TextController.install(controller);
+			TimeController.install(controller);
+			LinkController.install(controller);
+			IconController.install(controller);
+			final BModeController browseController = BModeControllerFactory.createModeController(controller,
+			"/xml/appletMenu.xml");
+			controller.addAction(new NextNodeAction(controller, Direction.FORWARD));
+			controller.addAction(new NextNodeAction(controller, Direction.BACK));
+			controller.selectMode(browseController);
+			appletResourceController.setPropertyByParameter(this, "browsemode_initial_map");
+			appletViewController.init();
+			appletViewController.setMenubarVisible(false);
 		}
-		updateLookAndFeel();
-		createRootPane();
-		controller = new Controller();
-		appletResourceController.init(controller);
-		final Container contentPane = getContentPane();
-		contentPane.setLayout(new BorderLayout());
-		ResourceController.setResourceController(appletResourceController);
-		appletViewController = new AppletViewController(controller, this, new MapViewController());
-		controller.addAction(new ViewLayoutTypeAction(controller, MapViewLayout.OUTLINE));
-		FilterController.install(controller);
-		PrintController.install(controller);
-		HelpController.install(controller);
-		NodeHistory.install(controller);
-		ModelessAttributeController.install(controller);
-		TextController.install(controller);
-		TimeController.install(controller);
-		LinkController.install(controller);
-		IconController.install(controller);
-		final BModeController browseController = BModeControllerFactory.createModeController(controller,
-		    "/xml/appletMenu.xml");
-		controller.addAction(new NextNodeAction(controller, Direction.FORWARD));
-		controller.addAction(new NextNodeAction(controller, Direction.BACK));
-		controller.selectMode(browseController);
-		appletViewController.init();
-		controller.getViewController().setMenubarVisible(false);
 	}
 
 	@Override
@@ -96,13 +104,13 @@ public class FreeplaneApplet extends JApplet {
 	}
 
 	@Override
-	public void stop() {
+	synchronized public void stop() {
 		super.stop();
 	}
 
 	private void updateLookAndFeel() {
 		String lookAndFeel = "";
-		appletResourceController.setPropertyByParameter("lookandfeel");
+		appletResourceController.setPropertyByParameter(this, "lookandfeel");
 		lookAndFeel = appletResourceController.getProperty("lookandfeel");
 		ViewController.setLookAndFeel(lookAndFeel);
 	}
