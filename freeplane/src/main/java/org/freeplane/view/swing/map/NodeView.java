@@ -500,10 +500,11 @@ public class NodeView extends JComponent implements INodeView {
 		final int index = v.indexOf(this);
 		for (int i = index + 1; i < v.size(); i++) {
 			final NodeView nextView = v.get(i);
-			if (nextView.isContentVisible()) {
+			final NodeModel node = nextView.getModel();
+			if (node.hasVisibleContent()) {
 				return nextView;
 			}
-			else {
+			else if (! node.isHiddenSummary()){
 				final NodeView first = nextView.getFirst(null, false, false);
 				if (first != null) {
 					return first;
@@ -617,10 +618,11 @@ public class NodeView extends JComponent implements INodeView {
 		final int index = v.indexOf(this);
 		for (int i = index - 1; i >= 0; i--) {
 			final NodeView nextView = v.get(i);
-			if (nextView.isContentVisible()) {
+			final NodeModel node = nextView.getModel();
+			if (node.hasVisibleContent()) {
 				return nextView;
 			}
-			else {
+			else if (! node.isHiddenSummary()){
 				final NodeView last = nextView.getLast(null, false, false);
 				if (last != null) {
 					return last;
@@ -632,7 +634,11 @@ public class NodeView extends JComponent implements INodeView {
 
 	protected LinkedList<NodeView> getSiblingViews() {
 		LinkedList<NodeView> v = null;
-		if (getParentView().getModel().isRoot()) {
+		final NodeView parentView = getParentView();
+		if (parentView == null){
+			UITools.errorMessage("unexpected error: node " + getMainView().getText() + " has lost its parent ");
+		}
+		if (parentView.getModel().isRoot()) {
 			if (this.isLeft()) {
 				v = (getParentView()).getLeft(true);
 			}
