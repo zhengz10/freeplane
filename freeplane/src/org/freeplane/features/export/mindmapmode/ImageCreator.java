@@ -17,25 +17,33 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.freeplane.main.application;
+package org.freeplane.features.export.mindmapmode;
 
-import java.awt.event.ActionEvent;
+import java.awt.image.RenderedImage;
 
-import org.freeplane.core.ui.AFreeplaneAction;
+import org.freeplane.features.map.MapModel;
 import org.freeplane.features.mode.Controller;
 
-class NavigationPreviousMapAction extends AFreeplaneAction {
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 1L;
+/**
+ * @author foltin
+ */
+class ImageCreator{
+	private int imageResolutionInDpi;
 
-	NavigationPreviousMapAction() {
-		super("NavigationPreviousMapAction");
-		setEnabled(false);
+	public ImageCreator(int imageResolutionInDpi) {
+	    super();
+	    this.imageResolutionInDpi = imageResolutionInDpi;
+    }
+
+	public RenderedImage createBufferedImage(MapModel map) {
+		final Controller controller = Controller.getCurrentController();
+		if(! map.equals(controller.getMap())) {
+			return null;
+        }
+        return controller.getMapViewManager().createImage(imageResolutionInDpi);
 	}
 
-	public void actionPerformed(final ActionEvent event) {
-		Controller.getCurrentController().getMapViewManager().previousMapView();
-	}
+	public int getImageResolutionDPI() {
+	    return imageResolutionInDpi;
+    }
 }
