@@ -22,14 +22,15 @@ package org.freeplane.view.swing.map;
 import java.awt.Dimension;
 import java.awt.Insets;
 
+import org.freeplane.features.nodestyle.ShapeConfigurationModel;
+
 abstract class VariableInsetsMainView extends ShapedMainView {
 	private static final long serialVersionUID = 1L;
 	private int zoomedVerticalInset;
 	private int zoomedHorizontalInset;
 	
-	
-
-	public VariableInsetsMainView() {
+	public VariableInsetsMainView(ShapeConfigurationModel shapeConfiguration) {
+		super(shapeConfiguration);
         zoomedVerticalInset = zoomedHorizontalInset = getMinimumHorizontalInset();
 	}
 	
@@ -44,23 +45,22 @@ abstract class VariableInsetsMainView extends ShapedMainView {
 			return super.getPreferredSize();
 		}
 		final Dimension prefSize = getPreferredSizeWithoutMargin(getMaximumWidth());
-		prefSize.width = (int) Math.ceil(Math.max(prefSize.width*getHorizontalMarginFactor(), prefSize.width + getZoom() * getMinimumHorizontalInset()));
+		final double widthWithMargin = Math.max(prefSize.width*getHorizontalMarginFactor(), prefSize.width + getZoom() * getMinimumHorizontalInset());
+		prefSize.width =  limitWidth((int) Math.ceil(widthWithMargin));
 		prefSize.height = (int) Math.ceil(Math.max(prefSize.height *getVerticalMarginFactor(), prefSize.height + getZoom() * getMinimumVerticalInset()));
-		if(prefSize.width < getMinimumWidth())
-			prefSize.width = getMinimumWidth();
 		return prefSize;
 	}
-
+	
 	abstract protected double getVerticalMarginFactor() ;
 	
 	abstract protected double getHorizontalMarginFactor();
 	
 	protected int getMinimumHorizontalInset(){
-		return 0;
+		return getShapeConfiguration().getHorizontalMargin().toBaseUnitsRounded();
 	}
 
 	protected int getMinimumVerticalInset(){
-		return 0;
+		return getShapeConfiguration().getVerticalMargin().toBaseUnitsRounded();
 	}
 
 	protected Dimension getPreferredSizeWithoutMargin(int maximumWidth) {

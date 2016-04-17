@@ -20,39 +20,53 @@
 package org.freeplane.view.swing.map;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
 
-import org.freeplane.features.nodestyle.NodeStyleModel.Shape;
+import org.freeplane.features.nodestyle.ShapeConfigurationModel;
 
 class WideHexagonMainView extends VariableInsetsMainView {
-	private static final double HORIZONTAL_MARGIN_FACTOR = (Math.sqrt(3) + 1)/2;
+	private static final double VERTICAL_MARGIN_FACTOR = Math.sqrt(2);
+	private static final double UNIFORM_HEIGHT_TO_WIDTH_RELATION = Math.sqrt(3)/2;
+	private static final double HORIZONTAL_MARGIN_FACTOR = Math.sqrt(2)/ UNIFORM_HEIGHT_TO_WIDTH_RELATION;
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	public WideHexagonMainView() {
-        super();
-    }
+	
+	public WideHexagonMainView(ShapeConfigurationModel shapeConfigurationModel) {
+		super(shapeConfigurationModel);
+	}
 
 	protected double getVerticalMarginFactor() {
-		return 1.0;
+		return VERTICAL_MARGIN_FACTOR;
 	}
 	
-	protected int getMinimumVerticalInset(){
-		return 3;
-	}
-
 	protected double getHorizontalMarginFactor() {
 		return HORIZONTAL_MARGIN_FACTOR;
 	}
 	
 	@Override
-    public
-    Shape getShape() {
-		return Shape.wide_hexagon;
+	public Dimension getPreferredSize() {
+		if (isPreferredSizeSet()) {
+			return super.getPreferredSize();
+		}
+		if(getShapeConfiguration().isUniform()) {
+			final Dimension prefSize = getPreferredSizeWithoutMargin(getMaximumWidth());
+			double w = prefSize.width + getZoom() * getMinimumHorizontalInset();
+			double h = prefSize.height + getZoom() * getMinimumVerticalInset();
+			double diameter = Math.sqrt(w * w + h * h);
+			double width = limitWidth (diameter/ UNIFORM_HEIGHT_TO_WIDTH_RELATION);
+			prefSize.width = (int) Math.ceil(width);
+			prefSize.height = (int) (width * UNIFORM_HEIGHT_TO_WIDTH_RELATION);
+			return prefSize;
+		}
+		else
+			return super.getPreferredSize();
 	}
 
+	
 	@Override
 	protected void paintNodeShape(final Graphics2D g) {
 		Polygon polygon = getPaintedShape();
@@ -60,10 +74,18 @@ class WideHexagonMainView extends VariableInsetsMainView {
 	}
 
 	protected Polygon getPaintedShape() {
-		final int zoomedHorizontalInset = (int) (getWidth() * (1 - 1 / getHorizontalMarginFactor()) / 2);
-		int[] xCoords = new int[]{0,               zoomedHorizontalInset, getWidth() - zoomedHorizontalInset - 1, getWidth(),      getWidth() - zoomedHorizontalInset - 1, zoomedHorizontalInset};
-		int[] yCoords = new int[]{getHeight() / 2, 0,                     0,                                      getHeight() / 2, getHeight() - 1,                        getHeight() - 1};
-		Polygon polygon = new Polygon(xCoords, yCoords, xCoords.length);
+		final Polygon polygon;
+		if(getShapeConfiguration().isUniform()) {
+			int[] xCoords = new int[]{0,   getWidth()/4, 3 * getWidth() /4 , getWidth(),      3 * getWidth() / 4, getWidth() / 4};
+			int[] yCoords = new int[]{getHeight() / 2, 0,  0,  getHeight() / 2, getHeight() - 1, getHeight() - 1};
+			polygon = new Polygon(xCoords, yCoords, xCoords.length);
+		}
+		else {
+			final int zoomedHorizontalInset = (int) (getWidth() * (1 - 1 / getHorizontalMarginFactor()) / 2);
+			int[] xCoords = new int[]{0,               zoomedHorizontalInset, getWidth() - zoomedHorizontalInset - 1, getWidth(),      getWidth() - zoomedHorizontalInset - 1, zoomedHorizontalInset};
+			int[] yCoords = new int[]{getHeight() / 2, 0,                     0,                                      getHeight() / 2, getHeight() - 1,                        getHeight() - 1};
+			polygon = new Polygon(xCoords, yCoords, xCoords.length);
+		}
 		return polygon;
 	}
 
