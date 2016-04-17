@@ -99,7 +99,6 @@ public class NodeView extends JComponent implements INodeView {
 	public final static int DRAGGED_OVER_SON_LEFT = 3;
 	static private int FOLDING_SYMBOL_WIDTH = -1;
 	private static final long serialVersionUID = 1L;
-	public final static int SHIFT = -2;
 	static final int SPACE_AROUND = 50;
 	public static final int MAIN_VIEWER_POSITION = 1;
 	public static final int NOTE_VIEWER_POSITION = 10;
@@ -156,7 +155,7 @@ public class NodeView extends JComponent implements INodeView {
 	private int calcShiftY(final LocationModel locationModel) {
 		try {
 			final NodeModel parent = model.getParentNode();
-			return locationModel.getShiftY() + (! getParentView().isSummary() && getMap().getModeController().hasOneVisibleChild(parent) ? SHIFT : 0);
+			return locationModel.getShiftY() + (! getParentView().isSummary() && getMap().getModeController().hasOneVisibleChild(parent) ? getMainView().getSingleChildShift() : 0);
 		}
 		catch (final NullPointerException e) {
 			return 0;
@@ -567,7 +566,7 @@ public class NodeView extends JComponent implements INodeView {
 			baseComponent = this;
 		}
 		else {
-			baseComponent = getVisibleParentView();
+			baseComponent = getAncestorWithVisibleContent();
 		}
 		final int ownX = baseComponent.getContent().getX() + baseComponent.getContent().getWidth() / 2;
 		final int ownY = baseComponent.getContent().getY() + baseComponent.getContent().getHeight() / 2;
@@ -711,12 +710,12 @@ public class NodeView extends JComponent implements INodeView {
 	/**
 	 * @return Returns the VGAP.
 	 */
-	public int getVGap() {
+	public int getMinimalDistanceBetweenChildren() {
 		final int minimalDistanceBetweenChildren = map.getModeController().getExtension(LocationController.class).getMinimalDistanceBetweenChildren(model);
 		return map.getZoomed(minimalDistanceBetweenChildren);
 	}
 
-	public NodeView getVisibleParentView() {
+	public NodeView getAncestorWithVisibleContent() {
 		final Container parent = getParent();
 		if (!(parent instanceof NodeView)) {
 			return null;
@@ -725,7 +724,18 @@ public class NodeView extends JComponent implements INodeView {
 		if (parentView.isContentVisible()) {
 			return parentView;
 		}
-		return parentView.getVisibleParentView();
+		return parentView.getAncestorWithVisibleContent();
+	}
+	
+	public NodeView getChildDistanceContainer(){
+		if (model.isVisible() || model.isHiddenSummary()) {
+			return this;
+		}
+		NodeView parentView = getParentView();
+		if(parentView == null)
+			return null;
+		return parentView.getAncestorWithVisibleContent();
+	
 	}
 
 	public NodeView getVisibleSummarizedOrParentView() {
@@ -793,7 +803,7 @@ public class NodeView extends JComponent implements INodeView {
 	/**
 	 */
 	public boolean isContentVisible() {
-		return getModel().isVisible();
+		return getModel().hasVisibleContent();
 	}
 
 	public boolean isLeft() {
@@ -1147,7 +1157,7 @@ public class NodeView extends JComponent implements INodeView {
 
 	private void repaintEdge(final NodeView target) {
 		if (target.getMap().getLayoutType() == MapViewLayout.OUTLINE){
-			target.getVisibleParentView().repaint();
+			target.getAncestorWithVisibleContent().repaint();
 			return;
 		}
 		final Point relativeLocation = getRelativeLocation(target);
@@ -1182,7 +1192,7 @@ public class NodeView extends JComponent implements INodeView {
 			return;
 		}
 		if (getEdgeStyle().equals(EdgeStyle.EDGESTYLE_HIDDEN)) {
-			final NodeView visibleParentView = getVisibleParentView();
+			final NodeView visibleParentView = getAncestorWithVisibleContent();
 			if (visibleParentView != null) {
 				visibleParentView.repaintEdge(this);
 			}
