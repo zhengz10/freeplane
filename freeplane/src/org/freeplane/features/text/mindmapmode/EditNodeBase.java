@@ -111,10 +111,6 @@ abstract public class EditNodeBase {
 			}
 		}
 
-		/**
-		 * 
-		 */
-		private static final long serialVersionUID = 1L;
 		private EditNodeBase base;
 
 		protected EditDialog(final EditNodeBase base, final String title, final RootPaneContainer frame) {
@@ -305,7 +301,9 @@ abstract public class EditNodeBase {
 		if (firstKeyEvent.getKeyChar() == KeyEvent.CHAR_UNDEFINED) {
 			switch (firstKeyEvent.getKeyCode()) {
 				case KeyEvent.VK_HOME:
-					textComponent.setCaretPosition(textComponent.viewToModel(new Point(0, 0)));
+					final int modelIdx = textComponent.viewToModel(new Point(0, 0));
+					if (modelIdx >= 0) // modelIdx is -1 for LaTeX formulas!
+						textComponent.setCaretPosition(modelIdx);
 					//					firstKeyEvent.consume();
 					break;
 				case KeyEvent.VK_END:
