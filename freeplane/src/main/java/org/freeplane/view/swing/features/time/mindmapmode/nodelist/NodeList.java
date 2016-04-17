@@ -73,6 +73,7 @@ import org.freeplane.core.ui.UIBuilder;
 import org.freeplane.core.ui.components.BlindIcon;
 import org.freeplane.core.ui.components.JComboBoxWithBorder;
 import org.freeplane.core.ui.components.UITools;
+import org.freeplane.core.util.DelayedRunner;
 import org.freeplane.core.util.HtmlUtils;
 import org.freeplane.core.util.TextUtils;
 import org.freeplane.features.clipboard.ClipboardController;
@@ -99,6 +100,18 @@ import org.freeplane.view.swing.features.time.mindmapmode.ReminderExtension;
  */
 public class NodeList {
 	private final class MapChangeListener implements IMapChangeListener, INodeChangeListener, IMapSelectionListener {
+		public MapChangeListener() {
+			super();
+			this.runner = new DelayedRunner(new Runnable() {
+				
+				@Override
+				public void run() {
+					tableModel.fireTableDataChanged();
+				}
+			});
+		}
+
+		final private DelayedRunner runner;
 	    public void onPreNodeMoved(NodeMoveEvent nodeMoveEvent) {
 	    	disposeDialog();
 	    }
@@ -124,9 +137,7 @@ public class NodeList {
 	    }
 
 		public void nodeChanged(NodeChangeEvent event) {
-			if(event.getProperty().equals(NodeModel.NODE_TEXT)){
-				disposeDialog();
-			}
+			runner.runLater();
         }
 
 		public void afterMapChange(MapModel oldMap, MapModel newMap) {
@@ -258,10 +269,8 @@ public class NodeList {
 	}
 
 	private class HolderAccessor{
-		final private boolean selectedOnly;
-		private HolderAccessor(boolean selectedOnly) {
+		private HolderAccessor() {
 	        super();
-	        this.selectedOnly = selectedOnly;
         }
 
 		public void changeString(final TextHolder textHolder, final String newText) {
@@ -273,19 +282,12 @@ public class NodeList {
 		}
 
 		public TextHolder[] getNodeHoldersAt(final int row) {
-			return selectedOnly ? getSelectedNodeHoldersAt(row):getAnyNodeHoldersAt(row);
-		}
-		public TextHolder[] getAnyNodeHoldersAt(final int i) {
 			return new TextHolder[]{
-					(TextHolder) mFlatNodeTableFilterModel.getValueAt(i, NodeList.NODE_TEXT_COLUMN),
-					(TextHolder) mFlatNodeTableFilterModel.getValueAt(i, NodeList.NODE_DETAILS_COLUMN),
-					(TextHolder) mFlatNodeTableFilterModel.getValueAt(i, NodeList.NODE_NOTES_COLUMN)
+					(TextHolder) sorter.getValueAt(row, NodeList.NODE_TEXT_COLUMN),
+					(TextHolder) sorter.getValueAt(row, NodeList.NODE_DETAILS_COLUMN),
+					(TextHolder) sorter.getValueAt(row, NodeList.NODE_NOTES_COLUMN)
 			};
 		}
-		public TextHolder[] getSelectedNodeHoldersAt(final int i) {
-			return new TextHolder[]{(TextHolder) sorter.getValueAt(tableView.getSelectedRows()[i], NodeList.NODE_TEXT_COLUMN)};
-		}
-
 	}
 
 	private static String COLUMN_CREATED = "Created";
@@ -334,7 +336,7 @@ public class NodeList {
 	private JLabel mTreeLabel;
 	private TextRenderer textRenderer;
 	private boolean showAllNodes = false;
-	private org.freeplane.view.swing.features.time.mindmapmode.nodelist.TableSorter sorter;
+	private TableSorter sorter;
 	private JTable tableView;
 	private DefaultTableModel tableModel;
 	private final boolean searchInAllMaps;
@@ -342,6 +344,7 @@ public class NodeList {
 	private final JCheckBox useRegexInFind;
 	private final JCheckBox matchCase;
 	final private boolean modal;
+	private final MapChangeListener mapChangeListener;
 
 	public NodeList(  final boolean showAllNodes, final boolean searchInAllMaps) {
 	    this(false, showAllNodes, searchInAllMaps);
@@ -385,12 +388,7 @@ public class NodeList {
 		useRegexInFind.addChangeListener(listener);
 		matchCase = new JCheckBox();
 		matchCase.addChangeListener(listener);
-		final MapChangeListener mapChangeListener = new MapChangeListener();
-		final ModeController modeController = Controller.getCurrentModeController();
-		final MapController mapController = modeController.getMapController();
-		mapController.addMapChangeListener(mapChangeListener);
-		mapController.addNodeChangeListener(mapChangeListener);
-		Controller.getCurrentController().getMapViewManager().addMapSelectionListener(mapChangeListener);
+		mapChangeListener = new MapChangeListener();
 
 	}
 
@@ -412,6 +410,11 @@ public class NodeList {
 		dialog.setVisible(false);
 		dialog.dispose();
 		dialog = null;
+		final ModeController modeController = Controller.getCurrentModeController();
+		final MapController mapController = modeController.getMapController();
+		mapController.removeMapChangeListener(mapChangeListener);
+		mapController.removeNodeChangeListener(mapChangeListener);
+		Controller.getCurrentController().getMapViewManager().removeMapSelectionListener(mapChangeListener);
 	}
 
 	protected void exportSelectedRowsAndClose() {
@@ -441,7 +444,7 @@ public class NodeList {
 		return selectedNode;
 	}
 
-	private void replace(final HolderAccessor holderAccessor) {
+	private void replace(final HolderAccessor holderAccessor, boolean selectedOnly) {
 		final String searchString = (String) mFilterTextSearchField.getSelectedItem();
 		if(searchString == null)
 			return;
@@ -458,29 +461,30 @@ public class NodeList {
 		final String replacement = replaceString == null ? "" : replaceString;
 		final int length = holderAccessor.getLength();
 		for (int i = 0; i < length; i++) {
-			TextHolder[] textHolders = holderAccessor.getNodeHoldersAt(i);
-			for(final TextHolder textHolder:textHolders){
-				final String text = textHolder.getText();
-				final String replaceResult;
-				final String literalReplacement = useRegexInReplace.isSelected() ? replacement : Matcher.quoteReplacement(replacement);
-				try {
-					if (HtmlUtils.isHtmlNode(text)) {
-						replaceResult = NodeList.replace(p, text,literalReplacement);
+			if( !selectedOnly || tableView.isRowSelected(i)){
+				TextHolder[] textHolders = holderAccessor.getNodeHoldersAt(i);
+				for(final TextHolder textHolder:textHolders){
+					final String text = textHolder.getText();
+					final String replaceResult;
+					final String literalReplacement = useRegexInReplace.isSelected() ? replacement : Matcher.quoteReplacement(replacement);
+					try {
+						if (HtmlUtils.isHtmlNode(text)) {
+							replaceResult = NodeList.replace(p, text,literalReplacement);
+						}
+						else {
+							replaceResult = p.matcher(text).replaceAll(literalReplacement);
+						}
 					}
-					else {
-						replaceResult = p.matcher(text).replaceAll(literalReplacement);
+					catch (Exception e) {
+						UITools.errorMessage(TextUtils.format("wrong_regexp", replacement, e.getMessage()));
+						return;
 					}
-				}
-				catch (Exception e) {
-					UITools.errorMessage(TextUtils.format("wrong_regexp", replacement, e.getMessage()));
-					return;
-				}
-				if (!StringUtils.equals(text, replaceResult)) {
-					holderAccessor.changeString(textHolder, replaceResult);
+					if (!StringUtils.equals(text, replaceResult)) {
+						holderAccessor.changeString(textHolder, replaceResult);
+					}
 				}
 			}
 		}
-		tableModel.fireTableDataChanged();
 		mFlatNodeTableFilterModel.resetFilter();
 		mFilterTextSearchField.insertItemAt(mFilterTextSearchField.getSelectedItem(), 0);
 		mFilterTextReplaceField.insertItemAt(mFilterTextReplaceField.getSelectedItem(), 0);
@@ -668,7 +672,7 @@ public class NodeList {
 			private static final long serialVersionUID = 1L;
 
 			public void actionPerformed(final ActionEvent arg0) {
-				replace(new HolderAccessor(false));
+				replace(new HolderAccessor(), false);
 			}
 		};
 		final JButton replaceAllButton = new JButton(replaceAllAction);
@@ -680,7 +684,7 @@ public class NodeList {
 			private static final long serialVersionUID = 1L;
 
 			public void actionPerformed(final ActionEvent arg0) {
-				replace(new HolderAccessor(true));
+				replace(new HolderAccessor(), true);
 			}
 		};
 		final JButton replaceSelectedButton = new JButton(replaceSelectedAction);
@@ -783,6 +787,11 @@ public class NodeList {
 		}
 		mFlatNodeTableFilterModel.setFilter((String)mFilterTextSearchField.getSelectedItem(),
 			matchCase.isSelected(), useRegexInFind.isSelected());
+		final ModeController modeController = Controller.getCurrentModeController();
+		final MapController mapController = modeController.getMapController();
+		mapController.addMapChangeListener(mapChangeListener);
+		mapController.addNodeChangeListener(mapChangeListener);
+		Controller.getCurrentController().getMapViewManager().addMapSelectionListener(mapChangeListener);
 		dialog.setVisible(true);
 	}
 
