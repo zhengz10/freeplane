@@ -26,10 +26,12 @@ import java.awt.EventQueue;
 import java.awt.FlowLayout;
 import java.awt.Frame;
 import java.awt.GraphicsConfiguration;
+import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.LayoutManager;
 import java.awt.Rectangle;
 import java.awt.Window;
+import java.awt.event.KeyEvent;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -57,7 +59,7 @@ import javax.swing.UIManager.LookAndFeelInfo;
 import javax.swing.plaf.basic.BasicComboBoxEditor;
 import javax.swing.plaf.metal.MetalFileChooserUI;
 
-import org.freeplane.core.resources.NamedObject;
+import org.freeplane.core.resources.TranslatedObject;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.FixedBasicComboBoxEditor;
 import org.freeplane.core.ui.IUserInputListenerFactory;
@@ -70,7 +72,7 @@ import org.freeplane.features.format.FormattedObject;
 import org.freeplane.features.format.ScannerController;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
-import org.freeplane.features.styles.StyleNamedObject;
+import org.freeplane.features.styles.StyleTranslatedObject;
 import org.freeplane.features.time.TimeComboBoxEditor;
 
 /**
@@ -509,6 +511,7 @@ abstract public class FrameController implements ViewController {
 					Controller.getCurrentController().getResourceController().setProperty("lookandfeel", "default");
 				}
 			}
+			UIManager.getLookAndFeelDefaults().put("Button.showMnemonics", true);
 		}
 		catch (final Exception ex) {
 			LogUtils.warn("Error while setting Look&Feel" + lookAndFeel);
@@ -535,7 +538,7 @@ abstract public class FrameController implements ViewController {
 		if (value instanceof FormattedObject) {
 			value = ((FormattedObject) value).getObject();
 		}
-		if (value instanceof String || value instanceof StyleNamedObject) {
+		if (value instanceof String || value instanceof StyleTranslatedObject) {
 			addStatusInfo(ResourceController.OBJECT_TYPE, null, FrameController.textIcon);
 		}
 		else if (value instanceof FormattedDate) {
@@ -560,7 +563,7 @@ abstract public class FrameController implements ViewController {
 
 	public static ComboBoxEditor getTextDateTimeEditor() {
 	    final ContainerComboBoxEditor editor = new ContainerComboBoxEditor();
-		final NamedObject keyText = new NamedObject("text", "1Ab");
+		final TranslatedObject keyText = new TranslatedObject("text", "1Ab");
 		final BasicComboBoxEditor textEditor = new FixedBasicComboBoxEditor(){
 			private Object oldItem;
 
@@ -591,7 +594,7 @@ abstract public class FrameController implements ViewController {
 		};
 		editor.put(keyText, textEditor);
 
-		final NamedObject keyDate = new NamedObject("date", "");
+		final TranslatedObject keyDate = new TranslatedObject("date", "");
 		keyDate.setIcon(dateIcon);
 		final TimeComboBoxEditor dateComboBoxEditor = new TimeComboBoxEditor(false){
 			@Override
@@ -606,7 +609,7 @@ abstract public class FrameController implements ViewController {
 		dateComboBoxEditor.setItem();
 		editor.put(keyDate, dateComboBoxEditor);
 
-		final NamedObject keyDateTime = new NamedObject("date_time", "");
+		final TranslatedObject keyDateTime = new TranslatedObject("date_time", "");
 		keyDateTime.setIcon(dateTimeIcon);
 		final TimeComboBoxEditor dateTimeComboBoxEditor = new TimeComboBoxEditor(true){
 			@Override

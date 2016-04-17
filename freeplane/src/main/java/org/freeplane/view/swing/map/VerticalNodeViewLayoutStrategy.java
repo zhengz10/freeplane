@@ -22,15 +22,20 @@ package org.freeplane.view.swing.map;
 
 import java.awt.Component;
 import java.awt.Dimension;
+import java.util.Arrays;
 
 import javax.swing.JComponent;
 
 import org.freeplane.core.ui.components.UITools;
+import org.freeplane.core.util.LogUtils;
 import org.freeplane.features.map.SummaryLevels;
 import org.freeplane.features.nodelocation.LocationModel;
 
 class VerticalNodeViewLayoutStrategy {
-	private final int childViewCount;
+	
+	static private boolean wrongChildComponentsReported = false;
+	
+	private int childViewCount;
 	private final int spaceAround;
 	private final NodeView view;
 
@@ -62,7 +67,16 @@ class VerticalNodeViewLayoutStrategy {
 	private void layoutChildViews(NodeView view) {
 		for (int i = 0; i < childViewCount; i++) {
 			final Component component = view.getComponent(i);
-			((NodeView) component).validateTree();
+			if(component instanceof NodeView)
+				((NodeView) component).validateTree();
+			else {
+				childViewCount = i;
+				if(! wrongChildComponentsReported) {
+					wrongChildComponentsReported = true;
+					final String wrongChildComponents = Arrays.toString(view.getComponents());
+					LogUtils.severe("Unexpected child components:" + wrongChildComponents, new Exception());
+				}
+			}
 		}
 	}
 
@@ -94,6 +108,7 @@ class VerticalNodeViewLayoutStrategy {
 		int top = 0;
 		int level = viewLevels.highestSummaryLevel + 1;
 		int y = 0;
+		int vGap = 0;
 		int visibleChildCounter = 0;
 		final int[] groupStartIndex = new int[level];
 		final int[] contentHeightSumAtGroupStart = new int[level];
@@ -127,6 +142,10 @@ class VerticalNodeViewLayoutStrategy {
 					if (isFreeNode)
 						this.yCoordinates[childViewIndex] = childShiftY - childContentShift - childCloudHeigth / 2 - spaceAround;
 					else {
+						if (childHeight != 0) {
+							if (visibleChildCounter > 0)
+								childContentHeightSum += vGap;
+						}
 						if (childShiftY < 0 || visibleChildCounter == 0)
 							top += childShiftY;
 
@@ -140,7 +159,6 @@ class VerticalNodeViewLayoutStrategy {
 								y += childShiftY;
 							this.yCoordinates[childViewIndex] = y;
 						}
-						final int vGap;
 						final int summaryNodeIndex = viewLevels.findSummaryNodeIndex(childViewIndex);
 						if(summaryNodeIndex == SummaryLevels.NODE_NOT_FOUND || summaryNodeIndex - 1 == childViewIndex)
 							vGap = minimalDistanceBetweenChildren;
@@ -160,10 +178,6 @@ class VerticalNodeViewLayoutStrategy {
 						} else if (child.isFirstGroupNode()) {
 							contentHeightSumAtGroupStart[0] = childContentHeightSum;
 							groupStartIndex[0] = childViewIndex;
-						}
-						if (childHeight != 0) {
-							if (visibleChildCounter > 0)
-								childContentHeightSum += vGap;
 						}
 					}
 					if (childHeight != 0)

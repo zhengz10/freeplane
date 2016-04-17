@@ -1,6 +1,10 @@
 package org.freeplane.core.ui.menubuilders.menu;
 
+import java.awt.event.HierarchyEvent;
+import java.awt.event.HierarchyListener;
+
 import org.freeplane.core.ui.IUserInputListenerFactory;
+import org.freeplane.core.ui.components.FreeplaneMenuBar;
 import org.freeplane.core.ui.menubuilders.generic.Entry;
 import org.freeplane.core.ui.menubuilders.generic.EntryAccessor;
 import org.freeplane.core.ui.menubuilders.generic.EntryVisitor;
@@ -15,7 +19,19 @@ public class JMenubarBuilder implements EntryVisitor {
 
 	@Override
 	public void visit(Entry target) {
-		new EntryAccessor().setComponent(target, userInputListenerFactory.getMenuBar());
+		final FreeplaneMenuBar menuBar = userInputListenerFactory.getMenuBar();
+		addMnemonicsBeforeShowing(menuBar);
+		new EntryAccessor().setComponent(target, menuBar);
+	}
+
+	private void addMnemonicsBeforeShowing(final FreeplaneMenuBar menuBar) {
+		menuBar.addHierarchyListener(new HierarchyListener() {
+			@Override
+			public void hierarchyChanged(HierarchyEvent e) {
+				menuBar.removeHierarchyListener(this);
+				MenuMnemonicSetter.INSTANCE.setComponentMnemonics(menuBar);
+			}
+		});
 	}
 
 	@Override
