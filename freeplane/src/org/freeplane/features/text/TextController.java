@@ -46,6 +46,7 @@ import org.freeplane.features.map.MapController;
 import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.nodestyle.NodeSizeModel;
 import org.freeplane.features.nodestyle.NodeStyleController;
 import org.freeplane.features.nodestyle.NodeStyleModel;
 import org.freeplane.features.styles.IStyle;
@@ -276,7 +277,7 @@ public class TextController implements IExtension {
 							.withColor(detailForeground)
 							.withBackground(detailBackground)
 							.withAlignment(alignment)
-							.withWidthAsPt(style.getMaxWidth(detailStyleNode)))
+							.withMaxWidthAsPt(NodeSizeModel.getMaxNodeWidth(detailStyleNode), style.getMaxWidth(node)))
 							.append("\">");
 					
 					String noteText= detailText.getHtml();
@@ -303,7 +304,7 @@ public class TextController implements IExtension {
 							.withColor(view.getForeground())
 							.withBackground(view.getNodeView().getTextBackground())
 							.withAlignment(view.getHorizontalAlignment())
-							.withWidthAsPt(style.getMaxWidth(node)));
+							.withMaxWidthAsPt(style.getMaxWidth(node)));
 				    final Object data = node.getUserObject();
 				    String text;
 				    try {
