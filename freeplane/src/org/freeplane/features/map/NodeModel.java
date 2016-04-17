@@ -405,8 +405,16 @@ public class NodeModel implements MutableTreeNode {
 	}
 
 	public boolean isVisible() {
+		return passesFilter() && ! isHiddenSummary();
+	}
+
+	public boolean isHiddenSummary() {
+		return SummaryNode.isHidden(this);
+	}
+
+	private boolean passesFilter() {
 		final Filter filter = getMap().getFilter();
-		return filter == null || filter.isVisible(this);
+		return (filter == null || filter.isVisible(this));
 	}
 
 	public void remove(final int index) {
