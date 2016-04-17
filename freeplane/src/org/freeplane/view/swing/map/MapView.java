@@ -37,10 +37,16 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.dnd.Autoscroll;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.print.PageFormat;
 import java.awt.print.Printable;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.AbstractList;
 import java.util.AbstractSet;
 import java.util.ArrayList;
@@ -66,13 +72,14 @@ import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.IUserInputListenerFactory;
 import org.freeplane.core.ui.components.UITools;
 import org.freeplane.core.util.ColorUtils;
+import org.freeplane.core.util.LogUtils;
 import org.freeplane.features.attribute.AttributeController;
 import org.freeplane.features.attribute.ModelessAttributeController;
 import org.freeplane.features.filter.Filter;
 import org.freeplane.features.link.ConnectorModel;
 import org.freeplane.features.link.ConnectorModel.Shape;
 import org.freeplane.features.link.LinkController;
-import org.freeplane.features.link.LinkModel;
+import org.freeplane.features.link.NodeLinkModel;
 import org.freeplane.features.link.NodeLinks;
 import org.freeplane.features.map.IMapChangeListener;
 import org.freeplane.features.map.IMapSelection;
@@ -95,6 +102,10 @@ import org.freeplane.features.styles.MapViewLayout;
 import org.freeplane.features.text.TextController;
 import org.freeplane.features.ui.ViewController;
 import org.freeplane.features.url.UrlManager;
+import org.freeplane.view.swing.features.filepreview.IViewerFactory;
+import org.freeplane.view.swing.features.filepreview.ImageLoadingListener;
+import org.freeplane.view.swing.features.filepreview.ScalableComponent;
+import org.freeplane.view.swing.features.filepreview.ViewerController;
 import org.freeplane.view.swing.map.link.ConnectorView;
 import org.freeplane.view.swing.map.link.EdgeLinkView;
 import org.freeplane.view.swing.map.link.ILinkView;
@@ -278,13 +289,9 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			return selectedSet.contains(node);
 		}
 
-		/**
-		 * @return
-		 */
 		public Set<NodeView> getSelection() {
 			return Collections.unmodifiableSet(selectedSet);
 		}
-
 
 		private boolean deselect(final NodeView node) {
 			final boolean selectedChanged = selectedNode != null && selectedNode.equals(node);
@@ -370,9 +377,6 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	private static final String PRESENTATION_DIMMER_TRANSPARENCY = "presentation_dimmer_transparency";
 	private static final String PRESENTATION_MODE_ENABLED = "presentation_mode";
 
-	/**
-	 *
-	 */
 	private static final long serialVersionUID = 1L;
 	static boolean standardDrawRectangleForSelection;
 	static Color standardSelectColor;
@@ -383,6 +387,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	/** Used to identify a right click onto a link curve. */
 	private Vector<ILinkView> arrowLinkViews;
 	private Color background = null;
+	private JComponent backgroundComponent;
 	private Rectangle boundingRectangle = null;
 	private boolean disableMoveCursor = true;
 	private int extraWidth;
@@ -406,7 +411,9 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
     private Color detailBackground;
 	private boolean slowScroll;
 	private static boolean presentationModeEnabled;
+	private boolean fitToViewport;
 	private static int transparency;
+	final private ComponentAdapter backgroundImageResizer;
 	private INodeChangeListener connectorChangeListener;
 
 	public MapView(final MapModel model, final ModeController modeController) {
@@ -451,6 +458,19 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, emptyNodeViewSet());
 		setFocusTraversalKeys(KeyboardFocusManager.UP_CYCLE_TRAVERSAL_KEYS, emptyNodeViewSet());
 		disableMoveCursor = ResourceController.getResourceController().getBooleanProperty("disable_cursor_move_paper");
+		backgroundImageResizer = new ComponentAdapter() {
+			public void componentResized(ComponentEvent e) {
+				if (fitToViewport) {
+					adjustBackgroundComponentScale();
+					repaint();
+				}
+			}
+		};
+		addComponentListener(backgroundImageResizer);
+		final String fitToViewportAsString = MapStyle.getController(modeController).getPropertySetDefault(model,
+		    MapStyle.FIT_TO_VIEWPORT);
+		fitToViewport = Boolean.parseBoolean(fitToViewportAsString);
+		loadBackgroundImage();
 		connectorChangeListener = new INodeChangeListener() {
 			public void nodeChanged(NodeChangeEvent event) {
 				if(NodeLinks.CONNECTOR.equals(event.getProperty()) &&
@@ -459,18 +479,6 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			}
 		};
 	}
-
-	@Override
-    public void addNotify() {
-	    super.addNotify();
-		modeController.getMapController().addNodeChangeListener(connectorChangeListener);
-    }
-
-	@Override
-    public void removeNotify() {
-		modeController.getMapController().removeNodeChangeListener(connectorChangeListener);
-	    super.removeNotify();
-    }
 
 	public void replaceSelection(NodeView[] views) {
         selection.replace(views);
@@ -534,6 +542,31 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		this.slowScroll = false;
 		setAnchorContentLocation(getAnchorCenterPoint());
     }
+	
+	
+
+	@Override
+    public void addNotify() {
+	    super.addNotify();
+	    modeController.getMapController().addNodeChangeListener(connectorChangeListener);
+	    getParent().addComponentListener(backgroundImageResizer);
+		adjustViewportScrollMode();
+    }
+
+	private void adjustViewportScrollMode() {
+	    if(fitToViewport && backgroundComponent != null)
+	    	((JViewport) getParent()).setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
+	    else
+	    	((JViewport) getParent()).setScrollMode(JViewport.BLIT_SCROLL_MODE);
+    }
+
+
+	@Override
+    public void removeNotify() {
+		modeController.getMapController().removeNodeChangeListener(connectorChangeListener);
+		getParent().removeComponentListener(backgroundImageResizer);
+	    super.removeNotify();
+    }
 
 	boolean isLayoutCompleted() {
 	    final JViewport viewPort = (JViewport) getParent();
@@ -548,12 +581,12 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 				if (!(mapView instanceof MapView)) {
 					return;
 				}
-				if (propertyName.equals(MapView.RESOURCES_SELECTED_NODE_COLOR)) {
+				if (propertyName.equals(RESOURCES_SELECTED_NODE_COLOR)) {
 					MapView.standardSelectColor = ColorUtils.stringToColor(newValue);
 					((MapView) mapView).repaintSelecteds();
 					return;
 				}
-				if (propertyName.equals(MapView.RESOURCES_SELECTED_NODE_RECTANGLE_COLOR)) {
+				if (propertyName.equals(RESOURCES_SELECTED_NODE_RECTANGLE_COLOR)) {
 					MapView.standardSelectRectangleColor = ColorUtils.stringToColor(newValue);
 					((MapView) mapView).repaintSelecteds();
 					return;
@@ -577,7 +610,6 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 					((MapView) mapView).repaint();
 					return;
 				}
-
 			}
 		};
 		ResourceController.getResourceController().addPropertyChangeListener(MapView.propertyChangeListener);
@@ -613,7 +645,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 * to minimize calculation efforts
 	 */
 	public void endPrinting() {
-		if (isPreparedForPrinting == false)
+		if (!isPreparedForPrinting)
 			return;
 		isPreparedForPrinting = false;
 		isPrinting = false;
@@ -996,7 +1028,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		rootView = NodeViewFactory.getInstance().newNodeView(getModel().getRootNode(), this, this, 0);
 		anchor = rootView;
 	}
-
+	
 	public boolean isPrinting() {
 		return isPrinting;
 	}
@@ -1041,9 +1073,82 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			updateStateIconsRecursively(getRoot());
 		if(property.equals(NoteController.SHOW_NOTES_IN_MAP))
 			setShowNotes();
+		if (property.equals(MapStyle.RESOURCES_BACKGROUND_IMAGE)) {
+			final String fitToViewportAsString = MapStyle.getController(modeController).getPropertySetDefault(model,
+			    MapStyle.FIT_TO_VIEWPORT);
+			fitToViewport = Boolean.parseBoolean(fitToViewportAsString);
+			loadBackgroundImage();
+			adjustViewportScrollMode();
+		}
+		if (property.equals(MapStyle.FIT_TO_VIEWPORT)) {
+			final String fitToViewportAsString = MapStyle.getController(modeController).getPropertySetDefault(model,
+			    MapStyle.FIT_TO_VIEWPORT);
+			fitToViewport = Boolean.parseBoolean(fitToViewportAsString);
+			adjustViewportScrollMode();
+			adjustBackgroundComponentScale();
+			repaint();
+		}
 	}
 
-    private void updateStateIconsRecursively(NodeView node) {
+	private void loadBackgroundImage() {
+		final MapStyle mapStyle = getModeController().getExtension(MapStyle.class);
+		final String uriString = mapStyle.getProperty(model, MapStyle.RESOURCES_BACKGROUND_IMAGE);
+		backgroundComponent = null;
+		if (uriString != null) {
+			URI uri = assignAbsoluteURI(uriString);
+			final ViewerController vc = getModeController().getExtension(ViewerController.class);
+			final IViewerFactory factory = vc.getCombiFactory();
+			if (uri != null) {
+				assignViewerToBackgroundComponent(factory, uri);
+			}
+		}
+		repaint();
+	}
+
+	private URI assignAbsoluteURI(final String uriString) {
+		final UrlManager urlManager = getModeController().getExtension(UrlManager.class);
+		URI uri = null;
+		try {
+			uri = urlManager.getAbsoluteUri(model, new URI(uriString));
+		}
+		catch (final URISyntaxException e) {
+			LogUtils.severe(e);
+		}
+        catch (MalformedURLException e) {
+			LogUtils.severe(e);
+        }
+		return uri;
+	}
+
+	private void assignViewerToBackgroundComponent(final IViewerFactory factory, final URI uri) {
+		try {
+			if (fitToViewport) {
+				final JViewport vp = (JViewport) getParent();
+				if(vp != null){
+					final Dimension viewPortSize = vp.getVisibleRect().getSize();
+					backgroundComponent = (JComponent) factory.createViewer(uri, viewPortSize);
+				}
+				else
+					backgroundComponent = (JComponent) factory.createViewer(uri, new Dimension(1,1));
+			}
+            else
+	            backgroundComponent = (JComponent) factory.createViewer(uri, zoom);
+			((ScalableComponent) backgroundComponent).setCenter(true);
+			((ScalableComponent)backgroundComponent).setImageLoadingListener(new ImageLoadingListener() {
+				public void imageLoaded() {
+					repaint();
+				}
+			});
+		}
+		catch (final MalformedURLException e1) {
+			LogUtils.severe(e1);
+		}
+		catch (final IOException e1) {
+			LogUtils.severe(e1);
+		}
+	}
+
+	private void updateStateIconsRecursively(NodeView node) {
     	final MainView mainView = node.getMainView();
     	if(mainView == null)
     		return;
@@ -1170,7 +1275,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 */
 	@Override
 	public void paint(final Graphics g) {
-		if(isPrinting == false && isPreparedForPrinting == true){
+		if (!isPrinting && isPreparedForPrinting){
 			isPreparedForPrinting = false;
 			EventQueue.invokeLater(new Runnable() {
 				public void run() {
@@ -1194,6 +1299,51 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	}
 
 	@Override
+	protected void paintComponent(final Graphics g) {
+		super.paintComponent(g);
+		if (backgroundComponent != null) {
+			paintBackgroundComponent(g);
+		}
+	}
+
+	private void paintBackgroundComponent(final Graphics g) {
+	    Graphics backgroundGraphics = g.create();
+	    try {
+	    	setBackgroundComponentLocation(backgroundGraphics);
+	    	backgroundComponent.paint(backgroundGraphics);
+	    }
+	    finally {
+	    	backgroundGraphics.dispose();
+	    }
+    }
+
+	private void setBackgroundComponentLocation(Graphics g) {
+		if (fitToViewport) {
+			final JViewport vp = (JViewport) getParent();
+			final Point viewPosition = vp.getViewPosition();
+			g.translate(viewPosition.x, viewPosition.y);
+		}
+		else {
+			final Point centerPoint = getRootCenterPoint();
+			final Point backgroundImageTopLeft = getBackgroundImageTopLeft(centerPoint);
+			g.translate(backgroundImageTopLeft.x, backgroundImageTopLeft.y);
+		}
+	}
+
+	private Point getRootCenterPoint() {
+		final Point centerPoint = new Point(getRoot().getMainView().getWidth() / 2,
+		    getRoot().getMainView().getHeight() / 2);
+		UITools.convertPointToAncestor(getRoot().getMainView(), centerPoint, this);
+		return centerPoint;
+	}
+
+	private Point getBackgroundImageTopLeft(Point centerPoint) {
+		int x = centerPoint.x - (backgroundComponent.getWidth() / 2);
+		int y = centerPoint.y - (backgroundComponent.getHeight() / 2);
+		return new Point(x, y);
+	}
+
+	@Override
 	protected void paintChildren(final Graphics g) {
 	    final boolean paintLinksBehind = ResourceController.getResourceController().getBooleanProperty(
 	    	    "paint_connectors_behind");
@@ -1206,7 +1356,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	    else
 	    	paintModes = new PaintingMode[]{
 	    		PaintingMode.CLOUDS,
-	    		PaintingMode.NODES,PaintingMode.SELECTED_NODES, PaintingMode.LINKS
+	    		PaintingMode.NODES, PaintingMode.SELECTED_NODES, PaintingMode.LINKS
 	    		};
 	    Graphics2D g2 = (Graphics2D) g;
 	    paintChildren(g2, paintModes);
@@ -1223,9 +1373,9 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	    		case LINKS:
 	    			paintLinks(g2);
 	    			break;
-	    		default:
-	    			super.paintChildren(g2);
-	    	}
+				default:
+					super.paintChildren(g2);
+			}
 	    }
     };
 
@@ -1264,13 +1414,13 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		return paintingMode;
 	}
 
-	private void paintLinks(final Collection<LinkModel> links, final Graphics2D graphics,
+	private void paintLinks(final Collection<NodeLinkModel> links, final Graphics2D graphics,
 	                        final HashSet<ConnectorModel> alreadyPaintedLinks) {
 		final Font font = graphics.getFont();
 		try {
-			final Iterator<LinkModel> linkIterator = links.iterator();
+			final Iterator<NodeLinkModel> linkIterator = links.iterator();
 			while (linkIterator.hasNext()) {
-				final LinkModel next = linkIterator.next();
+				final NodeLinkModel next = linkIterator.next();
 				if (!(next instanceof ConnectorModel)) {
 					continue;
 				}
@@ -1313,9 +1463,9 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	private void paintLinks(final NodeView source, final Graphics2D graphics,
 	                        final HashSet<ConnectorModel> alreadyPaintedLinks) {
 		final NodeModel node = source.getModel();
-		final Collection<LinkModel> outLinks = NodeLinks.getLinks(node);
+		final Collection<NodeLinkModel> outLinks = NodeLinks.getLinks(node);
 		paintLinks(outLinks, graphics, alreadyPaintedLinks);
-		final Collection<LinkModel> inLinks = LinkController.getController(getModeController()).getLinksTo(node);
+		final Collection<NodeLinkModel> inLinks = LinkController.getController(getModeController()).getLinksTo(node);
 		paintLinks(inLinks, graphics, alreadyPaintedLinks);
 		final int nodeViewCount = source.getComponentCount();
 		for (int i = 0; i < nodeViewCount; i++) {
@@ -1415,7 +1565,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 */
 	public void preparePrinting() {
 		isPrinting = true;
-		if (isPreparedForPrinting == false) {
+		if (!isPreparedForPrinting) {
 			if (zoom == 1f) {
 				getRoot().updateAll();
 				synchronized (getTreeLock()) {
@@ -1426,10 +1576,21 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 				background = getBackground();
 				setBackground(Color.WHITE);
 			}
-			boundingRectangle = getInnerBounds();
 			fitMap = FitMap.valueOf();
+			if (backgroundComponent != null && fitMap == FitMap.BACKGROUND) {
+				boundingRectangle = getBackgroundImageInnerBounds();
+			}
+			else {
+				boundingRectangle = getInnerBounds();
+			}
 			isPreparedForPrinting = true;
 		}
+	}
+
+	private Rectangle getBackgroundImageInnerBounds() {
+		final Point centerPoint = getRootCenterPoint();
+		final Point backgroundImageTopLeft = getBackgroundImageTopLeft(centerPoint);
+		return new Rectangle(backgroundImageTopLeft.x, backgroundImageTopLeft.y, backgroundComponent.getWidth(), backgroundComponent.getHeight());
 	}
 
 	@Override
@@ -1471,7 +1632,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		double userZoomFactor = ResourceController.getResourceController().getDoubleProperty("user_zoom", 1);
 		userZoomFactor = Math.max(0, userZoomFactor);
 		userZoomFactor = Math.min(2, userZoomFactor);
-		if (fitMap == FitMap.PAGE && pageIndex > 0) {
+		if ((fitMap == FitMap.PAGE || fitMap == FitMap.BACKGROUND) && pageIndex > 0) {
 			return Printable.NO_SUCH_PAGE;
 		}
 		final Graphics2D g2 = (Graphics2D) graphics.create();
@@ -1484,7 +1645,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		g2.clipRect((int)imageableX, (int)imageableY, (int)imageableWidth, (int)imageableHeight);
 		final double mapWidth = boundingRectangle.getWidth();
 		final double mapHeight = boundingRectangle.getHeight();
-		if (fitMap == FitMap.PAGE) {
+		if (fitMap == FitMap.PAGE || fitMap == FitMap.BACKGROUND) {
 			final double zoomFactorX = imageableWidth / mapWidth;
 			final double zoomFactorY = imageableHeight / mapHeight;
 			zoomFactor = Math.min(zoomFactorX, zoomFactorY) * 0.99;
@@ -1750,7 +1911,21 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		this.zoom = zoom;
 		anchorToSelected(getSelected(), CENTER_ALIGNMENT, CENTER_ALIGNMENT);
 		getRoot().updateAll();
-		revalidate();
+		adjustBackgroundComponentScale();
+	}
+
+	private void adjustBackgroundComponentScale() {
+		if (backgroundComponent != null) {
+			if (fitToViewport) {
+				final JViewport vp = (JViewport) getParent();
+				final Dimension viewPortSize = vp.getVisibleRect().getSize();
+				((ScalableComponent) backgroundComponent).setFinalViewerSize(viewPortSize);
+			}
+			else {
+				((ScalableComponent) backgroundComponent).setMaximumComponentSize(getPreferredSize());
+				((ScalableComponent) backgroundComponent).setFinalViewerSize(zoom);
+			}
+		}
 	}
 
 	/**

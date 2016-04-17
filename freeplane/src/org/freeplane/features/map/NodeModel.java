@@ -29,30 +29,24 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
-import javax.swing.tree.MutableTreeNode;
-import javax.swing.tree.TreeNode;
-
 import org.freeplane.core.extension.ExtensionContainer;
 import org.freeplane.core.extension.IExtension;
-import org.freeplane.core.extension.SmallExtensionMap;
 import org.freeplane.core.util.HtmlUtils;
-import org.freeplane.core.util.XmlUtils;
 import org.freeplane.features.filter.Filter;
 import org.freeplane.features.filter.FilterInfo;
 import org.freeplane.features.icon.MindIcon;
-import org.freeplane.features.link.NodeLinks;
 import org.freeplane.features.ui.INodeViewVisitor;
 
 /**
  * This class represents a single Node of a Tree. It contains direct handles to
  * its parent and children and to its view.
- * 
+ *
  * Note that this class does not and must not know anything about its extensions,
  * otherwise this class would become too big.
  * Extension methods that add functionality to nodes are in the extension packages
  * and get NodeModel as an argument.
  */
-public class NodeModel implements MutableTreeNode {
+public class NodeModel{
 	public enum NodeChangeType {
 		FOLDING, REFRESH
 	}
@@ -66,36 +60,52 @@ public class NodeModel implements MutableTreeNode {
 	static public final Object UNKNOWN_PROPERTY = new Object();
 	public static final String NODE_ICON = "icon";
 	//DOCEAR - fixed: new property type for node link changes
-	static public final Object HYPERLINK_CHANGED = NodeLinks.HYPERLINK_CHANGED;
-	private final List<NodeModel> children = new ArrayList<NodeModel>();
-	private final ExtensionContainer extensionContainer;
-	final private FilterInfo filterInfo = new FilterInfo();
+	static public final Object HYPERLINK_CHANGED = "hyperlink_changed";
+
+	private final List<NodeModel> children;
+	private NodeModel parent;
+	final private FilterInfo filterInfo;
 	private boolean folded;
-	private HistoryInformationModel historyInformation = null;
-	final private NodeIconSetModel icons;
 	private String id;
 	private MapModel map = null;
-	private NodeModel parent;
 	private int position = NodeModel.UNKNOWN_POSITION;
 	private NodeModel preferredChild;
-	private Object userObject = null;
+	private Collection<INodeView> views = null;
 
-	public Object getUserObject() {
-		return userObject;
+	private SharedNodeData sharedData;
+	private Clones clones;
+
+	void setClones(Clones clones) {
+		if(this.clones != clones){
+			this.clones = clones;
+			for(NodeModel clone : clones)
+				clone.fireNodeChanged(new NodeChangeEvent(this, NodeModel.UNKNOWN_PROPERTY, null, null));
+		}
 	}
 
-	private Collection<INodeView> views = null;
-	private String xmlText = null;
+	public Object getUserObject() {
+		return sharedData.getUserObject();
+	}
 
 	public NodeModel(final MapModel map) {
 		this("", map);
 	}
 
 	public NodeModel(final Object userObject, final MapModel map) {
-		extensionContainer = new ExtensionContainer(new SmallExtensionMap());
+		sharedData = new SharedNodeData();
 		init(userObject);
 		this.map = map;
-		icons = new NodeIconSetModel();
+		children = new ArrayList<NodeModel>();
+		filterInfo = new FilterInfo();
+		clones = new DetachedNodeList(this);
+	}
+
+	private NodeModel(NodeModel toBeCloned){
+		this.map = toBeCloned.map;
+		this.sharedData = toBeCloned.sharedData;
+		children = new ArrayList<NodeModel>();
+		filterInfo = new FilterInfo();
+		clones = new DetachedNodeList(this, toBeCloned);
 	}
 
 	protected void init(final Object userObject) {
@@ -113,22 +123,22 @@ public class NodeModel implements MutableTreeNode {
 	}
 
 	public void addExtension(final IExtension extension) {
-		extensionContainer.addExtension(extension);
+		getExtensionContainer().addExtension(extension);
 	}
 
 	public IExtension putExtension(final IExtension extension) {
-		return extensionContainer.putExtension(extension);
+		return getExtensionContainer().putExtension(extension);
 	}
 
 	public void addIcon(final MindIcon icon) {
-		icons.addIcon(icon);
+		getIconModel().addIcon(icon);
 		if (map != null) {
 			map.getIconRegistry().addIcon(icon);
 		}
 	}
 
 	public void addIcon(final MindIcon icon, final int position) {
-		icons.addIcon(icon, position);
+		getIconModel().addIcon(icon, position);
 		getMap().getIconRegistry().addIcon(icon);
 	}
 
@@ -143,7 +153,7 @@ public class NodeModel implements MutableTreeNode {
 	protected List<NodeModel> getChildrenInternal() {
 	    return children;
     }
-	
+
 	public Enumeration<NodeModel> children() {
 		final Iterator<NodeModel> i = getChildrenInternal().iterator();
 		return new Enumeration<NodeModel>() {
@@ -158,7 +168,7 @@ public class NodeModel implements MutableTreeNode {
 	}
 
 	public boolean containsExtension(final Class<? extends IExtension> clazz) {
-		return extensionContainer.containsExtension(clazz);
+		return getExtensionContainer().containsExtension(clazz);
 	}
 
 	public String createID() {
@@ -202,7 +212,7 @@ public class NodeModel implements MutableTreeNode {
 		return NodeModel.ALLOWSCHILDREN;
 	};
 
-	public TreeNode getChildAt(final int childIndex) {
+	public NodeModel getChildAt(final int childIndex) {
 		return getChildrenInternal().get(childIndex);
 	}
 
@@ -236,11 +246,11 @@ public class NodeModel implements MutableTreeNode {
 	}
 
     public <T extends IExtension> T getExtension(final Class<T> clazz) {
-		return (T) extensionContainer.getExtension(clazz);
+		return getExtensionContainer().getExtension(clazz);
 	}
 
-	public Map<Class<? extends IExtension>, IExtension> getExtensions() {
-		return extensionContainer.getExtensions();
+	public Map<Class<? extends IExtension>, IExtension> getSharedExtensions() {
+		return getExtensionContainer().getExtensions();
 	};
 
 	public FilterInfo getFilterInfo() {
@@ -248,23 +258,23 @@ public class NodeModel implements MutableTreeNode {
 	}
 
 	public HistoryInformationModel getHistoryInformation() {
-		return historyInformation;
+		return sharedData.getHistoryInformation();
 	}
 
 	public MindIcon getIcon(final int position) {
-		return icons.getIcon(position);
+		return getIconModel().getIcon(position);
 	}
 
 	public List<MindIcon> getIcons() {
-		return icons.getIcons();
+		return getIconModel().getIcons();
 	}
 
 	public String getID() {
 		return id;
 	}
 
-	public int getIndex(final TreeNode node) {
-		return getChildrenInternal().indexOf(node);
+	public int getIndex(final NodeModel node) {
+		return children.indexOf(node);
 	}
 
 	public MapModel getMap() {
@@ -280,10 +290,6 @@ public class NodeModel implements MutableTreeNode {
 			}
 		}
 		return level;
-	}
-
-	public TreeNode getParent() {
-		return parent;
 	}
 
 	public NodeModel getParentNode() {
@@ -303,8 +309,8 @@ public class NodeModel implements MutableTreeNode {
 
 	public String getText() {
 		String string = "";
-		if (userObject != null) {
-			string = userObject.toString();
+		if (getUserObject() != null) {
+			string = getUserObject().toString();
 		}
 		return string;
 	}
@@ -317,7 +323,7 @@ public class NodeModel implements MutableTreeNode {
 	}
 
 	public final String getXmlText() {
-		return xmlText;
+		return sharedData.getXmlText();
 	}
 
 	public boolean hasChildren() {
@@ -328,17 +334,17 @@ public class NodeModel implements MutableTreeNode {
 		return id != null;
 	}
 
-	public void insert(final MutableTreeNode child, int index) {
+	public void insert(final NodeModel child, int index) {
 		if (!isAccessible()) {
 			throw new IllegalArgumentException("Trying to insert nodes into a ciphered node.");
 		}
-		final NodeModel childNode = (NodeModel) child;
+		final NodeModel childNode = child;
 		if (index < 0) {
 			index = getChildCount();
-			getChildrenInternal().add(index, (NodeModel) child);
+			children.add(index, child);
 		}
 		else {
-			getChildrenInternal().add(index, (NodeModel) child);
+			children.add(index, child);
 			preferredChild = childNode;
 		}
 		child.setParent(this);
@@ -390,7 +396,7 @@ public class NodeModel implements MutableTreeNode {
 		}
 		int rightChildrenCount = 0;
 		for (int i = 0; i < getChildCount(); i++) {
-			if (!((NodeModel) getChildAt(i)).isLeft()) {
+			if (!getChildAt(i).isLeft()) {
 				rightChildrenCount++;
 			}
 			if (rightChildrenCount > getChildCount() / 2) {
@@ -410,13 +416,8 @@ public class NodeModel implements MutableTreeNode {
 	}
 
 	public void remove(final int index) {
-		final MutableTreeNode node = getChildrenInternal().get(index);
-		remove(node);
-	}
-
-	public void remove(final MutableTreeNode node) {
-		if (node == preferredChild) {
-			final int index = getChildrenInternal().indexOf(node);
+	    final NodeModel child = children.get(index);
+		if (child == preferredChild) {
 			if (getChildrenInternal().size() > index + 1) {
 				preferredChild = (getChildrenInternal().get(index + 1));
 			}
@@ -424,40 +425,35 @@ public class NodeModel implements MutableTreeNode {
 				preferredChild = (index > 0) ? (NodeModel) (getChildrenInternal().get(index - 1)) : null;
 			}
 		}
-		final int index = getIndex(node);
-		node.setParent(null);
-		getChildrenInternal().remove(node);
-		fireNodeRemoved((NodeModel) node, index);
-	}
+		child.setParent(null);
+		children.remove(index);
+		fireNodeRemoved(child, index);
+    }
 
 	public <T extends IExtension> T removeExtension(final Class<T> clazz){
-		return extensionContainer.removeExtension(clazz);
+		return getExtensionContainer().removeExtension(clazz);
 	}
 
 	public boolean removeExtension(final IExtension extension) {
-		return extensionContainer.removeExtension(extension);
-	}
-
-	public void removeFromParent() {
-		parent.remove(this);
+		return getExtensionContainer().removeExtension(extension);
 	}
 
 	/**
 	 * remove last icon
-	 * 
+	 *
 	 * @return the number of remaining icons.
 	 */
 	public int removeIcon() {
-		return icons.removeIcon();
+		return getIconModel().removeIcon();
 	}
 
 	/**
 	 * @param remove icons with given position
-	 *  
+	 *
 	 * @return the number of remaining icons
 	 */
 	public int removeIcon(final int position) {
-		return icons.removeIcon(position);
+		return getIconModel().removeIcon(position);
 	}
 
 	public void removeViewer(final INodeView viewer) {
@@ -484,7 +480,7 @@ public class NodeModel implements MutableTreeNode {
 	}
 
 	public void setHistoryInformation(final HistoryInformationModel historyInformation) {
-		this.historyInformation = historyInformation;
+		this.sharedData.setHistoryInformation(historyInformation);
 	}
 
 	public void setID(final String value) {
@@ -496,7 +492,7 @@ public class NodeModel implements MutableTreeNode {
 		position = isLeft ? NodeModel.LEFT_POSITION : NodeModel.RIGHT_POSITION;
 		if (!isRoot()) {
 			for (int i = 0; i < getChildCount(); i++) {
-				final NodeModel child = (NodeModel) getChildAt(i);
+				final NodeModel child = getChildAt(i);
 				if (child.position != position) {
 					child.setLeft(isLeft);
 				}
@@ -513,36 +509,41 @@ public class NodeModel implements MutableTreeNode {
 		}
 	}
 
-	public void setParent(final MutableTreeNode newParent) {
-		parent = (NodeModel) newParent;
-	}
-
 	public void setParent(final NodeModel newParent) {
+		if(parent == null && newParent != null && newParent.isAttached())
+	        attach();
+		else if(parent != null && parent.isAttached() &&  (newParent == null || !newParent.isAttached()))
+	        detach();
 		parent = newParent;
 	}
 
+	void attach() {
+	    clones.attach();
+	    for(NodeModel child : children)
+	    	child.attach();
+    }
+
+	private void detach() {
+	    clones.detach(this);
+	    for(NodeModel child : children)
+	    	child.detach();
+    }
+
+
+	private boolean isAttached() {
+	    return clones.size() != 0;
+    }
 
 	public final void setText(final String text) {
-		userObject = XmlUtils.makeValidXml(text);
-		xmlText = HtmlUtils.toXhtml(text);
-		if (xmlText != null && !xmlText.startsWith("<")) {
-			userObject = " " + text;
-			xmlText = null;
-		}
+		sharedData.setText(text);
 	}
 
 	public final void setUserObject(final Object data) {
-		if (data instanceof String) {
-			setText(data.toString());
-			return;
-		}
-		userObject = data;
-		xmlText = null;
+		sharedData.setUserObject(data);
 	}
 
 	public final void setXmlText(final String pXmlText) {
-		xmlText = XmlUtils.makeValidXml(pXmlText);
-		userObject = HtmlUtils.toHtml(xmlText);
+		sharedData.setXmlText(pXmlText);
 	}
 
 	@Override
@@ -569,4 +570,73 @@ public class NodeModel implements MutableTreeNode {
 		}
 		return node;
 	}
+
+	private ExtensionContainer getExtensionContainer() {
+	    return sharedData.getExtensionContainer();
+    }
+
+	private NodeIconSetModel getIconModel() {
+	    return sharedData.getIcons();
+    }
+
+	void fireNodeChanged(INodeChangeListener[] nodeChangeListeners, final NodeChangeEvent nodeChangeEvent) {
+		if(clones.size() == 1)
+			fireSingleNodeChanged(nodeChangeListeners, nodeChangeEvent);
+		else{
+			for(NodeModel node : clones){
+				final NodeChangeEvent cloneEvent = nodeChangeEvent.forNode(node);
+				node.fireSingleNodeChanged(nodeChangeListeners, cloneEvent);
+			}
+		}
+
+	}
+
+	private void fireSingleNodeChanged(INodeChangeListener[] nodeChangeListeners, final NodeChangeEvent nodeChangeEvent) {
+	    for (final INodeChangeListener listener : nodeChangeListeners) {
+			listener.nodeChanged(nodeChangeEvent);
+		}
+		fireNodeChanged(nodeChangeEvent);
+    }
+	
+    public NodeModel cloneTree(){
+		final NodeModel clone = new Cloner(this).cloneTree();
+		return clone;
+	}
+
+	protected NodeModel cloneNode() {
+	    final NodeModel clone = new NodeModel(this);
+		return clone;
+    }
+
+	public SharedNodeData getSharedData() {
+	    return sharedData;
+    }
+
+	public Collection<IExtension> getIndividualExtensionValues() {
+		return Collections.emptyList();
+    }
+
+	public void convertToClone(NodeModel node) {
+		sharedData = node.sharedData;
+		clones = new DetachedNodeList(this, node);
+    }
+
+	public  Clones clones() {
+	    return clones;
+    }
+
+	public boolean subtreeContainsCloneOf(NodeModel node) {
+		for(NodeModel clone : node.clones())
+			if(equals(clone))
+				return true;
+		for(NodeModel child : children)
+			if(child.subtreeContainsCloneOf(node))
+				return true;
+		return false;
+    }
+
+	public boolean isCloneOf(NodeModel ancestorClone) {
+	    return clones().contains(ancestorClone);
+    }
+
 }
