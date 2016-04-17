@@ -3,6 +3,8 @@
 ===============================
 Undockable maps
 Option to set image resolution for PNG/JPG image export
+Scripting API for node encryption, exports and map specific storage
+Textbox in preferences for common/global LaTeX macros (plugins->LaTeX)
 ===============================
 1.3.4
 ===============================

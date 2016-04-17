@@ -105,17 +105,15 @@ output_debug_info() {
 ########## START MAIN PART #############################################
 
 #--------- Put the environment together --------------------------------
-
 __move_old_userfpdir_to_XDG_CONFIG_HOME() {
-    old_userfpdir="${HOME}/.freeplane"
-    if [ -d "$old_userfpdir" -a ! -d "$userfpdir" ] ; then
-	mv "$old_userfpdir" "$userfpdir"
-	for n in "$userfpdir"/*/auto.properties ; do
-	    sed -i~ 's!'"$old_userfpdir"'/!'"$userfpdir"'/!' "$n"
-	done
+    if [ -d "$old_userfpdir/1.3.x" -a ! -d "$userfpdir" ] ; then
+    	mkdir "$userfpdir"
+		mv "$old_userfpdir/1.3.x" "$userfpdir/1.3.x"
+		ln -s "$userfpdir/1.3.x" "$old_userfpdir/1.3.x"
     fi
 }
 
+old_userfpdir="${HOME}/.freeplane"
 userfpdir="${XDG_CONFIG_HOME:-$HOME/.config}/freeplane"
 __move_old_userfpdir_to_XDG_CONFIG_HOME
 _source /etc/freeplane/freeplanerc
@@ -179,6 +177,7 @@ _debug "Calling: "\
  "-Dorg.freeplane.param4=$7"\
  "-Dorg.freeplane.param4=$8"\
  "-Dorg.freeplane.userfpdir=$userfpdir"\
+ "-Dorg.freeplane.old_userfpdir=$old_userfpdir"\
  "-Dorg.knopflerfish.framework.bundlestorage=memory"\
  "-Dorg.freeplane.globalresourcedir=${freedir}/resources"\
  "-Dorg.knopflerfish.gosg.jars=reference:file:${freedir}/core/"\
@@ -200,6 +199,7 @@ _debug "Calling: "\
  "-Dorg.freeplane.param4=$7"\
  "-Dorg.freeplane.param4=$8"\
  "-Dorg.freeplane.userfpdir=$userfpdir"\
+ "-Dorg.freeplane.old_userfpdir=$old_userfpdir"\
  "-Dorg.knopflerfish.framework.bundlestorage=memory"\
  "-Dorg.freeplane.globalresourcedir=${freedir}/resources"\
  "-Dorg.knopflerfish.gosg.jars=reference:file:${freedir}/core/"\
