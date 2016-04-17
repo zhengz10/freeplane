@@ -71,8 +71,7 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 	private static final String MENU_CATEGORY = "main_menu_most_recent_files";
 	private static final String LAST_OPENED_LIST_LENGTH = "last_opened_list_length";
 	private static final String LAST_OPENED = "lastOpened_1.0.20";
-	public static final String LOAD_LAST_MAP = "load_last_map";
-// // 	private final Controller controller;
+	// // 	private final Controller controller;
 	private static boolean PORTABLE_APP = System.getProperty("portableapp", "false").equals("true");
 	private static String USER_DRIVE = System.getProperty("user.home", "").substring(0, 2);
 	/**
@@ -196,15 +195,9 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 	}
 
 	public void openMapsOnStart() {
-		final boolean loadLastMap = ResourceController.getResourceController().getBooleanProperty(LOAD_LAST_MAP);
-		final String lastMap;
-		if (loadLastMap && !lastOpenedList.isEmpty()) {
+		if (!lastOpenedList.isEmpty()) {
+			final String lastMap;
 			lastMap = lastOpenedList.get(0);
-		}
-		else {
-			lastMap = null;
-		}
-		if (lastMap != null) {
 			if(!tryToChangeToMapView(lastMap))
 				safeOpen(lastMap);
 		}
@@ -287,6 +280,7 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 			final AFreeplaneAction lastOpenedActionListener = new OpenLastOpenedAction(i++, this);
 			final IFreeplaneAction decoratedAction = menuBuilder.decorateAction(lastOpenedActionListener);
 			final JMenuItem item = new JFreeplaneMenuItem(decoratedAction);
+			item.setActionCommand(key);
 			String text = createOpenMapItemName(key);
 			item.setText(createOpenMapItemName(text));
 			item.setMnemonic(0);
@@ -300,8 +294,11 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 		if(separatorIndex == -1)
 			return restorable;
 		String key = restorable.substring(0, separatorIndex);
-		return TextUtils.getText("open_as" + key, key) + restorable.substring(separatorIndex);
-		
+		String fileName = restorable.substring(separatorIndex);
+		if(fileName.startsWith("::"))
+			return TextUtils.getText("open_as" + key, key) + fileName.substring(1);
+		else
+			return TextUtils.getText("open_as" + key, key) + fileName;
     }
 
 	public void onPreNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,

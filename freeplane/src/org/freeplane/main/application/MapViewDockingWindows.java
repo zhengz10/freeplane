@@ -21,15 +21,15 @@ package org.freeplane.main.application;
 
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.EventQueue;
 import java.awt.dnd.DropTarget;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.List;
 import java.util.Vector;
 
 import javax.swing.InputMap;
@@ -37,6 +37,7 @@ import javax.swing.JComponent;
 import javax.swing.JDesktopPane;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.event.InternalFrameAdapter;
 import javax.swing.event.InternalFrameEvent;
 
@@ -46,6 +47,7 @@ import net.infonode.docking.OperationAbortedException;
 import net.infonode.docking.RootWindow;
 import net.infonode.docking.TabWindow;
 import net.infonode.docking.View;
+import net.infonode.docking.theme.BlueHighlightDockingTheme;
 import net.infonode.docking.util.DockingUtil;
 import net.infonode.util.Direction;
 
@@ -55,6 +57,7 @@ import org.freeplane.core.util.LogUtils;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.ui.IMapViewChangeListener;
 import org.freeplane.features.url.mindmapmode.FileOpener;
+import org.freeplane.view.swing.map.MapView;
 import org.freeplane.view.swing.ui.DefaultMapMouseListener;
 
 class MapViewDockingWindows implements IMapViewChangeListener {
@@ -62,7 +65,7 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 	// // 	final private Controller controller;
 	private static final String OPENED_NOW = "openedNow_1.3.04";
 	private RootWindow rootWindow = null;
-	final private Vector<Component> mPaneMapViews;
+	final private Vector<Component> mapViews;
 	private boolean mPaneSelectionUpdate = true;
 	private boolean loadingLayoutFromObjectInpusStream;
 	private byte[] emptyConfigurations;
@@ -71,6 +74,8 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 	public MapViewDockingWindows() {
 		viewSerializer = new MapViewSerializer();
 		rootWindow = new RootWindow(viewSerializer);
+		rootWindow.getRootWindowProperties()
+			.addSuperObject(new BlueHighlightDockingTheme().getRootWindowProperties());
 		rootWindow.getWindowBar(Direction.DOWN).setEnabled(true);
 		try {
 	        ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
@@ -82,7 +87,7 @@ class MapViewDockingWindows implements IMapViewChangeListener {
         catch (IOException e1) {
         }
 		removeDesktopPaneAccelerators();
-		mPaneMapViews = new Vector<Component>();
+		mapViews = new Vector<Component>();
 		final FileOpener fileOpener = new FileOpener();
 		new DropTarget(rootWindow, fileOpener);
 		rootWindow.addMouseListener(new DefaultMapMouseListener());
@@ -101,7 +106,7 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 
 			@Override
             public void windowClosing(DockingWindow window) throws OperationAbortedException {
-				for(Component mapViewComponent : mPaneMapViews.toArray(new Component[]{}))
+				for(Component mapViewComponent : mapViews.toArray(new Component[]{}))
 					if(SwingUtilities.isDescendingFrom(mapViewComponent, window))
 					if (!Controller.getCurrentController().getMapViewManager().close(mapViewComponent, false))
 						throw new OperationAbortedException("can not close view");
@@ -138,8 +143,8 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 			return;
 		}
 		if(! loadingLayoutFromObjectInpusStream) {
-			for (int i = 0; i < mPaneMapViews.size(); ++i) {
-				if (mPaneMapViews.get(i) == pNewMap) {
+			for (int i = 0; i < mapViews.size(); ++i) {
+				if (mapViews.get(i) == pNewMap) {
 					View dockedView = getContainingDockedWindow(pNewMap);
 					dockedView.restoreFocus();
 					return;
@@ -147,7 +152,7 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 			}
 	        addDockedWindow(pNewMap);
         }
-		mPaneMapViews.add(pNewMap);
+		mapViews.add(pNewMap);
 	}
 
 	static private View getContainingDockedWindow(final Component pNewMap) {
@@ -176,16 +181,15 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 	
 	private void addDockedWindow(final Component pNewMap) {
 	    final View viewFrame = viewSerializer.newDockedView(pNewMap);
-
 		addDockedView(viewFrame);
     }
 
 	public void afterViewClose(final Component pOldMapView) {
-		for (int i = 0; i < mPaneMapViews.size(); ++i) {
-			if (mPaneMapViews.get(i) == pOldMapView) {
+		for (int i = 0; i < mapViews.size(); ++i) {
+			if (mapViews.get(i) == pOldMapView) {
 				mPaneSelectionUpdate = false;
-				rootWindow.removeView(getContainingDockedWindow(pOldMapView));
-				mPaneMapViews.remove(i);
+				getContainingDockedWindow(pOldMapView).close();
+				mapViews.remove(i);
 				mPaneSelectionUpdate = true;
 				rootWindow.repaint();
 				return;
@@ -194,16 +198,6 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 	}
 
 	public void afterViewCreated(final Component mapView) {
-		mapView.addPropertyChangeListener("name", new PropertyChangeListener() {
-			public void propertyChange(final PropertyChangeEvent evt) {
-				final Component pMapView = (Component) evt.getSource();
-				for (int i = 0; i < mPaneMapViews.size(); ++i) {
-					if (mPaneMapViews.get(i) == pMapView) {
-						getContainingDockedWindow(mapView).getViewProperties().setTitle(pMapView.getName());
-					}
-				}
-			}
-		});
 	}
 
 	public void beforeViewChange(final Component pOldMapView, final Component pNewMapView) {
@@ -259,5 +253,38 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 				loadingLayoutFromObjectInpusStream = false;
 			}
 		}
+		if(mapViews.size() > 0){
+			selectLater((MapView)mapViews.get(0), 3);
+		}
 	}
+	
+	private void selectLater(final MapView mapView, final int retryCount) {
+		Timer timer = new Timer(40, new ActionListener() {
+		    public void actionPerformed(ActionEvent e) {
+				mapView.select();
+				mapView.selectAsTheOnlyOneSelected(mapView.getRoot());
+				if(retryCount > 1)
+					selectLater(mapView, retryCount - 1);
+		    }
+		  });
+		timer.setRepeats(false);
+		timer.start();
+    }
+
+	public void setTitle() {
+		if(loadingLayoutFromObjectInpusStream)
+			return;
+		for (Component mapViewComponent: mapViews) {
+			if (mapViewComponent instanceof MapView ) {
+	            MapView mapView = (MapView)mapViewComponent;
+	            String name = mapView.getName();
+	            String title;
+	            if(mapView.getModel().isSaved())
+	            	title = name;
+	            else
+	            	title = name + " *";
+	            getContainingDockedWindow(mapViewComponent).getViewProperties().setTitle(title);
+            }
+		}
+    }
 }

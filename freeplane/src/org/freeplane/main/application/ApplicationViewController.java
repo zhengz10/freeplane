@@ -74,7 +74,6 @@ class ApplicationViewController extends FrameController {
 	final private ResourceController resourceController;
 	private JComponent mapPane;
 	private MapViewDockingWindows mapViewWindows;
-
 	@SuppressWarnings("serial")
     public ApplicationViewController( Controller controller, final IMapViewManager mapViewController,
 	                                 final JFrame frame) {
@@ -400,8 +399,9 @@ class ApplicationViewController extends FrameController {
 	 * @see freeplane.main.FreeplaneMain#setTitle(java.lang.String)
 	 */
 	@Override
-	public void setTitle(final String title) {
-		frame.setTitle(title);
+	public void setTitle(final String frameTitle) {
+		frame.setTitle(frameTitle);
+		mapViewWindows.setTitle();
 	}
 
 	@Override

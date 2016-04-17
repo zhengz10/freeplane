@@ -112,6 +112,8 @@ public class FreeplaneGUIStarter implements FreeplaneStarter {
 	/** allows to disable loadLastMap(s) if there already is a second instance running. */
 	private boolean dontLoadLastMaps;
 	final private boolean firstRun;
+	private static final String LOAD_LAST_MAPS = "load_last_maps";
+	private static final String LOAD_LAST_MAP = "load_last_map";
 	public FreeplaneGUIStarter() {
 		super();
 		final File userPreferencesFile = ApplicationResourceController.getUserPreferencesFile();
@@ -215,14 +217,12 @@ public class FreeplaneGUIStarter implements FreeplaneStarter {
 				splash.toBack();
 				final Frame frame = viewController.getFrame();
 				final int extendedState = frame.getExtendedState();
+				Container contentPane = viewController.getContentPane();
+				contentPane.setVisible(false);
 				frame.setVisible(true);
 				if (extendedState != frame.getExtendedState()) {
 					frame.setExtendedState(extendedState);
 				}
-				Container contentPane = viewController.getContentPane();
-				JComponent rootPane = (JComponent) contentPane.getParent();
-				contentPane.setVisible(false);
-				rootPane.paintImmediately(0, 0, rootPane.getWidth(), rootPane.getHeight());
 				splash.paintImmediately();
 				loadMaps(options.getFilesToOpenAsArray());
 				viewController.getContentPane().setVisible(true);
@@ -246,9 +246,9 @@ public class FreeplaneGUIStarter implements FreeplaneStarter {
 		final Controller controller = Controller.getCurrentController();
 		final boolean alwaysLoadLastMaps = ResourceController.getResourceController().getBooleanProperty(
 		    "always_load_last_maps");
+
 		if (alwaysLoadLastMaps && !dontLoadLastMaps) {
-			viewController.openMapsOnStart();
-			applicationResourceController.getLastOpenedList().openMapsOnStart();
+			loadLastMaps();
 		}
 		if (loadMaps(controller, args)) {
 			return;
@@ -256,8 +256,7 @@ public class FreeplaneGUIStarter implements FreeplaneStarter {
 		if (!alwaysLoadLastMaps && !dontLoadLastMaps) {
 			final AddOnsController addonsController = AddOnsController.getController();
 			addonsController.setAutoInstallEnabled(false);
-			viewController.openMapsOnStart();
-			applicationResourceController.getLastOpenedList().openMapsOnStart();
+			loadLastMaps();
 			addonsController.setAutoInstallEnabled(true);
 		}
 		if(firstRun && ! dontLoadLastMaps){
@@ -274,6 +273,15 @@ public class FreeplaneGUIStarter implements FreeplaneStarter {
 		final MModeController modeController = (MModeController) controller.getModeController();
 		MFileManager.getController(modeController).newMapFromDefaultTemplate();
 	}
+
+	private void loadLastMaps() {
+	    final boolean loadLastMap = ResourceController.getResourceController().getBooleanProperty(LOAD_LAST_MAP);
+	    final boolean loadLastMaps = ResourceController.getResourceController().getBooleanProperty(LOAD_LAST_MAPS);
+	    if(loadLastMaps)
+	    	viewController.openMapsOnStart();
+	    else if(loadLastMap)
+	    	applicationResourceController.getLastOpenedList().openMapsOnStart();
+    }
 	
 	public void loadMapsLater(final String[] args){
 	    EventQueue.invokeLater(new Runnable() {

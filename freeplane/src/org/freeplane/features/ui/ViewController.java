@@ -123,7 +123,7 @@ public interface ViewController {
 	/**
 	 * Set the Frame title with mode and file if exist
 	 */
-	public void setTitle(String title);
+	public void setTitle(String frameTitle);
 
 	/**
 	 * @param b

@@ -848,19 +848,19 @@ public class MapViewController implements IMapViewManager , IMapViewChangeListen
 		}
 		final Object[] messageArguments = { TextUtils.getText(("mode_" + modeController.getModeName())) };
 		final MessageFormat formatter = new MessageFormat(TextUtils.getText("mode_title"));
-		String title = formatter.format(messageArguments);
-		String rawTitle = "";
+		String frameTitle = formatter.format(messageArguments);
+		String viewName = "";
 		final MapModel model = getModel();
 		if (model != null) {
-			rawTitle = getMapViewComponent().getName();
-			title = rawTitle + (model.isSaved() ? "" : "*") + " - " + title
+			viewName = getMapViewComponent().getName();
+			frameTitle = viewName + (model.isSaved() ? "" : "*") + " - " + frameTitle
 			        + (model.isReadOnly() ? " (" + TextUtils.getText("read_only") + ")" : "");
 			final File file = model.getFile();
 			if (file != null) {
-				title += " " + file.getAbsolutePath();
+				frameTitle += " " + file.getAbsolutePath();
 			}
 		}
-		controller.getViewController().setTitle(title);
+		controller.getViewController().setTitle(frameTitle);
 		modeController.getUserInputListenerFactory().updateMapList();
 	}
 }
