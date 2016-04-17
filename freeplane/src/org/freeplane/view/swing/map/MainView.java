@@ -65,6 +65,7 @@ import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 import org.freeplane.features.nodelocation.LocationModel;
 import org.freeplane.features.nodestyle.NodeStyleController;
+import org.freeplane.features.nodestyle.NodeStyleModel.Shape;
 import org.freeplane.features.nodestyle.NodeStyleModel.TextAlign;
 import org.freeplane.features.styles.MapViewLayout;
 import org.freeplane.features.text.HighlightedTransformedObject;
@@ -112,6 +113,8 @@ public abstract class MainView extends ZoomableLabel {
 	}
 
 	public boolean dropAsSibling(final double xCoord) {
+		if(getNodeView().isRoot())
+			return false;
 		if(dropLeft(xCoord))
 		return ! isInVerticalRegion(xCoord, 2. / 3);
 		else
@@ -121,7 +124,11 @@ public abstract class MainView extends ZoomableLabel {
 	/** @return true if should be on the left, false otherwise. */
 	public boolean dropLeft(final double xCoord) {
 		/* here it is the same as me. */
-		return getNodeView().isLeft();
+		NodeView nodeView = getNodeView();
+		if(getNodeView().isRoot())
+			return xCoord < getSize().width * 1 / 2;
+		else
+			return nodeView.isLeft();
 	}
 
 	public int getDeltaX() {
@@ -174,7 +181,7 @@ public abstract class MainView extends ZoomableLabel {
 
 	public abstract Point getRightPoint();
 
-	public abstract String getShape();
+	public abstract Shape getShape();
 
 	int getZoomedFoldingSymbolHalfWidth() {
 		return getNodeView().getZoomedFoldingSymbolHalfWidth();
@@ -216,7 +223,7 @@ public abstract class MainView extends ZoomableLabel {
 	}
 
 	public void paintDragOver(final Graphics2D graphics) {
-		if (isDraggedOver == NodeView.DRAGGED_OVER_SON) {
+		if (isDraggedOver == NodeView.DRAGGED_OVER_SON || isDraggedOver == NodeView.DRAGGED_OVER_SON_LEFT) {
 			paintDragOverSon(graphics);
 		}
 		if (isDraggedOver == NodeView.DRAGGED_OVER_SIBLING) {
@@ -231,7 +238,7 @@ public abstract class MainView extends ZoomableLabel {
 	}
 
 	private void paintDragOverSon(final Graphics2D graphics) {
-		if (getNodeView().isLeft()) {
+		if (getNodeView().isLeft() || isDraggedOver == NodeView.DRAGGED_OVER_SON_LEFT) {
 			graphics.setPaint(new GradientPaint(getWidth() * 3 / 4, 0, getMap().getBackground(), getWidth() / 4, 0,
 			    NodeView.dragColor));
 			graphics.fillRect(0, 0, getWidth() * 3 / 4, getHeight() - 1);
@@ -408,7 +415,20 @@ public abstract class MainView extends ZoomableLabel {
 	}
 
 	public void setDraggedOver(final Point p) {
-		setDraggedOver((dropAsSibling(p.getX())) ? NodeView.DRAGGED_OVER_SIBLING : NodeView.DRAGGED_OVER_SON);
+		final int draggedOver;
+		if(getNodeView().isRoot()) {
+			if (dropLeft(p.getX()))
+				draggedOver = NodeView.DRAGGED_OVER_SON_LEFT;
+			else
+				draggedOver = NodeView.DRAGGED_OVER_SON;
+		} 
+		else {
+			if (dropAsSibling(p.getX()))
+				draggedOver = NodeView.DRAGGED_OVER_SIBLING;
+			else
+				draggedOver = NodeView.DRAGGED_OVER_SON;
+		}
+		setDraggedOver(draggedOver);
 	}
 
 	public void updateFont(final NodeView node) {
@@ -448,7 +468,8 @@ public abstract class MainView extends ZoomableLabel {
 	
 	void updateTextAlign(NodeView node) {
 		final TextAlign textAlign = NodeStyleController.getController(node.getMap().getModeController()).getTextAlign(node.getModel());
-		setHorizontalAlignment(textAlign.swingConstant);
+		final boolean isCenteredByDefault = textAlign == TextAlign.DEFAULT && node.isRoot();
+		setHorizontalAlignment(isCenteredByDefault ? TextAlign.CENTER.swingConstant : textAlign.swingConstant);
 	}
 
 
@@ -627,6 +648,8 @@ public abstract class MainView extends ZoomableLabel {
 	public boolean isInDragRegion(Point p) {
 		if (p.y >= 0 && p.y < getHeight()){
 			final NodeView nodeView = getNodeView();
+			if(nodeView.isRoot())
+				return false;
 			if (MapViewLayout.OUTLINE.equals(nodeView.getMap().getLayoutType()))
 				return false;
 			final int draggingWidth = getDraggingWidth();

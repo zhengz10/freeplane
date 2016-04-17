@@ -40,6 +40,7 @@ import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 import org.freeplane.features.nodestyle.NodeStyleController;
 import org.freeplane.features.nodestyle.NodeStyleModel;
+import org.freeplane.features.nodestyle.NodeStyleModel.Shape;
 import org.freeplane.features.note.NoteController;
 import org.freeplane.features.note.NoteModel;
 import org.freeplane.features.text.DetailTextModel;
@@ -69,48 +70,59 @@ class NodeViewFactory {
 	}
 
 	MainView newMainView(final NodeView node) {
-		String shape = shape(node);
+		Shape shape = shape(node);
 		final MainView oldView = node.getMainView();
 		if(oldView != null && oldView.getShape().equals(shape))
 			return oldView;
 		final ModeController modeController = node.getMap().getModeController();
-		final NodeModel model = node.getModel();
 		final MainView view;
-		if (shape.equals(NodeStyleModel.STYLE_BUBBLE)) {
-			if (model.isRoot())
-				view = new RootMainView(NodeStyleModel.STYLE_BUBBLE);
-			else
-				view =  new BubbleMainView();
+		
+		switch(shape){
+		case fork:
+			view =  new ForkMainView();
+			break;
+		case bubble:
+			view =  new HighBubbleMainView();
+			break;
+		case small_bubble:
+			view =  new SmallBubbleMainView();
+			break;
+		case big_oval:
+			view =  new BigOvalMainView();
+			break;
+		case small_oval:
+			view =  new SmallOvalMainView();
+			break;
+		case circle:
+			view = new CircleMainView();
+			break;
+		default:
+			System.err.println("Tried to create a NodeView of unknown Style " + String.valueOf(shape));
+			view = new ForkMainView();
+
 		}
-		else {
-			if (shape != null && ! shape.equals(NodeStyleModel.STYLE_FORK))
-				System.err.println("Tried to create a NodeView of unknown Style " + String.valueOf(shape));
-			if (model.isRoot())
-				view = new RootMainView(NodeStyleModel.STYLE_FORK);
-			else
-				view = new ForkMainView();
-		}
+		
 		NodeTooltipManager toolTipManager = NodeTooltipManager.getSharedInstance(modeController);
 		toolTipManager.registerComponent(view);
 		return view;
 	}
 
-	private String shape(NodeView node) {
+	private Shape shape(NodeView node) {
 		final ModeController modeController = node.getMap().getModeController();
 		final NodeModel model = node.getModel();
-		String shape = NodeStyleController.getController(modeController).getShape(model);
-		if (shape.equals(NodeStyleModel.SHAPE_COMBINED)) {
+		Shape shape = NodeStyleController.getController(modeController).getShape(model);
+		if (shape.equals(NodeStyleModel.Shape.combined)) {
 			if (Controller.getCurrentModeController().getMapController().isFolded(model)) {
-				shape= NodeStyleModel.STYLE_BUBBLE;
+				shape= NodeStyleModel.Shape.bubble;
 			}
 			else {
-				shape = NodeStyleModel.STYLE_FORK;
+				shape = NodeStyleModel.Shape.fork;
 			}
 		}
-		else while(shape.equals(NodeStyleModel.SHAPE_AS_PARENT)){
+		else while(shape.equals(NodeStyleModel.Shape.as_parent)){
 			node = node.getParentView();
 			if (node == null)
-				shape = NodeStyleModel.STYLE_FORK;
+				shape = NodeStyleModel.Shape.fork;
 			else
 				shape = node.getMainView().getShape();
 		}
