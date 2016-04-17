@@ -36,6 +36,7 @@ import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.components.UITools;
 import org.freeplane.core.ui.components.html.CssRuleBuilder;
 import org.freeplane.core.util.ColorUtils;
+import org.freeplane.core.util.HtmlProcessor;
 import org.freeplane.core.util.HtmlUtils;
 import org.freeplane.core.util.LogUtils;
 import org.freeplane.core.util.TextUtils;
@@ -238,13 +239,41 @@ public class TextController implements IExtension {
 	    return text;
     }
 
-	public String getShortText(NodeModel nodeModel) {
+	public String getShortPlainText(NodeModel nodeModel) {
 		String adaptedText = getPlainTextContent(nodeModel);
 		if (adaptedText.length() > 40) {
 			adaptedText = adaptedText.substring(0, 40) + " ...";
 		}
 		return adaptedText;
 	}
+	
+	public String getShortText(String longText) {
+		String text;
+	    final boolean isHtml = HtmlUtils.isHtmlNode(longText);
+		if(isHtml){
+	    	text = HtmlUtils.htmlToPlain(longText).trim();
+	    }
+	    else{
+	    	text = longText;
+	    }
+	    int length = text.length();
+	    final int eolPosition = text.indexOf('\n');
+	    final int maxShortenedNodeWidth = ResourceController.getResourceController().getIntProperty("max_shortened_text_length");
+		if(eolPosition == -1 || eolPosition >= length || eolPosition >= maxShortenedNodeWidth){
+	    	if(length <= maxShortenedNodeWidth){
+	    		return longText;
+	    	}
+	    	length = maxShortenedNodeWidth;
+	    }
+	    else{
+	    	length = eolPosition;
+	    }
+		if(isHtml)
+			return new HtmlProcessor(longText).htmlSubstring(0, length);
+		else
+			return text.substring(0, length);
+	}
+
 
 	public void setDetailsHidden(NodeModel node, boolean isHidden) {
 		final DetailTextModel details = DetailTextModel.createDetailText(node);
@@ -309,6 +338,8 @@ public class TextController implements IExtension {
 				    String text;
 				    try {
 					    text = getTransformedText(data, node, data);
+					    if(text.equals(getShortText(text)))
+					    	return null;
 				    }
 				    catch (Exception e) {
 					    text = TextUtils.format("MainView.errorUpdateText", data, e.getLocalizedMessage());
