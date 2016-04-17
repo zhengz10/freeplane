@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<preferences_structure>
+<tabbed_pane>
+    <tab name="Environment">
+        <separator name="language">
+       	    <combo name = "language">
+                <choice value="automatic"/>
+                <choice value="ar"/>
+                <choice value="ca"/>
+                <choice value="cs"/>
+                <choice value="de"/>
+                <choice value="da"/>
+                <choice value="en"/>
+                <choice value="el"/>
+                <choice value="es"/>
+                <choice value="et"/>
+                <choice value="fr"/>
+                <choice value="gl"/>
+                <choice value="hr"/>
+                <choice value="hu"/>
+                <choice value="id"/>
+                <choice value="it"/>
+                <choice value="ja"/>
+                <choice value="ko"/>
+                <choice value="lt"/>
+                <choice value="nl"/>
+                <choice value="nn"/>
+                <choice value="nb"/>
+                <choice value="pl"/>
+                <choice value="pt_BR"/>
+                <choice value="pt_PT"/>
+                <choice value="ru"/>
+                <choice value="sk"/>
+                <choice value="sv"/>
+                <choice value="sl"/>
+                <choice value="tr"/>
+                <choice value="uk_UA"/>
+                <choice value="vi"/>
+                <choice value="zh_TW"/>
+                <choice value="zh_CN"/>
+            </combo>
+        </separator>
+        <separator name = "files">
+            <number name = "last_opened_list_length" min="1" max="50"/> 
+            <boolean name = "load_last_map"/>
+            <boolean name = "load_last_maps"/>
+            <boolean name = "experimental_file_locking_on"/>
+            <string name = "userproperties"/>
+            <string name = "patternsfile"/>
+        </separator>
+        <separator name = "automatic_save">
+            <number name = "time_for_automatic_save" min = "0"/> 
+            <boolean name = "delete_automatic_saves_at_exit"/>
+            <number name = "number_of_different_files_for_automatic_save" min = "0" max="25"/>
+            <number name = "backup_file_number" min = "0" max="25"/>
+        </separator>
+        <separator name = "save">
+            <combo name = "save_folding">
+            	<choice value="never_save_folding"/>
+            	<choice value="save_folding_if_map_is_changed"/>
+            	<choice value="always_save_folding"/>
+            </combo> 
+            <boolean name = "save_only_intrisically_needed_ids"/>
+            <boolean name = "save_modification_times"/>
+        </separator>
+        <separator name = "load">
+           <combo name = "load_folding">
+            	<choice value="always_fold_all_after_load"/>
+            	<choice value="load_folding_from_map_default_fold_all"/>
+            	<choice value="load_folding_from_map_default_unfold_all"/>
+            	<choice value="always_unfold_all_after_load"/>
+            </combo>
+            <number name="load_folding_start_level" min="1"/> 
+        </separator>
+       <separator name="hyperlink_types">        
+            <combo name="links">
+                <choice value="relative"/>
+                <choice value="absolute"/>
+            </combo>
+        </separator>
+        <separator name = "updates">
+        	<boolean name = "check_updates_automatically"/>
+        </separator>
+        <separator name="org.freeplane.plugin.bugreport">
+       	    <combo name = "org.freeplane.plugin.bugreport">
+                <choice value="org.freeplane.plugin.bugreport.allowed"/>
+                <choice value="org.freeplane.plugin.bugreport.denied"/>
+                <choice value="org.freeplane.plugin.bugreport.ask"/>
+            </combo>
+        </separator>
+                
+    </tab>
+    <tab name="Defaults">
+        <separator name="default_styles">
+            <combo name="standardnodeshape">
+                <choice value="fork"/>
+                <choice value="bubble"/>
+                <choice value="as_parent"/>
+                <choice value="combined"/>
+            </combo>
+            <combo name="standardrootnodeshape">
+                <choice value="fork"/>
+                <choice value="bubble"/>
+                <choice value="combined"/>
+            </combo>
+        </separator>
+         <separator name="default_colors">
+            <color name="standardnodetextcolor"/>
+            <color name="standardedgecolor"/>
+            <color name="standardlinkcolor"/>
+            <color name="standardbackgroundcolor"/>
+            <color name="revision_color"/>
+            <boolean name="printonwhitebackground"/>
+            <color name="standardcloudcolor"/>
+         </separator>
+        <separator name="default_fonts">
+            <font name="defaultfont"/>
+            <number name="defaultfontsize" min="4" max="272"/>
+            <string name="defaultfontstyle"/>
+            <boolean name="resources_use_default_font_for_notes_too"/>
+            <boolean name="resources_use_margin_top_zero_for_notes"/>
+            <number name="max_node_width"/>
+            <number name="toolTipManager.max_tooltip_width"/>
+         </separator>
+        <separator name="other_defaults">
+            <combo name="standardedgestyle">
+                <choice value="bezier"/>
+                <choice value="linear"/>
+                <choice value="sharp_bezier"/>
+                <choice value="sharp_linear"/>
+                <choice value="horizontal"/>
+                <choice value="hide_edge"/>
+            </combo>
+        </separator>
+    </tab>
+    <tab name="Appearance">
+        <separator name="look_and_feel">
+            <group name="lookandfeel"/>
+            <boolean name="use_tabbed_pane"/>
+        </separator>
+        <separator name="selection_colors">        
+            <boolean name="standarddrawrectangleforselection"/>
+            <color name="standardselectednoderectanglecolor"/>
+            <color name="standardselectednodecolor"/>
+        </separator>
+        <separator name="root_node_appearance">        
+            <boolean name="use_common_out_point_for_root_node"/>
+        </separator>
+        <separator name="anti_alias">        
+            <combo name="antialias">
+                <choice value="antialias_edges"/>
+                <choice value="antialias_all"/>
+                <choice value="antialias_none"/>
+            </combo>
+        </separator>
+        <separator name="initial_map_size">        
+            <number name="mapxsize"/>
+            <number name="mapysize"/>
+        </separator>
+        <separator name="connectors">
+        	<font name="label_font_family"/>
+        	<number name="label_font_size" min="4" max="216"/>
+        	<boolean name="paint_connectors_behind"/>
+        </separator>
+         
+       <separator name="edit_long_node_window">        
+            <boolean name="el__buttons_above"/>
+            <boolean name="el__position_window_below_node" />
+            <number name="el__min_default_window_height" />
+            <number name="el__max_default_window_height" />
+            <number name="el__min_default_window_width" />
+            <number name="el__max_default_window_width" />
+            <boolean name="el__enter_confirms_by_default" />
+        </separator>
+        <separator name="outline_view">
+        	<number name="outline_vgap" min = "1"/>
+        	<number name="outline_hgap" min = "1"/>
+        </separator>
+       <separator name="icon_properties">        
+            <boolean name="structured_icon_toolbar"/>
+            <boolean name="don_t_show_note_icons" />
+            <boolean name="show_icon_for_attributes" />
+        </separator>
+    </tab>
+    <tab name="Keystrokes" layout="right:max(40dlu;p), 4dlu, 80dlu, 7dlu,right:max(40dlu;p), 4dlu, 80dlu, 7dlu">
+        <separator name="commands_for_the_program"/>
+        <text name="use_ctrl_key"/>
+        <separator name="icons"/>
+    </tab>
+    <tab name="Behaviour">
+        <separator name="behaviour">
+            <combo name="placenewbranches">
+                <choice value="first"/>
+                <choice value="last"/>
+            </combo>
+            <boolean name="draganddrop"/>
+            <boolean name="unfold_on_paste"/>
+            <boolean name="disable_cursor_move_paper"/>
+            <boolean name="enable_leaves_folding"/>
+            <string name="foldingsymbolwidth"/>
+            <boolean name="display_node_id"/>
+            <boolean name="goto_note_end_on_edit"/>            
+        </separator>
+        <separator name="key_typing">
+            <boolean name="disable_key_type"/>
+            <boolean name="key_type_adds_new"/>
+       </separator>
+       <separator name="inline_editor">        
+            <boolean name="il__enter_confirms_by_default" />
+        </separator>
+        <separator name="notifications">
+            <remind_value name="remind_use_rich_text_in_new_long_nodes"/>
+            <boolean name="delete_nodes_without_question"/>
+            <boolean name="cut_nodes_without_question"/>
+            <boolean name="remove_notes_without_question"/>
+        </separator>
+        <separator name="selection_method">
+            <combo name="selection_method">
+                <choice value="selection_method_direct"/>
+                <choice value="selection_method_delayed"/>
+                <choice value="selection_method_by_click"/>
+            </combo>
+            <number name="time_for_delayed_selection"/>
+            <boolean name="center_selected_node"/>
+        </separator>
+        <separator name="mouse_wheel">
+            <number name="wheel_velocity"/>
+        </separator>
+        <separator name="scrollbar">
+            <number name="scrollbar_increment"/>
+        </separator>
+        
+        <separator name="spelling">
+            <boolean name="spelling_opt_case_sensitive"/>
+            <boolean name="spelling_opt_ignore_all_caps_words"/>
+            <boolean name="spelling_opt_ignore_capitalization"/>
+            <boolean name="spelling_opt_ignore_words_with_numbers"/>
+            <number name="spelling_opt_suggestions_limit_dialog" min = "0"/>
+            <number name="spelling_opt_suggestions_limit_menu" min = "0"/>
+        </separator>
+        
+        <separator name="tooltip">
+            <boolean name="show_node_tooltips"/>
+            <number name="toolTipManager.initialDelay" min = "0"/>
+            <number name="toolTipManager.dismissDelay" min = "0"/>
+            <number name="toolTipManager.reshowDelay" min = "0"/>
+        </separator>
+        <separator name="editing">
+        	<number name="editor_extra_width" min="0" max="1000" step = "40" />
+        </separator>
+        <separator name="undo">
+            <number name="undo_levels"/>
+        </separator>
+    </tab>
+    <tab name="HTML">
+        <separator name="browser">
+            <string name="default_browser_command_windows_nt"/>
+            <string name="default_browser_command_windows_9x"/>
+            <string name="default_browser_command_other_os"/>
+            <string name="default_browser_command_mac"/>
+        </separator>
+        <separator name="html_export">
+            <combo name="html_export_folding">
+                <choice value="html_export_no_folding"/>
+                <choice value="html_export_fold_currently_folded"/>
+                <choice value="html_export_fold_all"/>
+                <choice value="html_export_based_on_headings"/>
+            </combo>
+            <boolean name="export_icons_in_html"/>
+        </separator>
+        <separator name="html_import">
+        	<boolean name="structured_html_import"/>
+        </separator>
+    </tab>
+</tabbed_pane>
+</preferences_structure>
