@@ -175,6 +175,8 @@
 					<choice value="ADD_SIBLING" />
 					<choice value="ADD_CHILD" />
 				</combo>
+				<boolean name="copyFormatToNewSibling"/>
+				<boolean name="scrollOnUnfold"/>
 			</separator>
 			<separator name="SplitToWordsAction">
 				<string name="SplitToWordsAction.auxillaryWordList"/>
