@@ -35,9 +35,10 @@ import javax.swing.RootPaneContainer;
 import org.freeplane.core.ui.components.FreeplaneMenuBar;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.ui.IMapViewManager;
-import org.freeplane.features.ui.ViewController;
+import org.freeplane.features.ui.FrameController;
+import org.freeplane.view.swing.map.MapViewScrollPane;
 
-class DialogController extends ViewController {
+class DialogController extends FrameController {
 	final private JDialog dialog;
 
 	public JDialog getDialog() {
@@ -53,7 +54,7 @@ class DialogController extends ViewController {
 		super(controller, mapViewController, "dialog_");
 		this.dialog = dialog;
 		getContentPane().setLayout(new BorderLayout());
-		mContentComponent = getScrollPane();
+		mContentComponent = new MapViewScrollPane();
 		getContentPane().add(mContentComponent, BorderLayout.CENTER);
 	}
 
