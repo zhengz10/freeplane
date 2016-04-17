@@ -25,46 +25,43 @@ import java.awt.Dimension;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Insets;
 import java.awt.Point;
 import java.awt.RenderingHints;
 
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.resources.ResourceController;
-import org.freeplane.features.common.nodestyle.NodeStyleController;
+import javax.swing.SwingConstants;
+
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.nodelocation.LocationModel;
 
 class RootMainView extends MainView {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
+	private String shape;
 
-	@Override
+	
+	public RootMainView(String shape) {
+        super();
+        setHorizontalAlignment(SwingConstants.CENTER);
+    	this.shape = shape;
+    }
+
+    @Override
 	public boolean dropAsSibling(final double xCoord) {
 		return false;
 	}
 
 	/** @return true if should be on the left, false otherwise. */
 	@Override
-	public boolean dropPosition(final double xCoord) {
+	public boolean dropLeft(final double xCoord) {
 		return xCoord < getSize().width * 1 / 2;
 	}
 
-	/**
-	 * Returns the relative position of the Edge
-	 */
-	@Override
-	int getAlignment() {
-		return NodeView.ALIGN_CENTER;
-	}
 
 	@Override
-	Point getCenterPoint() {
-		final Point in = getLeftPoint();
-		in.x = getWidth() / 2;
-		return in;
-	}
-
-	@Override
+    public
 	Point getLeftPoint() {
 		final Point in = new Point(0, getHeight() / 2);
 		return in;
@@ -75,8 +72,8 @@ class RootMainView extends MainView {
 	 * @see freeplane.view.mindmapview.NodeView.MainView#getPreferredSize()
 	 */
 	@Override
-	public Dimension getPreferredSize() {
-		final Dimension prefSize = super.getPreferredSize();
+	public Dimension getPreferredSize(int width) {
+		final Dimension prefSize = super.getPreferredSize(width);
 		if (isPreferredSizeSet()) {
 			return prefSize;
 		}
@@ -86,6 +83,7 @@ class RootMainView extends MainView {
 	}
 
 	@Override
+    public
 	Point getRightPoint() {
 		final Point in = getLeftPoint();
 		in.x = getWidth() - 1;
@@ -97,12 +95,17 @@ class RootMainView extends MainView {
 	 * @see freeplane.view.mindmapview.NodeView#getStyle()
 	 */
 	@Override
-	String getStyle() {
-		return ResourceController.getResourceController().getProperty(NodeStyleController.RESOURCES_ROOT_NODE_SHAPE);
+    public
+	String getShape() {
+		return shape;
 	}
 
+	void setShape(String shape) {
+    	this.shape = shape;
+    }
+
 	@Override
-	public void paint(final Graphics graphics) {
+	public void paintComponent(final Graphics graphics) {
 		final Graphics2D g = (Graphics2D) graphics;
 		if (getNodeView().getModel() == null) {
 			return;
@@ -115,7 +118,7 @@ class RootMainView extends MainView {
 		g.setStroke(new BasicStroke(1.0f));
 		g.drawOval(0, 0, getWidth() - 1, getHeight() - 1);
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, renderingHint);
-		super.paint(g);
+		super.paintComponent(g);
 	}
 
 	@Override
@@ -141,6 +144,41 @@ class RootMainView extends MainView {
 
 	@Override
 	public void setDraggedOver(final Point p) {
-		setDraggedOver((dropPosition(p.getX())) ? NodeView.DRAGGED_OVER_SON_LEFT : NodeView.DRAGGED_OVER_SON);
+		setDraggedOver((dropLeft(p.getX())) ? NodeView.DRAGGED_OVER_SON_LEFT : NodeView.DRAGGED_OVER_SON);
+	}
+	
+    private static Insets insets = new Insets(4, 4, 4, 4);
+    
+    @Override
+    public Insets getInsets() {
+        return RootMainView.insets;
+    }
+
+    @Override
+    public Insets getInsets(Insets insets) {
+        return RootMainView.insets;
+    }
+    @Override
+    public Point getConnectorPoint(Point p) {
+            final MainView mainView = this;
+            if (USE_COMMON_OUT_POINT_FOR_ROOT_NODE) {
+                return super.getConnectorPoint(p);
+            }
+            final double nWidth = mainView.getWidth() / 2f;
+            final double nHeight = mainView.getHeight() / 2f;
+            int dx = Math.max(Math.abs(p.x -  mainView.getWidth()/2), getNodeView().getZoomed(LocationModel.HGAP));
+            if(p.x < mainView.getWidth()/2)
+            	dx = -dx;
+			double angle = Math.atan((p.y - nHeight) / dx);
+            if (dx < 0) {
+                angle += Math.PI;
+            }
+            final Point out = new Point((int) ((1f + Math.cos(angle)) * nWidth), (int) ((1f + Math.sin(angle)) * nHeight));
+            return out;
+    }
+
+	@Override
+	public boolean isInDragRegion(Point p) {
+		return false;
 	}
 }

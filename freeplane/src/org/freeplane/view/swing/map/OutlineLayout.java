@@ -21,7 +21,8 @@ package org.freeplane.view.swing.map;
 
 import java.awt.Container;
 import java.awt.Dimension;
-import java.awt.Point;
+
+import javax.swing.JComponent;
 
 import org.freeplane.core.resources.ResourceController;
 
@@ -36,39 +37,31 @@ public class OutlineLayout extends NodeViewLayoutAdapter {
 		return hGap;
 	}
 
-	static private final OutlineLayout instance = new OutlineLayout();
+	static private final NodeViewLayoutAdapter instance = new OutlineLayout();
 
-	static OutlineLayout getInstance() {
-		return OutlineLayout.instance;
-	}
-
-	public Point getMainViewInPoint(final NodeView view) {
-		final MainView mainView = view.getMainView();
-		return mainView.getLeftPoint();
-	}
-
-	public Point getMainViewOutPoint(final NodeView view, final NodeView targetView, final Point destinationPoint) {
-		final MainView mainView = view.getMainView();
-		return mainView.getRightPoint();
-	}
-
+    static NodeViewLayoutAdapter getInstance() {
+        return OutlineLayout.instance;
+    }
+    
 	@Override
 	protected void layout() {
 		final int x = getSpaceAround();
 		final int y = x;
-		if (getView().isContentVisible()) {
+		final JComponent content = getContent();
+		final NodeView view = getView();
+		if (view.isContentVisible()) {
 			getContent().setVisible(true);
-			final Dimension contentPreferredSize = getContent().getPreferredSize();
-			getContent().setBounds(x, y, contentPreferredSize.width, contentPreferredSize.height);
+			final Dimension contentProfSize = calculateContentSize(view);
+			content.setBounds(x, y, contentProfSize.width, contentProfSize.height);
 		}
 		else {
-			getContent().setVisible(false);
-			getContent().setBounds(x, y, 0, 0);
+			content.setVisible(false);
+			content.setBounds(x, y, 0, 0);
 		}
-		placeRightChildren();
+		placeChildren();
 	}
 
-	protected void placeRightChildren() {
+	private void placeChildren() {
 		int baseX = getContent().getX();
 		int y = getContent().getY() + getContent().getHeight() - getSpaceAround();
 		if (getContent().isVisible()) {
@@ -80,7 +73,7 @@ public class OutlineLayout extends NodeViewLayoutAdapter {
 		for (int i = 0; i < getChildCount(); i++) {
 			final NodeView component = (NodeView) getView().getComponent(i);
 			child = component;
-			final int additionalCloudHeigth = child.getAdditionalCloudHeigth() / 2;
+			final int additionalCloudHeigth = getAdditionalCloudHeigth(child) / 2;
 			y += additionalCloudHeigth;
 			final int childHGap = child.getContent().isVisible() ? getHGap() : 0;
 			final int x = baseX + childHGap - child.getContent().getX();
@@ -94,7 +87,7 @@ public class OutlineLayout extends NodeViewLayoutAdapter {
 		final int bottom = getContent().getY() + getContent().getHeight() + getSpaceAround();
 		if (child != null) {
 			getView().setSize(right,
-			    Math.max(bottom, child.getY() + child.getHeight() + child.getAdditionalCloudHeigth() / 2));
+			    Math.max(bottom, child.getY() + child.getHeight() + getAdditionalCloudHeigth(child) / 2));
 		}
 		else {
 			getView().setSize(right, bottom);
@@ -102,15 +95,14 @@ public class OutlineLayout extends NodeViewLayoutAdapter {
 	}
 
 	@Override
-	protected void setUp(final Container c) {
-		super.setUp(c);
+	protected boolean setUp(final Container c) {
+		if (! super.setUp(c)){
+			return false;
+		}
 		final int vgap = ResourceController.getResourceController().getIntProperty("outline_vgap", 0);
 		final int hgap = ResourceController.getResourceController().getIntProperty("outline_hgap", 0);
 		setVGap(getView().getMap().getZoomed(vgap));
 		hGap = getView().getMap().getZoomed(hgap);
-	}
-
-	public void layoutNodeMotionListenerView(final NodeMotionListenerView view) {
-		view.setBounds(0, 0, 0, 0);
+		return true;
 	}
 }

@@ -19,11 +19,9 @@
  */
 package org.freeplane.core.util.collection;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import javax.swing.AbstractListModel;
 import javax.swing.ComboBoxModel;
@@ -31,27 +29,64 @@ import javax.swing.ComboBoxModel;
 /**
  * @author Dimitry Polivaev
  */
-public class SortedComboBoxModel extends AbstractListModel implements ComboBoxModel, IListModel, Iterable {
-	/**
-	 * 
-	 */
+public class SortedComboBoxModel extends AbstractListModel implements ComboBoxModel, IListModel, Iterable<Object> {
+	static private class Comparator implements Comparable<Object>{
+		final private Object obj;
+		private Comparator(Object obj) {
+	        this.obj = obj;
+        }
+		public int compareTo(Object o) {
+			return compareTo((Comparator)o);
+		}
+        private int compareTo(Comparator o) {
+			final int stringCompare = obj.toString().compareTo(o.obj.toString());
+			if(stringCompare != 0)
+				return stringCompare;
+			final int typeCompare = obj.getClass().getName().compareTo(o.obj.getClass().getName());
+			return typeCompare;
+        }
+		@Override
+        public int hashCode() {
+	        return obj.hashCode();
+        }
+		
+		@Override
+        public boolean equals(Object o) {
+			return obj.getClass().equals(o.getClass()) && obj.equals(((Comparator)o).obj);
+        }
+		@Override
+        public String toString() {
+	        return obj.toString();
+        }
+		
+	}
 	private static final long serialVersionUID = 1L;
 	private Object selectedItem;
-	private final SortedSet model;
+	private final SortedMap<Comparator, Object> model;
 
 	public SortedComboBoxModel() {
-		model = new TreeSet();
+		model = new TreeMap<Comparator, Object>();
 	}
 
 	public void add(final Object element) {
-		if (model.add(element)) {
+		if(addImpl(element))
 			fireContentsChanged(this, 0, getSize());
-		}
 	}
 
+	private boolean addImpl(final Object element) {
+	    final Comparator key = key(element);
+		if(model.containsKey(key))
+			return false;
+		model.put(key, element);
+		return true;
+    }
+
+	private Comparator key(Object o){
+		return new Comparator(o);		
+	}
 	public void addAll(final Object elements[]) {
-		final Collection c = Arrays.asList(elements);
-		model.addAll(c);
+		for(Object e : elements)
+			addImpl(e);
 		fireContentsChanged(this, 0, getSize());
 	}
 
@@ -64,15 +99,15 @@ public class SortedComboBoxModel extends AbstractListModel implements ComboBoxMo
 	}
 
 	public boolean contains(final Object element) {
-		return model.contains(element);
+		return model.containsKey(key(element));
 	}
 
 	public Object firstElement() {
-		return model.first();
+		return model.get(model.firstKey());
 	}
 
 	public Object getElementAt(final int index) {
-		return model.toArray()[index];
+		return model.values().toArray()[index];
 	}
 
 	/**
@@ -92,12 +127,12 @@ public class SortedComboBoxModel extends AbstractListModel implements ComboBoxMo
 		return model.size();
 	}
 
-	public Iterator iterator() {
-		return model.iterator();
+	public Iterator<Object> iterator() {
+		return model.values().iterator();
 	}
 
 	public Object lastElement() {
-		return model.last();
+		return model.get(model.lastKey());
 	}
 
 	/*
@@ -106,7 +141,7 @@ public class SortedComboBoxModel extends AbstractListModel implements ComboBoxMo
 	 * freeplane.controller.filter.util.SortedListModel#delete(java.lang.Object)
 	 */
 	public void remove(final Object element) {
-		if (model.remove(element)) {
+		if (null != model.remove(key(element))) {
 			fireContentsChanged(this, 0, getSize());
 		}
 	}
@@ -121,8 +156,8 @@ public class SortedComboBoxModel extends AbstractListModel implements ComboBoxMo
 		if (oldO.equals(newO)) {
 			return;
 		}
-		final boolean removed = model.remove(oldO);
-		final boolean added = model.add(newO);
+		final boolean removed = null != model.remove(key(oldO));
+		final boolean added = addImpl(newO);
 		if (removed || added) {
 			fireContentsChanged(this, 0, getSize());
 		}

@@ -27,16 +27,29 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import javax.swing.table.JTableHeader;
 
-import org.freeplane.core.resources.ResourceBundles;
-import org.freeplane.features.common.attribute.AttributeTableLayoutModel;
-import org.freeplane.features.common.attribute.IAttributeTableModel;
+import org.freeplane.core.ui.components.UITools;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.attribute.AttributeTableLayoutModel;
+import org.freeplane.features.attribute.IAttributeTableModel;
+import org.freeplane.features.link.LinkController;
+import org.freeplane.features.link.mindmapmode.MLinkController;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.url.UrlManager;
+import org.freeplane.features.url.mindmapmode.MFileManager;
+import org.freeplane.view.swing.ui.mindmapmode.INodeSelector;
+import org.freeplane.view.swing.ui.mindmapmode.NodeSelector;
 
 /**
  * @author Dimitry Polivaev
@@ -49,11 +62,16 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 	private JMenuItem delete = null;
 	private JMenuItem down = null;
 	private JMenuItem insert = null;
+	private JMenuItem insertFileLink = null;
 	private boolean oldTable;
 	private JMenuItem optimalWidth = null;
 	private int row;
 	private AttributeTable table;
 	private JMenuItem up = null;
+	private int col;
+	private JMenuItem insertLink;
+	private JMenuItem insertNodeLink;
+	private JMenuItem insertAnchoredLink;
 
 	@Override
 	protected void firePopupMenuWillBecomeInvisible() {
@@ -72,7 +90,7 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 				    .getFocusOwner());
 				if (table != focusOwner && focusOwner instanceof JComponent) {
 					table.requestFocus(true);
-					((JComponent) focusOwner).requestFocus();
+					((JComponent) focusOwner).requestFocusInWindow();
 				}
 				table = null;
 			}
@@ -92,7 +110,7 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 	 */
 	private JMenuItem getDelete() {
 		if (delete == null) {
-			delete = new JMenuItem(ResourceBundles.getText("attributes_popup_delete"));
+			delete = new JMenuItem(TextUtils.getText("attributes_popup_delete"));
 			delete.addActionListener(new ActionListener() {
 				public void actionPerformed(final ActionEvent e) {
 					table.removeRow(row);
@@ -107,7 +125,7 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 	 */
 	private JMenuItem getDown() {
 		if (down == null) {
-			down = new JMenuItem(ResourceBundles.getText("attributes_popup_down"));
+			down = new JMenuItem(TextUtils.getText("attributes_popup_down"));
 			down.addActionListener(new ActionListener() {
 				public void actionPerformed(final ActionEvent e) {
 					table.moveRowDown(row);
@@ -122,7 +140,7 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 	 */
 	private JMenuItem getInsert() {
 		if (insert == null) {
-			insert = new JMenuItem(ResourceBundles.getText("attributes_popup_new"));
+			insert = new JMenuItem(TextUtils.getText("attributes_popup_new"));
 			insert.addActionListener(new ActionListener() {
 				public void actionPerformed(final ActionEvent e) {
 					table.insertRow(row + 1);
@@ -131,13 +149,124 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 		}
 		return insert;
 	}
+	/**
+	 * @return Returns the insert.
+	 */
+	private JMenuItem getInsertFileLink() {
+		if (insertFileLink == null) {
+			insertFileLink = new JMenuItem(TextUtils.getText("SetLinkByFileChooserAction.text"));
+			insertFileLink.addActionListener(new ActionListener() {
+				public void actionPerformed(final ActionEvent e) {
+					final AttributeTable table = AttributePopupMenu.this.table;
+					final URI relative = ((MFileManager) UrlManager.getController())
+				    .getLinkByFileChooser(Controller.getCurrentController().getMap());
+					if (relative != null) {
+						table.setValueAt(relative, row, col);
+					}
+				}
+			});
+		}
+		return insertFileLink;
+	}
+	/**
+	 * @return Returns the insert.
+	 */
+	private JMenuItem getInsertLink() {
+		if (insertLink == null) {
+			insertLink = new JMenuItem(TextUtils.getText("SetLinkByTextFieldAction.text"));
+			insertLink.addActionListener(new ActionListener() {
+				public void actionPerformed(final ActionEvent e) {
+					final AttributeTable table = AttributePopupMenu.this.table;
+					final Object oldValue = table.getValueAt(row, col);
+					final String inputValue = JOptionPane.showInputDialog(table, TextUtils.getText("edit_link_manually"), oldValue.toString());
+					if (inputValue != null && (oldValue instanceof String || ! oldValue.equals(inputValue))) {
+						if (inputValue.toString().equals("")) {
+							table.setValueAt("", row, col);
+						}
+						try {
+							final URI link = LinkController.createURI(inputValue.trim());
+							if(! oldValue.equals(link))
+								table.setValueAt(link, row, col);
+						}
+						catch (final URISyntaxException e1) {
+							LogUtils.warn(e1);
+							UITools.errorMessage(TextUtils.format("invalid_uri", inputValue));
+							return;
+						}
+					}
+				}
+				
+			});
+		}
+		return insertLink;
+	}
 
+	private JMenuItem getInsertNodeLink() {
+		if (insertNodeLink == null) {
+			insertNodeLink = new JMenuItem(TextUtils.getText("SetNodeLink.text"));
+			insertNodeLink.addActionListener(new ActionListener() {
+				public void actionPerformed(final ActionEvent e) {
+					final AttributeTable table = AttributePopupMenu.this.table;
+					final Object oldValue = table.getValueAt(row, col);
+					final NodeSelector nodeSelector = new NodeSelector();
+					nodeSelector.show(table, new INodeSelector() {
+						public void nodeSelected(NodeModel node) {
+							if(node == null)
+								return;
+							final String inputValue = "#" + node.getID();
+							try {
+								final URI link = LinkController.createURI(inputValue);
+								if(! oldValue.equals(link))
+									table.setValueAt(link, row, col);
+							}
+							catch (final URISyntaxException e1) {
+								LogUtils.severe(e1);
+								return;
+							}
+						}
+					});
+				}
+
+			});
+		}
+		return insertNodeLink;
+	}
+
+	private JMenuItem getInsertAnchoredLink() {
+		if (insertAnchoredLink == null) {
+			insertAnchoredLink = new JMenuItem(TextUtils.getText("MakeLinkToAnchorAction.text"));
+			insertAnchoredLink.addActionListener(new ActionListener() {
+				public void actionPerformed(final ActionEvent e) {
+					final AttributeTable table = AttributePopupMenu.this.table;
+					final Object oldValue = table.getValueAt(row, col);
+					final LinkController linkController = LinkController.getController();
+					if(linkController instanceof MLinkController) {
+	                    final MLinkController mLinkController = (MLinkController)linkController;
+						if (mLinkController.isAnchored()) {
+                            try {
+                            	final String anchorIDforNode = mLinkController.getAnchorIDforNode(((IAttributeTableModel) table.getModel()).getNode());
+                            	if(anchorIDforNode != null){
+                            		URI link = LinkController.createURI(anchorIDforNode);
+                            		if(! oldValue.equals(link))
+                            			table.setValueAt(link, row, col);
+                            	}
+                            }
+                            catch (URISyntaxException e1) {
+                            }
+	                    }
+                    }
+				}
+
+			});
+		}
+		return insertAnchoredLink;
+	}
 	/**
 	 * @return Returns the optimalWidth.
 	 */
 	private JMenuItem getOptimalWidth() {
 		if (optimalWidth == null) {
-			optimalWidth = new JMenuItem(ResourceBundles.getText("attributes_popup_optimal_width"));
+			optimalWidth = new JMenuItem(TextUtils.getText("attributes_popup_optimal_width"));
 			optimalWidth.addActionListener(new ActionListener() {
 				public void actionPerformed(final ActionEvent e) {
 					table.setOptimalColumnWidths();
@@ -156,7 +285,7 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 	 */
 	private JMenuItem getUp() {
 		if (up == null) {
-			up = new JMenuItem(ResourceBundles.getText("attributes_popup_up"));
+			up = new JMenuItem(TextUtils.getText("attributes_popup_up"));
 			up.addActionListener(new ActionListener() {
 				public void actionPerformed(final ActionEvent e) {
 					table.moveRowUp(row);
@@ -173,10 +302,16 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 		final String attributeViewType = table.getAttributeView().getViewType();
 		final IAttributeTableModel model = table.getAttributeTableModel();
 		final int rowCount = model.getRowCount();
+		add(getOptimalWidth());
+		if(col == 1){
+			add(getInsertLink());
+			add(getInsertFileLink());
+			add(getInsertNodeLink());
+			final LinkController linkController = LinkController.getController();
+			if(linkController instanceof MLinkController && ((MLinkController)linkController).isAnchored())
+				add(getInsertAnchoredLink());
+		}
 		if (attributeViewType.equals(AttributeTableLayoutModel.SHOW_ALL)) {
-			if (rowCount != 0) {
-				add(getOptimalWidth());
-			}
 			add(getInsert());
 			if (row != -1) {
 				add(getDelete());
@@ -188,11 +323,6 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 				}
 			}
 		}
-		else {
-			if (rowCount != 0) {
-				add(getOptimalWidth());
-			}
-		}
 	}
 
 	private void maybeShowPopup(final MouseEvent e) {
@@ -201,7 +331,7 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 			if (table.isEditing()) {
 				return;
 			}
-			table.requestFocus();
+			table.requestFocusInWindow();
 			make();
 			show(e.getComponent(), e.getX(), e.getY());
 		}
@@ -248,6 +378,7 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 			}
 			oldTable = false;
 			row = table.rowAtPoint(point);
+			col = table.columnAtPoint(point);
 			if (row >= 0) {
 				if (table.getValueAt(row, 0).equals("")) {
 					row--;
@@ -266,6 +397,7 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 			}
 			oldTable = false;
 			row = -1;
+			col = -1;
 			return;
 		}
 		throw new AssertionError();
@@ -277,7 +409,7 @@ class AttributePopupMenu extends JPopupMenu implements MouseListener {
 	    if(visible){
 	    	return;
 	    }
-	    table.requestFocus();
+	    table.requestFocusInWindow();
     }
 	
 	

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 	<!--
-		MINDMAPEXPORTFILTER xls;xml Excel (2003 and above) XML format
+		MINDMAPEXPORTFILTER xls;xml %xslt_export.ms_excel
 		
 		(c) by Naoki Nose, Eric Lavarde 2006 This code is licensed under the GPL.
 		(http://www.gnu.org/copyleft/gpl.html) 2006-12-10: added support for
@@ -97,9 +97,10 @@
 	<xsl:template name="output-node-text-as-data">
 		<xsl:choose>
 			<xsl:when test="richcontent[@TYPE='NODE']">
-				<ss:Data ss:Type="String" xmlns="http://www.w3.org/TR/REC-html40">
+				<xsl:element name="ss:Data" namespace="urn:schemas-microsoft-com:office:spreadsheet">
+					<xsl:attribute name="ss:Type">String</xsl:attribute>
 					<xsl:copy-of select="richcontent[@TYPE='NODE']/html/body/*" />
-				</ss:Data>
+				</xsl:element>
 			</xsl:when>
 			<xsl:otherwise>
 				<Data ss:Type="String">
@@ -112,11 +113,12 @@
 	</xsl:template>
 
 	<xsl:template name="output-note-text-as-comment">
-		<xsl:if test="richcontent[@TYPE='NOTE']">
+		<xsl:if test="richcontent[@TYPE='NOTE' or @TYPE='DETAILS']">
 			<Comment>
-				<ss:Data xmlns="http://www.w3.org/TR/REC-html40">
+				<xsl:element name="ss:Data" namespace="urn:schemas-microsoft-com:office:spreadsheet">
+					<xsl:copy-of select="richcontent[@TYPE='DETAILS']/html/body/*" />
 					<xsl:copy-of select="richcontent[@TYPE='NOTE']/html/body/*" />
-				</ss:Data>
+				</xsl:element>
 			</Comment>
 		</xsl:if>
 	</xsl:template>

@@ -23,7 +23,9 @@ import java.awt.event.ActionListener;
 
 import javax.swing.event.ChangeListener;
 
-public interface IUndoHandler {
+import org.freeplane.core.extension.IExtension;
+
+public interface IUndoHandler extends IExtension {
 	void addActor(IActor actor);
 
 	boolean canRedo();
@@ -52,6 +54,8 @@ public interface IUndoHandler {
 
 	void startTransaction();
 
+	void forceNewTransaction();
+
 	void undo();
 
 	void deactivate();
@@ -59,4 +63,7 @@ public interface IUndoHandler {
 	public void delayedCommit();
 
 	public void delayedRollback();
+	
+	public int getTransactionLevel();
+
 }

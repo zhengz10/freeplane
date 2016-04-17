@@ -20,19 +20,18 @@
 package org.freeplane.view.swing.map;
 
 import java.util.HashSet;
-import java.util.Iterator;
 
-import org.freeplane.core.frame.IMapSelectionListener;
-import org.freeplane.core.frame.IMapViewChangeListener;
-import org.freeplane.core.model.MapModel;
+import org.freeplane.features.map.IMapSelectionListener;
+import org.freeplane.features.map.MapModel;
+import org.freeplane.features.ui.IMapViewChangeListener;
 
 /**
  * @author Dimitry Polivaev
  * Mar 19, 2009
  */
 class MapViewChangeObserverCompound {
-	final private HashSet<IMapSelectionListener> mapListeners = new HashSet();
-	final private HashSet<IMapViewChangeListener> viewListeners = new HashSet();
+	final private HashSet<IMapSelectionListener> mapListeners = new HashSet<IMapSelectionListener>();
+	final private HashSet<IMapViewChangeListener> viewListeners = new HashSet<IMapViewChangeListener>();
 
 	void addListener(final IMapSelectionListener listener) {
 		mapListeners.add(listener);
@@ -45,37 +44,33 @@ class MapViewChangeObserverCompound {
 	void afterMapViewChange(final MapView oldMap, final MapView newMap) {
 		final MapModel oldModel = getModel(oldMap);
 		final MapModel newModel = getModel(newMap);
-		for (final Iterator<IMapSelectionListener> iter = mapListeners.iterator(); iter.hasNext();) {
-			final IMapSelectionListener observer = iter.next();
-			if (oldModel != newModel) {
-				observer.afterMapChange(oldModel, newModel);
-			}
-		}
-		for (final IMapViewChangeListener observer : viewListeners) {
+        if (oldModel != newModel) {
+            for (final IMapSelectionListener observer:mapListeners.toArray(new IMapSelectionListener[]{})) {
+                observer.afterMapChange(oldModel, newModel);
+            }
+        }
+		for (final IMapViewChangeListener observer : viewListeners.toArray(new IMapViewChangeListener[]{})) {
 			observer.afterViewChange(oldMap, newMap);
 		}
 	}
 
 	void afterMapViewClose(final MapView pOldMap) {
-		for (final Iterator<IMapSelectionListener> iter = mapListeners.iterator(); iter.hasNext();) {
-			final IMapSelectionListener observer = iter.next();
-			observer.afterMapClose(getModel(pOldMap));
-		}
-		for (final Iterator<IMapViewChangeListener> iter = viewListeners.iterator(); iter.hasNext();) {
-			final IMapViewChangeListener observer = iter.next();
-			observer.afterViewClose(pOldMap);
-		}
+        for (final IMapViewChangeListener observer : viewListeners.toArray(new IMapViewChangeListener[]{})) {
+            observer.afterViewClose(pOldMap);
+        }
 	}
 
 	void beforeMapViewChange(final MapView oldMap, final MapView newMap) {
-		for (final Iterator<IMapSelectionListener> iter = mapListeners.iterator(); iter.hasNext();) {
-			final IMapSelectionListener observer = iter.next();
-			observer.beforeMapChange(getModel(oldMap), getModel(newMap));
+		final MapModel oldModel = getModel(oldMap);
+		final MapModel newModel = getModel(newMap);
+		if (oldModel != newModel) {
+			for (final IMapSelectionListener observer:mapListeners.toArray(new IMapSelectionListener[]{})) {
+				observer.beforeMapChange(getModel(oldMap), getModel(newMap));
+			}
 		}
-		for (final Iterator<IMapViewChangeListener> iter = viewListeners.iterator(); iter.hasNext();) {
-			final IMapViewChangeListener observer = iter.next();
-			observer.beforeViewChange(oldMap, newMap);
-		}
+	    for (final IMapViewChangeListener observer : viewListeners.toArray(new IMapViewChangeListener[]{})) {
+	        observer.beforeViewChange(oldMap, newMap);
+	    }
 	}
 
 	private MapModel getModel(final MapView view) {
@@ -83,8 +78,7 @@ class MapViewChangeObserverCompound {
 	}
 
 	void mapViewCreated(final MapView mapView) {
-		for (final Iterator<IMapViewChangeListener> iter = viewListeners.iterator(); iter.hasNext();) {
-			final IMapViewChangeListener observer = iter.next();
+        for (final IMapViewChangeListener observer : viewListeners.toArray(new IMapViewChangeListener[]{})) {
 			observer.afterViewCreated(mapView);
 		}
 	}

@@ -9,11 +9,11 @@ import org.apache.batik.swing.JSVGCanvas;
 import org.apache.batik.swing.gvt.GVTTreeRendererAdapter;
 import org.apache.batik.swing.gvt.GVTTreeRendererEvent;
 import org.apache.batik.util.SVGConstants;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.resources.ResourceController;
-import org.freeplane.view.swing.addins.filepreview.ExternalResource;
-import org.freeplane.view.swing.addins.filepreview.IViewerFactory;
-import org.freeplane.view.swing.addins.filepreview.ViewerLayoutManager;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.view.swing.features.filepreview.ExternalResource;
+import org.freeplane.view.swing.features.filepreview.IViewerFactory;
+import org.freeplane.view.swing.features.filepreview.ViewerLayoutManager;
 import org.w3c.dom.svg.SVGDocument;
 import org.w3c.dom.svg.SVGLength;
 import org.w3c.dom.svg.SVGSVGElement;
@@ -76,23 +76,28 @@ public class SvgViewerFactory implements IViewerFactory {
 	}
 
 	public String getDescription() {
-		return ResourceBundles.getText("svg");
+		return TextUtils.getText("svg");
 	};
 
-	public JComponent createViewer(final ExternalResource resource, final URI uri) {
+	public JComponent createViewer(final ExternalResource resource, final URI uri, final int maximumWidth) {
 		final ViewerComponent canvas = new ViewerComponent(uri);
 		canvas.addGVTTreeRendererListener(new GVTTreeRendererAdapter() {
 			@Override
 			public void gvtRenderingCompleted(final GVTTreeRendererEvent e) {
-				final float r = resource.getZoom();
 				final Dimension preferredSize = canvas.getOriginalSize();
-				preferredSize.width = (int) (Math.rint(preferredSize.width * r));
+				float r = resource.getZoom();
+				final int originalWidth = preferredSize.width;
+				if(r == -1){
+					r = resource.setZoom(originalWidth, maximumWidth);
+				}
+				preferredSize.width = (int) (Math.rint(originalWidth * r));
 				preferredSize.height = (int) (Math.rint(preferredSize.height * r));
 				canvas.setPreferredSize(preferredSize);
 				canvas.setLayout(new ViewerLayoutManager(1f));
 				canvas.revalidate();
 				canvas.removeGVTTreeRendererListener(this);
 			}
+
 		});
 		return canvas;
 	}
@@ -118,8 +123,12 @@ public class SvgViewerFactory implements IViewerFactory {
 		return canvas.getOriginalSize();
 	}
 
-	public void setViewerSize(final JComponent viewer, final Dimension size) {
+	public void setFinalViewerSize(final JComponent viewer, final Dimension size) {
 		final JSVGCanvas canvas = (JSVGCanvas) viewer;
 		canvas.setMySize(size);
+	}
+
+	public void setDraftViewerSize(JComponent viewer, Dimension size) {
+		setFinalViewerSize(viewer, size);
 	}
 }

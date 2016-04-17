@@ -21,12 +21,12 @@ package org.freeplane.view.swing.map.link;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Stroke;
 import java.awt.geom.Line2D;
 
-import org.freeplane.core.ui.components.UITools;
 import org.freeplane.view.swing.map.MainView;
 import org.freeplane.view.swing.map.NodeView;
 import org.freeplane.view.swing.map.edge.EdgeView;
@@ -39,9 +39,9 @@ public class OutlineLinkView extends EdgeView {
 	private int xs[];
 	private int ys[];
 
-	public OutlineLinkView(final NodeView source, final NodeView target) {
-		super(source, target);
-	}
+	public OutlineLinkView(NodeView source, NodeView target, Component paintedComponent) {
+	    super(source, target, paintedComponent);
+    }
 
 	@Override
 	public boolean detectCollision(final Point p) {
@@ -58,10 +58,8 @@ public class OutlineLinkView extends EdgeView {
 	protected void createStart() {
 		final MainView startMainView = getSource().getMainView();
 		start = new Point(startMainView.getWidth(), startMainView.getHeight() / 2);
-		UITools.convertPointToAncestor(startMainView, start, getSource());
 		final MainView targetMainView = getTarget().getMainView();
 		end = new Point(targetMainView.getWidth(), targetMainView.getHeight() / 2);
-		UITools.convertPointToAncestor(targetMainView, end, getTarget().getMap());
 	}
 
 	@Override
@@ -74,7 +72,7 @@ public class OutlineLinkView extends EdgeView {
 		xs = new int[] { start.x, xMiddle, xMiddle, end.x };
 		ys = new int[] { start.y, start.y, end.y, end.y };
 		g.drawPolyline(xs, ys, 4);
-	}
+}
 
 	@Override
 	protected Stroke getStroke() {

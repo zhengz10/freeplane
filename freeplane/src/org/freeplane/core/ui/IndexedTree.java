@@ -25,16 +25,17 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.logging.Logger;
 
 import javax.swing.tree.DefaultMutableTreeNode;
+
+import org.freeplane.core.util.LogUtils;
 
 /**
  * @author Dimitry Polivaev
  * 25.12.2008
  */
 public class IndexedTree {
-	protected static class Node extends DefaultMutableTreeNode {
+	public static class Node extends DefaultMutableTreeNode {
 		/**
 		 * 
 		 */
@@ -50,7 +51,7 @@ public class IndexedTree {
 			this.key = key;
 		}
 
-		Object getKey() {
+		public Object getKey() {
 			return key;
 		}
 	}
@@ -184,7 +185,7 @@ public class IndexedTree {
 	protected DefaultMutableTreeNode getNode(final Object key) {
 		final DefaultMutableTreeNode node = (string2Element.get(key));
 		if (node == null) {
-			Logger.global.warning(key + " not found");
+			LogUtils.warn(key + " not found");
 		}
 		return node;
 	}
@@ -217,11 +218,12 @@ public class IndexedTree {
 
 	public void removeChildElements(final Object key) {
 		final DefaultMutableTreeNode node = getNode(key);
-		final Enumeration children = node.children();
+		final Enumeration<?> children = node.children();
 		while (children.hasMoreElements()) {
 			final Node child = (Node) children.nextElement();
 			final Object childKey = child.getKey();
 			if (childKey != null) {
+				removeChildElements(childKey);
 				string2Element.remove(childKey);
 			}
 		}
@@ -231,7 +233,7 @@ public class IndexedTree {
 	/**
 	 */
 	protected void removeChildKeys(final Node node) {
-		final Enumeration children = node.children();
+		final Enumeration<?> children = node.children();
 		while (children.hasMoreElements()) {
 			final Node child = (Node) children.nextElement();
 			string2Element.remove(child.getKey());

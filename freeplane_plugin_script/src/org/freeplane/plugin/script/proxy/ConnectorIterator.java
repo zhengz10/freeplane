@@ -6,18 +6,18 @@ package org.freeplane.plugin.script.proxy;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import org.freeplane.features.common.link.ConnectorModel;
-import org.freeplane.features.common.link.LinkModel;
-import org.freeplane.features.mindmapmode.MModeController;
+import org.freeplane.features.link.ConnectorModel;
+import org.freeplane.features.link.LinkModel;
+import org.freeplane.plugin.script.ScriptContext;
 
 class ConnectorIterator implements Iterator<Proxy.Connector> {
+	private final ScriptContext scriptContext;
 	private final Iterator<LinkModel> iterator;
-	private final MModeController modeController;
 	private ConnectorModel next;
 
-	public ConnectorIterator(final Iterator<LinkModel> iterator, final MModeController modeController) {
+	public ConnectorIterator(final Iterator<LinkModel> iterator, final ScriptContext scriptContext) {
+		this.scriptContext = scriptContext;
 		this.iterator = iterator;
-		this.modeController = modeController;
 		next = getNextConnectorModel();
 	}
 
@@ -41,7 +41,7 @@ class ConnectorIterator implements Iterator<Proxy.Connector> {
 		}
 		final ConnectorModel current = next;
 		next = getNextConnectorModel();
-		return new ConnectorProxy(current, modeController);
+		return new ConnectorProxy(current, scriptContext);
 	}
 
 	public void remove() {

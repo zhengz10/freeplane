@@ -23,9 +23,8 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.LayoutManager;
-import java.awt.Point;
 
-import org.freeplane.features.common.addins.mapstyle.MapViewLayout;
+import org.freeplane.features.styles.MapViewLayout;
 
 /**
  * @author Dimitry Polivaev
@@ -33,18 +32,6 @@ import org.freeplane.features.common.addins.mapstyle.MapViewLayout;
  */
 public class SelectableLayout implements INodeViewLayout {
 	static final SelectableLayout selectableLayoutInstance = new SelectableLayout();
-
-	public Point getMainViewInPoint(final NodeView view) {
-		return getLayout(view).getMainViewInPoint(view);
-	}
-
-	public Point getMainViewOutPoint(final NodeView view, final NodeView targetView, final Point destinationPoint) {
-		return getLayout(view).getMainViewOutPoint(view, targetView, destinationPoint);
-	}
-
-	public void layoutNodeMotionListenerView(final NodeMotionListenerView view) {
-		getLayout(view.getMovedView()).layoutNodeMotionListenerView(view);
-	}
 
 	public void addLayoutComponent(final String name, final Component comp) {
 	}
@@ -66,21 +53,24 @@ public class SelectableLayout implements INodeViewLayout {
 
 	private INodeViewLayout getLayout(final Container parent) {
 		final NodeView view = (NodeView) parent;
-		final MapViewLayout layout = view.getMap().getLayoutType();
-		if (layout == MapViewLayout.OUTLINE) {
+		MapView map = view.getMap();
+		final MapViewLayout layoutType = map.getLayoutType();
+		if (layoutType == MapViewLayout.OUTLINE) {
 			return OutlineLayout.getInstance();
 		}
+		final NodeViewLayoutAdapter layout;
 		if (view.isRoot()) {
-			return VerticalRootNodeViewLayout.getInstance();
+			layout = VerticalRootNodeViewLayout.getInstance();
 		}
 		else {
 			if (view.isLeft()) {
-				return LeftNodeViewLayout.getInstance();
+				layout =  LeftNodeViewLayout.getInstance();
 			}
 			else {
-				return RightNodeViewLayout.getInstance();
+				layout =  RightNodeViewLayout.getInstance();
 			}
 		}
+		return layout;
 	}
 
 	static LayoutManager getInstance() {

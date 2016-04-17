@@ -23,15 +23,13 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Insets;
 import java.awt.Point;
-import java.awt.RenderingHints;
 import java.awt.Stroke;
 
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.features.common.edge.EdgeController;
-import org.freeplane.features.common.edge.EdgeStyle;
-import org.freeplane.features.common.nodestyle.NodeStyleModel;
+import org.freeplane.features.edge.EdgeStyle;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.nodestyle.NodeStyleModel;
 
 class ForkMainView extends MainView {
 	/**
@@ -39,41 +37,27 @@ class ForkMainView extends MainView {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Returns the relative position of the Edge
-	 */
-	@Override
-	int getAlignment() {
-		return NodeView.ALIGN_BOTTOM;
-	}
 
 	@Override
-	Point getCenterPoint() {
-		final Point in = new Point(getWidth() / 2, getHeight() / 2);
-		return in;
-	}
-
-	@Override
-	public int getDeltaX() {
-		final NodeView nodeView = getNodeView();
-		final NodeModel model = nodeView.getModel();
-		if (nodeView.getMap().getModeController().getMapController().isFolded(model) && nodeView.isLeft()) {
-			return super.getDeltaX() + getZoomedFoldingSymbolHalfWidth() * 3;
-		}
-		return super.getDeltaX();
-	}
-
-	@Override
+    public
 	Point getLeftPoint() {
-		final NodeView nodeView = getNodeView();
-		final NodeModel model = nodeView.getModel();
-		final EdgeController edgeController = EdgeController.getController(nodeView.getMap().getModeController());
-		int edgeWidth = edgeController.getWidth(model);
-		final EdgeStyle style = edgeController.getStyle(model);
-		edgeWidth = style.getNodeLineWidth(edgeWidth);
-		final Point in = new Point(0, getHeight() - edgeWidth / 2 - 1);
+		int edgeWidth = getEdgeWidth();
+		final Point in = new Point(0, getHeight() - edgeWidth / 2);
 		return in;
 	}
+
+	public int getEdgeWidth() {
+	    final NodeView nodeView = getNodeView();
+	    final int edgeWidth = nodeView.getEdgeWidth();
+		final EdgeStyle style = nodeView.getEdgeStyle();
+		final int nodeLineWidth = style.getNodeLineWidth(edgeWidth);
+		if(edgeWidth == 0)
+			return nodeLineWidth;
+		else{
+			final int zoomedLineWidth = nodeView.getMap().getZoomed(nodeLineWidth);
+			return zoomedLineWidth;
+		}
+    }
 
 	@Override
 	protected int getMainViewHeightWithFoldingMark() {
@@ -87,25 +71,10 @@ class ForkMainView extends MainView {
 	}
 
 	@Override
-	protected int getMainViewWidthWithFoldingMark() {
-		int width = getWidth();
-		final NodeView nodeView = getNodeView();
-		final NodeModel model = nodeView.getModel();
-		if (nodeView.getMap().getModeController().getMapController().isFolded(model)) {
-			width += getZoomedFoldingSymbolHalfWidth() * 2 + getZoomedFoldingSymbolHalfWidth();
-		}
-		return width;
-	}
-
-	@Override
+    public
 	Point getRightPoint() {
-		final NodeView nodeView = getNodeView();
-		final NodeModel model = nodeView.getModel();
-		final EdgeController edgeController = EdgeController.getController(nodeView.getMap().getModeController());
-		int edgeWidth = edgeController.getWidth(model);
-		final EdgeStyle style = edgeController.getStyle(model);
-		edgeWidth = style.getNodeLineWidth(edgeWidth);
-		final Point in = new Point(getWidth() - 1, getHeight() - edgeWidth / 2 - 1);
+		int edgeWidth = getEdgeWidth();
+		final Point in = new Point(getWidth() - 1, getHeight() - edgeWidth / 2);
 		return in;
 	}
 
@@ -114,46 +83,59 @@ class ForkMainView extends MainView {
 	 * @see freeplane.view.mindmapview.NodeView#getStyle()
 	 */
 	@Override
-	String getStyle() {
+    public
+	String getShape() {
 		return NodeStyleModel.STYLE_FORK;
 	}
 
 	@Override
-	public void paint(final Graphics graphics) {
+	public void paintComponent(final Graphics graphics) {
 		final Graphics2D g = (Graphics2D) graphics;
 		final NodeView nodeView = getNodeView();
 		final NodeModel model = nodeView.getModel();
 		if (model == null) {
 			return;
 		}
-		final ModeController modeController = getNodeView().getMap().getModeController();
-		final Object renderingHint = modeController.getController().getViewController().setEdgesRenderingHint(g);
 		paintBackgound(g);
 		paintDragOver(g);
-		final EdgeController edgeController = EdgeController.getController(modeController);
-		int edgeWidth = edgeController.getWidth(model);
-		final EdgeStyle style = edgeController.getStyle(model);
-		edgeWidth = style.getNodeLineWidth(edgeWidth);
-		final Stroke oldStroke = g.getStroke();
-		g.setStroke(new BasicStroke(edgeWidth));
-		final Color oldColor = g.getColor();
-		g.setColor(edgeController.getColor(model));
-		g.drawLine(0, getHeight() - edgeWidth / 2 - 1, getWidth(), getHeight() - edgeWidth / 2 - 1);
-		g.setColor(oldColor);
-		g.setStroke(oldStroke);
-		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, renderingHint);
-		super.paint(g);
+		super.paintComponent(g);
 	}
 
 	@Override
-	void paintFoldingMark(final NodeView nodeView, final Graphics2D g, final Point p, boolean itself) {
-		final int zoomedFoldingSymbolHalfWidth = getZoomedFoldingSymbolHalfWidth();
-		if (nodeView.isLeft()) {
-			p.x -= zoomedFoldingSymbolHalfWidth;
-		}
-		else {
-			p.x += zoomedFoldingSymbolHalfWidth;
-		}
-		super.paintFoldingMark(nodeView, g, p, itself);
+	protected void paintBackground(final Graphics2D graphics, final Color color) {
+		graphics.setColor(color);
+		graphics.fillRect(0, 0, getWidth(), getHeight() - getEdgeWidth());
 	}
+
+	@Override
+	void paintDecoration(final NodeView nodeView, final Graphics2D g) {
+		final Stroke oldStroke = g.getStroke();
+		float edgeWidth  = getEdgeWidth();
+		g.setStroke(new BasicStroke(edgeWidth, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER));
+		final Color oldColor = g.getColor();
+		g.setColor(nodeView.getEdgeColor());
+		Point leftLinePoint = getLeftPoint();
+		g.drawLine(leftLinePoint.x, leftLinePoint.y, leftLinePoint.x + getWidth(), leftLinePoint.y);
+		g.setColor(oldColor);
+		g.setStroke(oldStroke);
+		super.paintDecoration(nodeView, g);
+    }
+	
+    @Override
+    public Insets getInsets() {
+        return  getInsets(null);
+    }
+
+	@Override
+    public Insets getInsets(Insets insets) {
+    	final NodeView nodeView = getNodeView();
+        int edgeWidth = nodeView.getEdgeWidth();
+        final EdgeStyle style = nodeView.getEdgeStyle();
+        edgeWidth = style.getNodeLineWidth(edgeWidth);
+		if(insets == null)
+    		insets = new Insets(0, 2, edgeWidth, 2);
+    	else
+    		insets.set(0, 2, edgeWidth, 2);
+        return insets;
+    }
 }

@@ -20,10 +20,12 @@
 package org.freeplane.main.application;
 
 import java.awt.BorderLayout;
-import java.awt.Container;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.EventQueue;
 import java.awt.Frame;
+import java.awt.LayoutManager;
+import java.awt.dnd.DropTarget;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -32,33 +34,27 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.text.MessageFormat;
-
 import javax.swing.ImageIcon;
-import javax.swing.InputMap;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLayeredPane;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
-import javax.swing.ToolTipManager;
-import javax.swing.UIManager;
-
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.frame.IMapViewManager;
-import org.freeplane.core.frame.ViewController;
-import org.freeplane.core.resources.IFreeplanePropertyListener;
+import javax.swing.RootPaneContainer;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.components.FreeplaneMenuBar;
-import org.freeplane.core.ui.components.LimitedWidthTooltipUI;
 import org.freeplane.core.ui.components.UITools;
 import org.freeplane.core.util.Compat;
+import org.freeplane.features.map.IMapSelection;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.ui.IMapViewManager;
+import org.freeplane.features.ui.ViewController;
+import org.freeplane.features.url.mindmapmode.FileOpener;
+import org.freeplane.view.swing.ui.DefaultMapMouseListener;
 
 class ApplicationViewController extends ViewController {
-	private static final String TOOL_TIP_MANAGER = "toolTipManager.";
-	private static final String TOOL_TIP_MANAGER_DISMISS_DELAY = "toolTipManager.dismissDelay";
-	private static final String TOOL_TIP_MANAGER_INITIAL_DELAY = "toolTipManager.initialDelay";
-	private static final String TOOL_TIP_MANAGER_RESHOW_DELAY = "toolTipManager.reshowDelay";
 	public static final String RESOURCES_USE_TABBED_PANE = "use_tabbed_pane";
 	private static final String SPLIT_PANE_LAST_LEFT_POSITION = "split_pane_last_left_position";
 	private static final String SPLIT_PANE_LAST_POSITION = "split_pane_last_position";
@@ -68,26 +64,25 @@ class ApplicationViewController extends ViewController {
 	private static final String SPLIT_PANE_POSITION = "split_pane_position";
 	private static final String SPLIT_PANE_RIGHT_POSITION = "split_pane_right_position";
 	private static final String SPLIT_PANE_TOP_POSITION = "split_pane_top_position";
-	final private Controller controller;
+// // 	final private Controller controller;
 	final private JFrame frame;
-	private MapViewTabs mapViewManager;
-	private JComponent mContentComponent = null;
 	/** Contains the value where the Note Window should be displayed (right, left, top, bottom) */
 	private String mLocationPreferenceValue;
 	/** Contains the Note Window Component */
 	private JComponent mMindMapComponent;
-	private JSplitPane mSplitPane;
+	final private JSplitPane mSplitPane;
 	final private NavigationNextMapAction navigationNextMap;
 	final private NavigationPreviousMapAction navigationPreviousMap;
 	final private ResourceController resourceController;
 
-	public ApplicationViewController(final Controller controller, final IMapViewManager mapViewController,
+	@SuppressWarnings("serial")
+    public ApplicationViewController( Controller controller, final IMapViewManager mapViewController,
 	                                 final JFrame frame) {
-		super(controller, mapViewController);
-		this.controller = controller;
-		navigationPreviousMap = new NavigationPreviousMapAction(controller);
+		super(controller, mapViewController, "");
+//		this.controller = controller;
+		navigationPreviousMap = new NavigationPreviousMapAction();
 		controller.addAction(navigationPreviousMap);
-		navigationNextMap = new NavigationNextMapAction(controller);
+		navigationNextMap = new NavigationNextMapAction();
 		controller.addAction(navigationNextMap);
 		resourceController = ResourceController.getResourceController();
 		this.frame = frame;
@@ -102,16 +97,28 @@ class ApplicationViewController extends ViewController {
 			getScrollPane().setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
 			getScrollPane().setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);
 		}
-		mContentComponent = getScrollPane();
+		// disable all hotkeys for JSplitPane
+		mSplitPane = new JSplitPane(){
+			@Override
+			protected boolean processKeyBinding(KeyStroke ks, KeyEvent e, int condition, boolean pressed){
+				return false;
+			}
+		};
+		setSplitPaneLayoutManager();
+		final JScrollPane contentComponent = getScrollPane();
+		mSplitPane.setLeftComponent(contentComponent);
+		mSplitPane.setRightComponent(null);
 		final boolean shouldUseTabbedPane = ResourceController.getResourceController().getBooleanProperty(
 		    ApplicationViewController.RESOURCES_USE_TABBED_PANE);
 		if (shouldUseTabbedPane) {
-			mapViewManager = new MapViewTabs(controller, this, mContentComponent);
+			new MapViewTabs(this, mSplitPane);
 		}
 		else {
-			getContentPane().add(mContentComponent, BorderLayout.CENTER);
+			getContentPane().add(mSplitPane, BorderLayout.CENTER);
+			final FileOpener fileOpener = new FileOpener();
+			new DropTarget(mSplitPane, fileOpener);
+			mSplitPane.addMouseListener(new DefaultMapMouseListener());
 		}
-		getContentPane().add(getStatusBar(), BorderLayout.SOUTH);
 		initFrame(frame);
 	}
 
@@ -119,23 +126,15 @@ class ApplicationViewController extends ViewController {
 	 * Called from the Controller, when the Location of the Note Window is changed on the Menu->View->Note Window Location 
 	 */
 	@Override
-	public void changeNoteWindowLocation(final boolean isSplitWindowOnorOff) {
-		// -- Remove Note Window from old location -- 
-		if (isSplitWindowOnorOff == true) {
-			// --- Remove and put it back in the new location the Note Window --
-			removeSplitPane();
-		}
-		// --- Get the new location --
+	public void changeNoteWindowLocation() {
 		mLocationPreferenceValue = resourceController.getProperty("note_location");
-		// -- Display Note Window in the new location --
-		if (isSplitWindowOnorOff == true) {
-			// --- Place the Note Window in the new place --
+		if(mMindMapComponent != null){
 			insertComponentIntoSplitPane(mMindMapComponent);
 		}
 	}
 
 	public String getAdjustableProperty(final String label) {
-		return resourceController.getAdjustableProperty(label);
+		return resourceController.getProperty(label);
 	}
 
 	/*
@@ -143,8 +142,8 @@ class ApplicationViewController extends ViewController {
 	 * @see freeplane.main.FreeplaneMain#getContentPane()
 	 */
 	@Override
-	public Container getContentPane() {
-		return frame.getContentPane();
+	public RootPaneContainer getRootPaneContainer() {
+		return frame;
 	}
 
 	@Override
@@ -170,62 +169,59 @@ class ApplicationViewController extends ViewController {
 	}
 
 	@Override
-	public JSplitPane insertComponentIntoSplitPane(final JComponent pMindMapComponent) {
-		if (mSplitPane != null) {
-			return mSplitPane;
-		}
-		removeContentComponent();
+	public void insertComponentIntoSplitPane(final JComponent pMindMapComponent) {
 		// --- Save the Component --
 		mMindMapComponent = pMindMapComponent;
 		// --- Devider position variables --
 		int splitPanePosition = -1;
 		int lastSplitPanePosition = -1;
+		final JScrollPane scrollPane = getScrollPane();
+		scrollPane.setVisible(true);
+		mSplitPane.setLeftComponent(null);
+		mSplitPane.setRightComponent(null);
 		if ("right".equals(mLocationPreferenceValue)) {
-			mSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, getScrollPane(), pMindMapComponent);
+			mSplitPane.setOrientation(JSplitPane.HORIZONTAL_SPLIT);
+			mSplitPane.setLeftComponent(scrollPane);
+			mSplitPane.setRightComponent(pMindMapComponent);
 			splitPanePosition = resourceController.getIntProperty(SPLIT_PANE_RIGHT_POSITION, -1);
 			lastSplitPanePosition = resourceController.getIntProperty(SPLIT_PANE_LAST_RIGHT_POSITION, -1);
 		}
 		else if ("left".equals(mLocationPreferenceValue)) {
-			mSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, pMindMapComponent, getScrollPane());
+			mSplitPane.setOrientation(JSplitPane.HORIZONTAL_SPLIT);
+			mSplitPane.setLeftComponent(pMindMapComponent);
+			mSplitPane.setRightComponent(scrollPane);
 			splitPanePosition = resourceController.getIntProperty(SPLIT_PANE_LEFT_POSITION, -1);
 			lastSplitPanePosition = resourceController.getIntProperty(SPLIT_PANE_LAST_LEFT_POSITION, -1);
 		}
 		else if ("top".equals(mLocationPreferenceValue)) {
-			mSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, pMindMapComponent, getScrollPane());
+			mSplitPane.setOrientation(JSplitPane.VERTICAL_SPLIT);
+			mSplitPane.setLeftComponent(pMindMapComponent);
+			mSplitPane.setRightComponent(scrollPane);
 			splitPanePosition = resourceController.getIntProperty(SPLIT_PANE_TOP_POSITION, -1);
 			lastSplitPanePosition = resourceController.getIntProperty(SPLIT_PANE_LAST_TOP_POSITION, -1);
 		}
 		else if ("bottom".equals(mLocationPreferenceValue)) {
-			mSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, getScrollPane(), pMindMapComponent);
+			mSplitPane.setOrientation(JSplitPane.VERTICAL_SPLIT);
+			mSplitPane.setLeftComponent(scrollPane);
+			mSplitPane.setRightComponent(pMindMapComponent);
 			splitPanePosition = resourceController.getIntProperty(SPLIT_PANE_POSITION, -1);
 			lastSplitPanePosition = resourceController.getIntProperty(SPLIT_PANE_LAST_POSITION, -1);
 		}
 		mSplitPane.setContinuousLayout(true);
 		mSplitPane.setOneTouchExpandable(false);
+		setSplitPaneLayoutManager();
 		/*
 		 * This means that the mind map area gets all the space that results
 		 * from resizing the window.
 		 */
 		mSplitPane.setResizeWeight(1.0d);
-		final InputMap map = (InputMap) UIManager.get("SplitPane.ancestorInputMap");
-		final KeyStroke keyStrokeF6 = KeyStroke.getKeyStroke(KeyEvent.VK_F6, 0);
-		final KeyStroke keyStrokeF8 = KeyStroke.getKeyStroke(KeyEvent.VK_F8, 0);
-		map.remove(keyStrokeF6);
-		map.remove(keyStrokeF8);
-		mContentComponent = mSplitPane;
-		setContentComponent();
 		if (splitPanePosition != -1 && lastSplitPanePosition != -1) {
 			mSplitPane.setDividerLocation(splitPanePosition);
 			mSplitPane.setLastDividerLocation(lastSplitPanePosition);
 		}
 		else {
-			EventQueue.invokeLater(new Runnable() {
-				public void run() {
-					mSplitPane.setDividerLocation(0.5);
-				}
-			});
+			mSplitPane.setDividerLocation(0.5);
 		}
-		return mSplitPane;
 	}
 
 	@Override
@@ -255,11 +251,15 @@ class ApplicationViewController extends ViewController {
 				final MessageFormat formatter = new MessageFormat(ResourceController.getResourceController()
 				    .getProperty(propertyString));
 				final String browserCommand = formatter.format(messageArguments);
-				if (uri.getScheme().equals("file")) {
-					command = new String[] { "rundll32", "url.dll,FileProtocolHandler", uriString };
-					if (System.getProperty("os.name").startsWith("Windows 2000")) {
+				final String scheme = uri.getScheme();
+                if (scheme.equals("file") || scheme.equals("smb")) {
+                    if(scheme.equals("smb")){
+                        uriString = Compat.smbUri2unc(uri);
+                    }
+					if (System.getProperty("os.name").startsWith("Windows 2000")) 
 						command = new String[] { "rundll32", "shell32.dll,ShellExec_RunDLL", uriString };
-					}
+					else
+	                    command = new String[] { "rundll32", "url.dll,FileProtocolHandler", uriString };
 				}
 				else if (uriString.startsWith("mailto:")) {
 					command = new String[] { "rundll32", "url.dll,FileProtocolHandler", uriString };
@@ -335,27 +335,38 @@ class ApplicationViewController extends ViewController {
 		return true;
 	}
 
-	private void removeContentComponent() {
-		if (mapViewManager != null) {
-			mapViewManager.removeContentComponent();
-		}
-		else {
-			getContentPane().remove(mContentComponent);
-			frame.getRootPane().revalidate();
-		}
-	}
-
 	@Override
 	public void removeSplitPane() {
-		if (mSplitPane == null) {
+		saveSplitPanePosition();
+		final JScrollPane scrollPane = getScrollPane();
+		mMindMapComponent = null;
+		mSplitPane.setLeftComponent(null);
+		mSplitPane.setRightComponent(null);
+		mSplitPane.setLeftComponent(scrollPane);
+		setSplitPaneLayoutManager();
+		final Controller controller = Controller.getCurrentModeController().getController();
+		final IMapSelection selection = controller.getSelection();
+		if(selection == null){
 			return;
 		}
-		saveSplitPanePosition();
-		removeContentComponent();
-		mContentComponent = getScrollPane();
-		setContentComponent();
-		mSplitPane = null;
+		final NodeModel node = selection.getSelected();
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				final Component component = controller.getViewController().getComponent(node);
+				if (component != null) {
+					component.requestFocus();
+				}
+			}
+		});
 	}
+
+	private void setSplitPaneLayoutManager() {
+	    final LayoutManager layout = mSplitPane.getLayout();
+	    if(layout instanceof SplitPaneLayoutManagerDecorator){
+	    	return;
+	    }
+		mSplitPane.setLayout(new SplitPaneLayoutManagerDecorator(layout));
+    }
 
 	@Override
 	public void saveProperties() {
@@ -395,16 +406,6 @@ class ApplicationViewController extends ViewController {
 		}
 	}
 
-	private void setContentComponent() {
-		if (mapViewManager != null) {
-			mapViewManager.setContentComponent(mContentComponent);
-		}
-		else {
-			getContentPane().add(mContentComponent, BorderLayout.CENTER);
-			frame.getRootPane().revalidate();
-		}
-	}
-
 	@Override
 	protected void setFreeplaneMenuBar(final FreeplaneMenuBar menuBar) {
 		frame.setJMenuBar(menuBar);
@@ -433,8 +434,8 @@ class ApplicationViewController extends ViewController {
 
 	@Override
 	protected void viewNumberChanged(final int number) {
-		navigationPreviousMap.setEnabled(number > 0);
-		navigationNextMap.setEnabled(number > 0);
+		navigationPreviousMap.setEnabled(number > 1);
+		navigationNextMap.setEnabled(number > 1);
 	}
 
 	public void initFrame(final JFrame frame) {
@@ -455,7 +456,7 @@ class ApplicationViewController extends ViewController {
 		frame.addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosing(final WindowEvent e) {
-				controller.quit(new ActionEvent(this, 0, "quit"));
+				Controller.getCurrentController().quit(new ActionEvent(this, 0, "quit"));
 			}
 			/*
 			 * fc, 14.3.2008: Completely removed, as it damaged the focus if for
@@ -463,40 +464,16 @@ class ApplicationViewController extends ViewController {
 			 */
 		});
 		frame.setFocusTraversalKeysEnabled(false);
-		final int win_width = ResourceController.getResourceController().getIntProperty("appwindow_width", 0);
-		final int win_height = ResourceController.getResourceController().getIntProperty("appwindow_height", 0);
-		final int win_x = ResourceController.getResourceController().getIntProperty("appwindow_x", 0);
-		final int win_y = ResourceController.getResourceController().getIntProperty("appwindow_y", 0);
+		final int win_width = ResourceController.getResourceController().getIntProperty("appwindow_width", -1);
+		final int win_height = ResourceController.getResourceController().getIntProperty("appwindow_height", -1);
+		final int win_x = ResourceController.getResourceController().getIntProperty("appwindow_x", -1);
+		final int win_y = ResourceController.getResourceController().getIntProperty("appwindow_y", -1);
 		UITools.setBounds(frame, win_x, win_y, win_width, win_height);
 		setFrameSize(frame.getBounds());
 		int win_state = Integer
 		    .parseInt(ResourceController.getResourceController().getProperty("appwindow_state", "0"));
 		win_state = ((win_state & Frame.ICONIFIED) != 0) ? Frame.NORMAL : win_state;
 		frame.setExtendedState(win_state);
-		setTooltipDelays();
-		LimitedWidthTooltipUI.initialize();
-		ResourceController.getResourceController().addPropertyChangeListener(new IFreeplanePropertyListener() {
-			public void propertyChanged(final String propertyName, final String newValue, final String oldValue) {
-				if (propertyName.startsWith(TOOL_TIP_MANAGER)) {
-					setTooltipDelays();
-				}
-			}
-		});
 	}
 
-	private void setTooltipDelays() {
-		final ToolTipManager toolTipManager = ToolTipManager.sharedInstance();
-		final int initialDelay = ResourceController.getResourceController().getIntProperty(
-		    TOOL_TIP_MANAGER_INITIAL_DELAY, 0);
-		toolTipManager.setInitialDelay(initialDelay);
-		final int dismissDelay = ResourceController.getResourceController().getIntProperty(
-		    TOOL_TIP_MANAGER_DISMISS_DELAY, 0);
-		toolTipManager.setDismissDelay(dismissDelay);
-		final int reshowDelay = ResourceController.getResourceController().getIntProperty(
-		    TOOL_TIP_MANAGER_RESHOW_DELAY, 0);
-		toolTipManager.setReshowDelay(reshowDelay);
-		final int maxWidth = ResourceController.getResourceController().getIntProperty(
-		    "toolTipManager.max_tooltip_width", Integer.MAX_VALUE);
-		LimitedWidthTooltipUI.setMaximumWidth(maxWidth);
-	}
 }

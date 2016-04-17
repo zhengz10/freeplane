@@ -20,16 +20,18 @@
 package org.freeplane.core.ui;
 
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.resources.ResourceController;
-import org.freeplane.core.util.LogTool;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.mode.Controller;
 
 /**
  * @author Dimitry Polivaev
@@ -80,28 +82,35 @@ public abstract class AFreeplaneAction extends AbstractAction implements IFreepl
 		return annotation.checkOnPopup();
 	}
 
-	// TODO ARCH rladstaetter 18.02.2009 actions should not have a dependency on the controller
-	final private Controller controller;
 	final private String key;
 	private boolean selected = false;
+	
+	static private Map<String, ImageIcon> iconCache = new HashMap<String, ImageIcon>();
 
-	public AFreeplaneAction(final String key, final Controller controller) {
+	public AFreeplaneAction(final String key) {
 		super();
-		this.controller = controller;
 		this.key = key;
-		MenuBuilder.setLabelAndMnemonic(this, ResourceBundles.getText(getTextKey()));
-		final String iconResource = ResourceController.getResourceController().getProperty(getIconKey(), null);
-		if (iconResource != null) {
-			final URL url = ResourceController.getResourceController().getResource(iconResource);
-			if (url == null) {
-				LogTool.severe("can not load icon '" + iconResource + "'");
-			}
-			else {
-				final ImageIcon icon = new ImageIcon(url);
-				putValue(SMALL_ICON, icon);
+		MenuBuilder.setLabelAndMnemonic(this, TextUtils.getRawText(getTextKey()));
+		final String iconKey = getIconKey();
+		final ImageIcon cachedIcon = iconCache.get(iconKey);
+		if(cachedIcon != null){
+			putValue(SMALL_ICON, cachedIcon);
+		}
+		else{
+			final String iconResource = ResourceController.getResourceController().getProperty(iconKey, null);
+			if (iconResource != null) {
+				final URL url = ResourceController.getResourceController().getResource(iconResource);
+				if (url == null) {
+					LogUtils.severe("can not load icon '" + iconResource + "'");
+				}
+				else {
+					final ImageIcon icon = new ImageIcon(url);
+					putValue(SMALL_ICON, icon);
+					iconCache.put(iconKey, icon);
+				}
 			}
 		}
-		final String tooltip = ResourceBundles.getText(getTooltipKey(), null);
+		final String tooltip = TextUtils.getRawText(getTooltipKey(), null);
 		if (tooltip != null && !"".equals(tooltip)) {
 			putValue(Action.SHORT_DESCRIPTION, tooltip);
 			putValue(Action.LONG_DESCRIPTION, tooltip);
@@ -113,12 +122,12 @@ public abstract class AFreeplaneAction extends AbstractAction implements IFreepl
 	//	 * @param controller
 	//	 * @param string
 	//	 */
-	//	private AFreeplaneAction(final Controller controller, final String titleKey) {
-	//		this(controller);
+	//	private AFreeplaneAction( final String titleKey) {
+	//		this();
 	//	}
 	//
-	public AFreeplaneAction(final String key, final Controller controller, final String title, final ImageIcon icon) {
-		this.controller = controller;
+	public AFreeplaneAction(final String key, final String title, final Icon icon) {
+//		this.controller = controller;
 		putValue(SMALL_ICON, icon);
 		if (title != null && !title.equals("")) {
 			MenuBuilder.setLabelAndMnemonic(this, title);
@@ -128,22 +137,19 @@ public abstract class AFreeplaneAction extends AbstractAction implements IFreepl
 
 	public void afterMapChange(final Object newMap) {
 		if (newMap == null) {
-			if (isEnabled()) {
+			if (super.isEnabled()) {
 				setEnabled(false);
 			}
 		}
 		else {
-			if (!isEnabled()) {
+			if (!super.isEnabled()) {
 				setEnabled(true);
 			}
+			setEnabled();
 		}
 	}
 
-	public Controller getController() {
-		return controller;
-	}
-
-	final String getIconKey() {
+	public final String getIconKey() {
 		return key + ".icon";
 	}
 
@@ -151,15 +157,11 @@ public abstract class AFreeplaneAction extends AbstractAction implements IFreepl
 		return key;
 	}
 
-	public ModeController getModeController() {
-		return controller.getModeController();
-	}
-
 	final String getTextKey() {
 		return key + ".text";
 	}
 
-	final String getTooltipKey() {
+	public final String getTooltipKey() {
 		return key + ".tooltip";
 	}
 
@@ -168,7 +170,23 @@ public abstract class AFreeplaneAction extends AbstractAction implements IFreepl
 	}
 
 	public void setEnabled() {
-		setEnabled(true);
+	}
+	
+	
+
+	@Override
+	public boolean isEnabled() {
+		if(! Boolean.TRUE.equals(getValue("AFreeplaneAction.setEnabled")) && AFreeplaneAction.checkEnabledOnPopup(this)
+				&& Controller.getCurrentController().getSelection() != null)
+			setEnabled();
+		return super.isEnabled();
+	}
+
+	@Override
+	public void setEnabled(boolean newValue) {
+		putValue("AFreeplaneAction.setEnabled", Boolean.TRUE);
+		super.setEnabled(newValue);
+		putValue("AFreeplaneAction.setEnabled", null);
 	}
 
 	public void setSelected() {

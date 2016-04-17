@@ -19,20 +19,19 @@
  */
 package org.freeplane.plugin.latex;
 
-import java.awt.Component;
 import java.awt.Container;
-import java.util.Iterator;
 import java.util.Set;
 
-import org.freeplane.core.addins.NodeHookDescriptor;
-import org.freeplane.core.addins.PersistentNodeHook;
 import org.freeplane.core.extension.IExtension;
-import org.freeplane.core.modecontroller.INodeViewLifeCycleListener;
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.MapModel;
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.core.ui.ActionLocationDescriptor;
 import org.freeplane.core.undo.IActor;
+import org.freeplane.features.map.INodeView;
+import org.freeplane.features.map.MapModel;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.mode.NodeHookDescriptor;
+import org.freeplane.features.mode.PersistentNodeHook;
+import org.freeplane.features.ui.INodeViewLifeCycleListener;
 import org.freeplane.n3.nanoxml.XMLElement;
 import org.freeplane.view.swing.map.NodeView;
 
@@ -43,21 +42,22 @@ import org.freeplane.view.swing.map.NodeView;
  */
 @NodeHookDescriptor(hookName = "plugins/latex/LatexNodeHook.properties", //
 onceForMap = false)
-@ActionLocationDescriptor(locations = "/menu_bar/insert/other")
 class LatexNodeHook extends PersistentNodeHook implements INodeViewLifeCycleListener {
+	static final int VIEWER_POSITION = 4;
+
 	/**
 	 */
-	public LatexNodeHook(final ModeController modeController) {
-		super(modeController);
+	public LatexNodeHook() {
+		super();
+		final ModeController modeController = Controller.getCurrentModeController();
 		modeController.addINodeViewLifeCycleListener(this);
 	}
 
 	@Override
-	protected void add(final NodeModel node, final IExtension extension) {
+	public void add(final NodeModel node, final IExtension extension) {
 		final LatexExtension latexExtension = (LatexExtension) extension;
-		final Iterator iterator = node.getViewers().iterator();
-		while (iterator.hasNext()) {
-			final NodeView view = (NodeView) iterator.next();
+		for (final INodeView iNodeView : node.getViewers()) {
+			final NodeView view = (NodeView) iNodeView;
 			createViewer(latexExtension, view);
 		}
 		super.add(node, extension);
@@ -67,43 +67,41 @@ class LatexNodeHook extends PersistentNodeHook implements INodeViewLifeCycleList
 	protected IExtension createExtension(final NodeModel node, final XMLElement element) {
 		final LatexExtension latexExtension = new LatexExtension();
 		if (element != null) {
-			String equation = element.getAttribute("EQUATION");
-			if(equation == null){
+			final String equation = element.getAttribute("EQUATION", null);
+			if (equation == null) {
 				// error: do not create anything
 				return null;
 			}
 			latexExtension.setEquation(equation);
-			getModeController().getMapController().nodeChanged(node);
+			Controller.getCurrentModeController().getMapController()
+			    .nodeChanged(node, NodeModel.UNKNOWN_PROPERTY, null, null);
 		}
 		return latexExtension;
 	}
 
+	@Override
+    protected HookAction createHookAction() {
+	    return null;
+    }
+
 	void createViewer(final LatexExtension model, final NodeView view) {
-		final JLatexViewer comp = new JLatexViewer(this, model);
-		final Set<JLatexViewer> viewers = model.getViewers();
-		viewers.add(comp);
-		view.getContentPane().add(comp);
+		final LatexViewer comp = new LatexViewer(this, model);
+		final Set<NodeView> viewers = model.getViewers();
+		viewers.add(view);
+		view.addContent(comp, VIEWER_POSITION);
 	}
 
 	void deleteViewer(final LatexExtension model, final NodeView nodeView) {
-		final Set<JLatexViewer> viewers = model.getViewers();
-		if (viewers.isEmpty()) {
+		final Set<NodeView> viewers = model.getViewers();
+		if (!viewers.contains(nodeView)) {
 			return;
 		}
-		final Container contentPane = nodeView.getContentPane();
-		final int componentCount = contentPane.getComponentCount();
-		for (int i = 0; i < componentCount; i++) {
-			final Component component = contentPane.getComponent(i);
-			if (viewers.contains(component)) {
-				viewers.remove(component);
-				contentPane.remove(i);
-				return;
-			}
-		}
+		nodeView.removeContent(VIEWER_POSITION);
+		viewers.remove(nodeView);
 	}
 
 	@Override
-	protected Class getExtensionClass() {
+	protected Class<LatexExtension> getExtensionClass() {
 		return LatexExtension.class;
 	}
 
@@ -149,8 +147,8 @@ class LatexNodeHook extends PersistentNodeHook implements INodeViewLifeCycleList
 
 			public void act() {
 				model.setEquation(newEquation);
-				final MapModel map = getModeController().getController().getMap();
-				getModeController().getMapController().setSaved(map, false);
+				final MapModel map = Controller.getCurrentModeController().getController().getMap();
+				Controller.getCurrentModeController().getMapController().setSaved(map, false);
 			}
 
 			public String getDescription() {
@@ -161,6 +159,49 @@ class LatexNodeHook extends PersistentNodeHook implements INodeViewLifeCycleList
 				model.setEquation(oldEquation);
 			}
 		};
-		getModeController().execute(actor, getModeController().getController().getMap());
+		Controller.getCurrentModeController().execute(actor,
+		    Controller.getCurrentModeController().getController().getMap());
+	}
+
+	@Override
+	public void undoableToggleHook(final NodeModel node, final IExtension extension) {
+		if (extension != null) {
+			super.undoableToggleHook(node, extension);
+			return;
+		}
+		final String equation = LatexEditor.editLatex("", node);
+		if (equation == null || "".equals(equation.trim())) {
+			return;
+		}
+		super.undoableToggleHook(node, null);
+		final LatexExtension latexExtension = (LatexExtension) node.getExtension(LatexExtension.class);
+		setEquationUndoable(latexExtension, equation);
+	}
+
+	void editLatexInEditor(final NodeModel node) {
+		LatexExtension latexExtension = (LatexExtension) node.getExtension(LatexExtension.class);
+		final String equation;
+		//if no LaTeX is attached, create one
+		if (latexExtension == null) {
+			equation = LatexEditor.editLatex("", node);
+		}
+		//if LaTeX is present edit it
+		else {
+			equation = LatexEditor.editLatex(latexExtension.getEquation(), node);
+		}
+		// return on cancel
+		if (equation == null) {
+			return;
+		}
+		if (!"".equals(equation.trim())) {
+			if (latexExtension == null) {
+				latexExtension = new LatexExtension();
+				add(node, latexExtension);
+			}
+			setEquationUndoable(latexExtension, equation);
+		}
+		else if (latexExtension != null) {
+			undoableDeactivateHook(node);
+		}
 	}
 }

@@ -19,22 +19,24 @@
  */
 package org.freeplane.core.resources;
 
-import java.awt.Font;
-import java.io.IOException;
+import java.io.BufferedInputStream;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Vector;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.controller.AController.IActionOnChange;
 import org.freeplane.core.ui.AFreeplaneAction;
-import org.freeplane.core.util.LogTool;
+import org.freeplane.core.util.FileUtils;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.features.mode.AController.IActionOnChange;
+import org.freeplane.features.mode.Controller;
 
 /**
  * @author Dimitry Polivaev
@@ -43,21 +45,17 @@ public abstract class ResourceController {
 	public static final String FREEPLANE_PROPERTIES = "/freeplane.properties";
 	public static final String LOCAL_PROPERTIES = "LocalProperties.";
 	public static final String RESOURCE_DRAW_RECTANGLE_FOR_SELECTION = "standarddrawrectangleforselection";
-	// TODO rladstaetter 15.02.2009 remove static
-	private static ResourceController resourceController;
+	// some plugins have their own file for registration of defaults
+	public static final String PLUGIN_DEFAULTS_RESOURCE = "defaults.properties";
 
 	static public ResourceController getResourceController() {
-		return ResourceController.resourceController;
-	}
-
-	static public void setResourceController(final ResourceController resourceController) {
-		ResourceController.resourceController = resourceController;
-		LogTool.info("called ResourceController.setResourceController(...)");
+		return Controller.getCurrentController().getResourceController();
 	}
 
 	final private List<IFreeplanePropertyListener> propertyChangeListeners = new Vector<IFreeplanePropertyListener>();
 	private ResourceBundles resources;
-
+    public static final String FREEPLANE_RESOURCE_URL_PROTOCOL = "freeplaneresource";
+	public static final String OBJECT_TYPE = "ObjectType";
 	public ResourceController() {
 		super();
 	}
@@ -65,6 +63,10 @@ public abstract class ResourceController {
 	public void addLanguageResources(final String language, final URL url) {
 		resources.addResources(language, url);
 	}
+
+	public void addLanguageResources(final String language, final Map<String, String> resources) {
+		this.resources.addResources(language, resources);
+    }
 
 	public void addPropertyChangeListener(final IFreeplanePropertyListener listener) {
 		propertyChangeListeners.add(listener);
@@ -78,15 +80,14 @@ public abstract class ResourceController {
 	 */
 	public void addPropertyChangeListenerAndPropagate(final IFreeplanePropertyListener listener) {
 		addPropertyChangeListener(listener);
-		final Properties properties = getProperties();
-		for (final Iterator it = properties.keySet().iterator(); it.hasNext();) {
-			final String key = (String) it.next();
-			listener.propertyChanged(key, properties.getProperty(key), null);
+		for (final Entry<Object, Object> entry : getProperties().entrySet()) {
+			final String key = (String) entry.getKey();
+			listener.propertyChanged(key, (String) entry.getValue(), null);
 		}
 	}
 
-	public void clearLanguageResources() {
-		resources.reloadLanguage();
+	protected void loadAnotherLanguage() {
+		resources.loadAnotherLanguage();
 	}
 
 	protected void firePropertyChanged(final String property, final String value, final String oldValue) {
@@ -98,48 +99,22 @@ public abstract class ResourceController {
 		}
 	}
 
-	public String getAdjustableProperty(final String label) {
-		String value = getProperty(label);
-		if (value == null) {
-			return value;
-		}
-		if (value.startsWith("?") && !value.equals("?")) {
-			final String localValue = ((ResourceBundles) getResources()).getResourceString(
-			    ResourceController.LOCAL_PROPERTIES + label, null);
-			value = localValue == null ? value.substring(1).trim() : localValue;
-			setDefaultProperty(label, value);
-		}
-		return value;
-	}
-
 	public boolean getBooleanProperty(final String key) {
 		return Boolean.parseBoolean(getProperty(key));
 	}
-
-	public Font getDefaultFont() {
-		final int fontSize = getDefaultFontSize();
-		final int fontStyle = getDefaultFontStyle();
-		final String fontFamily = getDefaultFontFamilyName();
-		return new Font(fontFamily, fontStyle, fontSize);
+	
+	@SuppressWarnings("unchecked")
+	public <T extends Enum<T>> T getEnumProperty(String propertyName, Enum<T>  defaultValue) {
+		try{
+			final String cacheProptertyValue = getProperty(propertyName).toUpperCase();
+			defaultValue = Enum.valueOf(defaultValue.getClass(), cacheProptertyValue);
+		}
+		catch (Exception e) {
+			LogUtils.severe(e);
+		}
+		return (T)defaultValue;
 	}
 
-	/**
-	 */
-	public String getDefaultFontFamilyName() {
-		return getProperty("defaultfont");
-	}
-
-	/**
-	 */
-	public int getDefaultFontSize() {
-		return Integer.parseInt(getProperty("defaultfontsize"));
-	}
-
-	/**
-	 */
-	public int getDefaultFontStyle() {
-		return Integer.parseInt(getProperty("defaultfontstyle"));
-	}
 
 	/**
 	 * @param resourcesNodeTextColor
@@ -149,9 +124,10 @@ public abstract class ResourceController {
 		return null;
 	}
 
+	/** register defaults in freeplane.properties respectively defaults.properties instead! */
 	public double getDoubleProperty(final String key, final double defaultValue) {
 		try {
-			return Double.parseDouble(ResourceController.getResourceController().getProperty("user_zoom"));
+			return Double.parseDouble(ResourceController.getResourceController().getProperty(key));
 		}
 		catch (final Exception e) {
 			return defaultValue;
@@ -163,6 +139,7 @@ public abstract class ResourceController {
 	 */
 	abstract public String getFreeplaneUserDirectory();
 
+	/** register defaults in freeplane.properties respectively defaults.properties instead! */
 	public int getIntProperty(final String key, final int defaultValue) {
 		try {
 			return Integer.parseInt(getProperty(key));
@@ -172,6 +149,16 @@ public abstract class ResourceController {
 		}
 	}
 
+
+	public int getIntProperty(String key) {
+		return Integer.parseInt(getProperty(key));
+    }
+
+	public double getDoubleProperty(String key) {
+		return Double.parseDouble(getProperty(key));
+    }
+
+	/** register defaults in freeplane.properties respectively defaults.properties instead. */
 	public long getLongProperty(final String key, final int defaultValue) {
 		try {
 			return Long.parseLong(getProperty(key));
@@ -181,13 +168,11 @@ public abstract class ResourceController {
 		}
 	}
 
-	/**
-	 * @return
-	 */
 	abstract public Properties getProperties();
 
 	abstract public String getProperty(final String key);
 
+	/** register defaults in freeplane.properties respectively defaults.properties instead! */
 	public String getProperty(final String key, final String value) {
 		return getProperties().getProperty(key, value);
 	}
@@ -204,6 +189,10 @@ public abstract class ResourceController {
 		return "";
 	}
 
+	public String getInstallationBaseDir() {
+		return "";
+    }
+
 	/** Returns the ResourceBundle with the current language */
 	public ResourceBundle getResources() {
 		if (resources == null) {
@@ -212,27 +201,26 @@ public abstract class ResourceController {
 		return resources;
 	}
 
+	public String getLanguageCode() {
+	    return resources.getLanguageCode();
+    }
+	
+	public String getDefaultLanguageCode() {
+		return resources.getDefaultLanguageCode();
+	}
+
 	public String getText(final String key, final String resource) {
 		return ((ResourceBundles) getResources()).getResourceString(key, resource);
 	}
 
-	protected void init(final Controller controller) {
-		controller.addAction(new ShowSelectionAsRectangleAction(controller));
+	protected void init() {
 	}
-
-	boolean isSelectionAsRectangle() {
-		return Boolean.parseBoolean(getProperty(ResourceController.RESOURCE_DRAW_RECTANGLE_FOR_SELECTION));
-	}
-
-	abstract public void loadProperties(InputStream inStream) throws IOException;
-
-	abstract public void loadPropertiesFromXML(InputStream inStream) throws IOException;
 
 	public void removePropertyChangeListener(final IFreeplanePropertyListener listener) {
 		propertyChangeListeners.remove(listener);
 	}
 
-	abstract public void saveProperties(Controller controller);
+	abstract public void saveProperties();
 
 	abstract public void setDefaultProperty(final String key, final String value);
 
@@ -241,11 +229,40 @@ public abstract class ResourceController {
 	}
 
 	abstract public void setProperty(final String property, final String value);
-
-	public void toggleSelectionAsRectangle() {
-		setProperty(ResourceController.RESOURCE_DRAW_RECTANGLE_FOR_SELECTION, Boolean
-		    .toString(!isSelectionAsRectangle()));
+	
+	/** adds properties from url to properties. Existing properties in resultProps will be overridden.
+	 * @return false if anything went wrong. */
+	protected static boolean loadProperties(Properties resultProps, final URL url) {
+		InputStream in = null;
+		try {
+			in = new BufferedInputStream(url.openStream());
+			resultProps.load(in);
+			System.out.println("Loaded properties from " + url);
+			return true;
+		}
+		catch (final Exception ex) {
+			System.err.println("Could not load properties from " + url);
+		}
+        finally {
+        	FileUtils.silentlyClose(in);
+        }
+		return false;
 	}
+
+	/** will add properties from propertiesUrl if they don't exist yet. */
+	public void addDefaults(URL propertiesUrl) {
+		Properties props = new Properties();
+		loadProperties(props, propertiesUrl);
+		addDefaults(props);
+    }
+
+	/** use generic to make it useable with Properties. KT and VT must be of type String. */
+	public <KT, VT> void addDefaults(Map<KT, VT> defaultProperties) {
+		for (Entry<KT, VT> entry : defaultProperties.entrySet()) {
+			if (getProperty((String) entry.getKey()) == null)
+				setProperty((String) entry.getKey(), (String) entry.getValue());
+		}
+    }
 
 	public boolean isApplet() {
 		return false;

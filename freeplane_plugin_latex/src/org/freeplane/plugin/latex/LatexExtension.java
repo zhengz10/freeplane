@@ -19,11 +19,11 @@
  */
 package org.freeplane.plugin.latex;
 
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.freeplane.core.extension.IExtension;
+import org.freeplane.view.swing.map.NodeView;
 
 /**
  * @author Dimitry Polivaev
@@ -31,35 +31,32 @@ import org.freeplane.core.extension.IExtension;
  */
 class LatexExtension implements IExtension {
 	private String equation;
-	final private Set<JLatexViewer> viewers;
+	final private Set<NodeView> viewers;
 
 	public LatexExtension() {
-		equation = "\\mbox{I}^\\fgcolor{ff0000}{\\heartsuit}\\mbox{\\JLaTeXMath}";
-		viewers = new LinkedHashSet<JLatexViewer>();
+		equation = "";
+		viewers = new LinkedHashSet<NodeView>();
 	}
 
 	public String getEquation() {
 		return equation;
 	}
 
-	Set<JLatexViewer> getViewers() {
+	Set<NodeView> getViewers() {
 		return viewers;
 	}
 
 	void removeViewers() {
-		final Iterator iterator = getViewers().iterator();
-		while (iterator.hasNext()) {
-			final JLatexViewer comp = (JLatexViewer) iterator.next();
-			comp.getParent().remove(comp);
+		for (final NodeView nodeView : viewers) {
+			nodeView.removeContent(LatexNodeHook.VIEWER_POSITION);
 		}
 		viewers.clear();
 	}
 
 	public void setEquation(final String equation) {
 		this.equation = equation;
-		final Iterator iterator = viewers.iterator();
-		while (iterator.hasNext()) {
-			final JLatexViewer comp = (JLatexViewer) iterator.next();
+		for (final NodeView nodeView : viewers) {
+			final LatexViewer comp = (LatexViewer) nodeView.getContent(LatexNodeHook.VIEWER_POSITION);
 			comp.setModel(this);
 		}
 	}

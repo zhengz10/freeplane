@@ -31,37 +31,18 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 
-import org.freeplane.core.util.LogTool;
-import org.freeplane.core.util.MultipleValueMap;
+import org.freeplane.core.util.FileUtils;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.core.util.collection.MultipleValueMap;
 
 /**
  * Class for managing localized resources. See translation property files.
  */
 public class ResourceBundles extends ResourceBundle {
+	public static final String LANGUAGE_AUTOMATIC = "automatic";
 	private static final String DEFAULT_LANGUAGE = "en";
 	public static final String POSTFIX_TRANSLATE_ME = "[translate me]";
 	public static final String RESOURCE_LANGUAGE = "language";
-
-	public static NamedObject createTranslatedString(final String key) {
-		final String fs = ResourceBundles.getText(key);
-		return new NamedObject(key, fs);
-	}
-
-	public static String getText(final String key) {
-		if (key == null) {
-			return null;
-		}
-		return ((ResourceBundles) ResourceController.getResourceController().getResources()).getResourceString(key);
-	}
-
-	public static String getText(final String key, final String defaultString) {
-		if (key == null) {
-			return defaultString;
-		}
-		return ((ResourceBundles) ResourceController.getResourceController().getResources()).getResourceString(key,
-		    defaultString);
-	}
-
 	/**
 	 *
 	 */
@@ -70,36 +51,47 @@ public class ResourceBundles extends ResourceBundle {
 	private final MultipleValueMap<String, URL> externalResources;
 	private String lang;
 	private Map<String, String> languageResources;
+	final private boolean isUserDefined;
 
 	ResourceBundles(final ResourceController controller) {
 		this.controller = controller;
+		final URL systemResource = getSystemResourceUrl(DEFAULT_LANGUAGE);
+		isUserDefined = systemResource.getProtocol().equalsIgnoreCase("file");
 		externalResources = new MultipleValueMap<String, URL>();
 		try {
 			loadLocalLanguageResources();
-			defaultResources = getLanguageResources(DEFAULT_LANGUAGE);
+			if(lang.equals(DEFAULT_LANGUAGE))
+				defaultResources = languageResources;
+			else
+				defaultResources = getLanguageResources(DEFAULT_LANGUAGE);
 		}
 		catch (final Exception ex) {
-			LogTool.severe(ex);
-			LogTool.severe("Error loading Resources");
+			LogUtils.severe(ex);
+			LogUtils.severe("Error loading Resources");
 		}
 	}
+
+	public void addResources(final String language, final Map<String, String> resources) {
+		if (language.equalsIgnoreCase(DEFAULT_LANGUAGE)) {
+			defaultResources.putAll(resources);
+		}
+		else if (language.equalsIgnoreCase(lang)) {
+			languageResources.putAll(resources);
+		}
+    }
 
 	public void addResources(final String language, final URL url) {
 		try {
-			if (language.equalsIgnoreCase(DEFAULT_LANGUAGE)) {
-				defaultResources.putAll(getLanguageResources(url));
-			}
-			else if (language.equalsIgnoreCase(lang)) {
-				languageResources.putAll(getLanguageResources(url));
-			}
+			addResources(language, getLanguageResources(url));
 			externalResources.put(language, url);
 		}
 		catch (final IOException e) {
-			LogTool.severe(e);
+			LogUtils.severe(e);
 		}
 	}
 
-	@Override
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+    @Override
 	public Enumeration getKeys() {
 		final Iterator<String> iterator = defaultResources.keySet().iterator();
 		return new Enumeration() {
@@ -116,14 +108,18 @@ public class ResourceBundles extends ResourceBundle {
 	public String getLanguageCode() {
 		return lang;
 	}
+	
+	public String getDefaultLanguageCode() {
+		return DEFAULT_LANGUAGE;
+	}
 
 	/**
 	 * @throws IOException
 	 */
 	private Map<String, String> getLanguageResources(final String lang) throws IOException {
-		final URL systemResource = ResourceController.getResourceController().getResource(
-		    "/translations/Resources" + "_" + lang + ".properties");
+		final URL systemResource = getSystemResourceUrl(lang);
 		if (systemResource == null) {
+			// no double logging: System.out.println("core resource " + resourceName + " not found");
 			return null;
 		}
 		final Map<String, String> resources = getLanguageResources(systemResource);
@@ -134,27 +130,39 @@ public class ResourceBundles extends ResourceBundle {
 		return resources;
 	}
 
-	private Map<String, String> getLanguageResources(final URL systemResource) throws IOException {
-		final InputStream in = new BufferedInputStream(systemResource.openStream());
-		if (in == null) {
-			return null;
-		}
-		final Properties bundle = new Properties();
-		bundle.load(in);
-		in.close();
-		return new HashMap(bundle);
+	protected URL getSystemResourceUrl(final String lang) {
+	    String resourceName = "/translations/Resources" + "_" + lang + ".properties";
+		final URL systemResource = ResourceController.getResourceController().getResource(resourceName);
+	    return systemResource;
+    }
+
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+    private Map<String, String> getLanguageResources(final URL systemResource) throws IOException {
+		InputStream in = null;
+		try {
+			in = new BufferedInputStream(systemResource.openStream());
+			final Properties bundle = new Properties();
+			bundle.load(in);
+			return new HashMap(bundle);
+        }
+        finally {
+        	FileUtils.silentlyClose(in);
+        }
 	}
 
-	String getResourceString(final String key) {
+	public String getResourceString(final String key) {
 		final String resourceString = getResourceString(key, key);
 		if (resourceString == key) {
-			System.err.println("missing key " + key);
+			if(isUserDefined)
+				System.out.println("missing key " + key);
+			else
+				System.err.println("missing key " + key);
 			return '[' + key + ']';
 		}
 		return resourceString;
 	}
 
-	String getResourceString(final String key, final String resource) {
+	public String getResourceString(final String key, final String resource) {
 		String value = languageResources.get(key);
 		if (value != null) {
 			return value;
@@ -166,40 +174,65 @@ public class ResourceBundles extends ResourceBundle {
 		return resource;
 	}
 
+	public String putResourceString(final String key, final String resource) {
+		return languageResources.put(key, resource);
+	}
+	
 	@Override
 	protected Object handleGetObject(final String key) {
 		try {
 			return languageResources.get(key);
 		}
 		catch (final Exception ex) {
-			LogTool.severe("Warning - resource string not found:" + key);
+			LogUtils.severe("Warning - resource string not found:" + key);
 			return defaultResources.get(key) + ResourceBundles.POSTFIX_TRANSLATE_ME;
 		}
 	}
 
 	private void loadLocalLanguageResources() throws IOException {
 		lang = controller.getProperty(ResourceBundles.RESOURCE_LANGUAGE);
-		if (lang == null || lang.equals("automatic")) {
-			lang = Locale.getDefault().getLanguage() + "_" + Locale.getDefault().getCountry();
-			if (getLanguageResources(lang) == null) {
-				lang = Locale.getDefault().getLanguage();
-				if (getLanguageResources(lang) == null) {
-					lang = DEFAULT_LANGUAGE;
+		if (lang == null || lang.equals(LANGUAGE_AUTOMATIC)) {
+			final String country = Locale.getDefault().getCountry();
+			if(! country.equals("")){
+				lang = Locale.getDefault().getLanguage() + "_" + country;
+				languageResources = getLanguageResources(lang);
+				if (languageResources != null) {
+					LogUtils.info("language resources for " + lang + " found");
+					return;
 				}
 			}
+			lang = Locale.getDefault().getLanguage();
+			languageResources = getLanguageResources(lang);
+			if (languageResources != null) {
+				LogUtils.info("language resources for " + lang + " found");
+				return;
+			}
+			LogUtils.info("language resources for " + lang + " not found");
 		}
 		if ("no".equals(lang)) {
 			lang = "nb";
 		}
 		languageResources = getLanguageResources(lang);
+		if (languageResources != null) {
+			return;
+		}
+		LogUtils.info("language resources for " + lang + " not found");
+		lang = DEFAULT_LANGUAGE;
+		languageResources = getLanguageResources(lang);
+		if (languageResources != null) {
+			return;
+		}
+		LogUtils.severe("language resources for " + lang + " not found, aborting");
+		System.exit(1);
 	}
 
-	public void reloadLanguage() {
+	public void loadAnotherLanguage() {
 		try {
-			loadLocalLanguageResources();
+			if(! lang.equals(controller.getProperty(ResourceBundles.RESOURCE_LANGUAGE)))
+				loadLocalLanguageResources();
 		}
 		catch (final IOException e) {
-			LogTool.severe(e);
+			LogUtils.severe(e);
 		}
 	}
 }

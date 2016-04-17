@@ -40,7 +40,7 @@ class StdXMLBuilder implements IXMLBuilder {
 	/**
 	 * This stack contains the current element and its parents.
 	 */
-	private Stack stack;
+	private Stack<XMLElement> stack;
 
 	/**
 	 * Creates the builder.
@@ -233,7 +233,7 @@ class StdXMLBuilder implements IXMLBuilder {
 	 *            the line on which the parsing starts.
 	 */
 	public void startBuilding(final String systemID, final int lineNr) {
-		stack = new Stack();
+		stack = new Stack<XMLElement>();
 		root = null;
 	}
 
@@ -261,7 +261,7 @@ class StdXMLBuilder implements IXMLBuilder {
 		if (nsPrefix != null) {
 			fullName = nsPrefix + ':' + name;
 		}
-		final XMLElement elt = prototype.createElement(fullName, nsURI, systemID, lineNr);
+		final XMLElement elt = new XMLElement(fullName, nsURI, systemID, lineNr);
 		if (stack.empty()) {
 			root = elt;
 		}

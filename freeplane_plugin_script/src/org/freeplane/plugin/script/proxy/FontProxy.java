@@ -3,15 +3,15 @@
  */
 package org.freeplane.plugin.script.proxy;
 
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.features.common.nodestyle.NodeStyleController;
-import org.freeplane.features.common.nodestyle.NodeStyleModel;
-import org.freeplane.features.mindmapmode.MModeController;
-import org.freeplane.features.mindmapmode.nodestyle.MNodeStyleController;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.nodestyle.NodeStyleController;
+import org.freeplane.features.nodestyle.NodeStyleModel;
+import org.freeplane.features.nodestyle.mindmapmode.MNodeStyleController;
+import org.freeplane.plugin.script.ScriptContext;
 
 class FontProxy extends AbstractProxy<NodeModel> implements Proxy.Font {
-	FontProxy(final NodeModel delegate, final MModeController modeController) {
-		super(delegate, modeController);
+	FontProxy(final NodeModel delegate, final ScriptContext scriptContext) {
+		super(delegate, scriptContext);
 	}
 
 	public String getName() {
@@ -23,7 +23,7 @@ class FontProxy extends AbstractProxy<NodeModel> implements Proxy.Font {
 	}
 
 	private MNodeStyleController getStyleController() {
-		return (MNodeStyleController) NodeStyleController.getController(getModeController());
+		return (MNodeStyleController) NodeStyleController.getController();
 	}
 
 	public boolean isBold() {

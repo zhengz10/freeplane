@@ -24,28 +24,33 @@ import java.security.AccessControlException;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingConstants;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.filter.FilterController;
-import org.freeplane.core.icon.IconController;
-import org.freeplane.core.modecontroller.MapController;
 import org.freeplane.core.ui.components.FreeplaneToolBar;
-import org.freeplane.core.url.UrlManager;
-import org.freeplane.core.util.LogTool;
-import org.freeplane.features.browsemode.BModeController;
-import org.freeplane.features.browsemode.BNodeNoteViewer;
-import org.freeplane.features.browsemode.BToolbarContributor;
-import org.freeplane.features.common.addins.mapstyle.MapStyle;
-import org.freeplane.features.common.attribute.AttributeController;
-import org.freeplane.features.common.clipboard.ClipboardController;
-import org.freeplane.features.common.cloud.CloudController;
-import org.freeplane.features.common.edge.EdgeController;
-import org.freeplane.features.common.link.LinkController;
-import org.freeplane.features.common.nodelocation.LocationController;
-import org.freeplane.features.common.nodestyle.NodeStyleController;
-import org.freeplane.features.common.note.NoteController;
-import org.freeplane.features.common.text.TextController;
-import org.freeplane.view.swing.addins.filepreview.ViewerController;
-import org.freeplane.view.swing.addins.nodehistory.NodeHistory;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.features.attribute.AttributeController;
+import org.freeplane.features.clipboard.ClipboardController;
+import org.freeplane.features.cloud.CloudController;
+import org.freeplane.features.edge.EdgeController;
+import org.freeplane.features.encrypt.EncryptionController;
+import org.freeplane.features.filter.FilterController;
+import org.freeplane.features.icon.IconController;
+import org.freeplane.features.link.LinkController;
+import org.freeplane.features.map.FreeNode;
+import org.freeplane.features.map.MapController;
+import org.freeplane.features.map.SummaryNode;
+import org.freeplane.features.map.FoldingController;
+import org.freeplane.features.mapio.MapIO;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.browsemode.BModeController;
+import org.freeplane.features.nodelocation.LocationController;
+import org.freeplane.features.nodestyle.NodeStyleController;
+import org.freeplane.features.note.NoteController;
+import org.freeplane.features.styles.AutomaticLayoutController;
+import org.freeplane.features.styles.LogicalStyleController;
+import org.freeplane.features.styles.MapStyle;
+import org.freeplane.features.text.TextController;
+import org.freeplane.features.ui.ViewController;
+import org.freeplane.features.url.UrlManager;
+import org.freeplane.view.swing.features.filepreview.ViewerController;
 import org.freeplane.view.swing.ui.UserInputListenerFactory;
 
 /**
@@ -54,43 +59,50 @@ import org.freeplane.view.swing.ui.UserInputListenerFactory;
 public class BModeControllerFactory {
 	private static BModeController modeController;
 
-	static public BModeController createModeController(final Controller controller, final String menuStructure) {
+	static public BModeController createModeController() {
+		final Controller controller = Controller.getCurrentController();
 		modeController = new BModeController(controller);
 		final UserInputListenerFactory userInputListenerFactory = new UserInputListenerFactory(modeController);
 		modeController.setUserInputListenerFactory(userInputListenerFactory);
 		controller.addModeController(modeController);
-		modeController.setMapController(new MapController(modeController));
-		UrlManager.install(modeController, new UrlManager(modeController));
-		AttributeController.install(modeController, new AttributeController(modeController));
-		LinkController.install(modeController, new LinkController(modeController));
-		IconController.install(modeController, new IconController(modeController));
-		NodeStyleController.install(modeController, new NodeStyleController(modeController));
-		EdgeController.install(modeController, new EdgeController(modeController));
-		CloudController.install(modeController, new CloudController(modeController));
-		NoteController.install(modeController, new NoteController(modeController));
-		TextController.install(modeController, new TextController(modeController));
+		controller.selectModeForBuild(modeController);
+		new MapController(modeController);
+		IconController.install(new IconController(modeController));
+		UrlManager.install(new UrlManager());
+		MapIO.install(modeController);
+		AttributeController.install(new AttributeController(modeController));
+		NodeStyleController.install(new NodeStyleController(modeController));
+		EdgeController.install(new EdgeController(modeController));
+		CloudController.install(new CloudController(modeController));
+		NoteController.install(new NoteController());
+		TextController.install(new TextController(modeController));
+		LinkController.install(new LinkController());
+		LogicalStyleController.install(new LogicalStyleController(modeController));
 		try {
-			ClipboardController.install(modeController, new ClipboardController(modeController));
+			ClipboardController.install(new ClipboardController());
 		}
 		catch (final AccessControlException e) {
-			LogTool.warn("can not access system clipboard, clipboard controller disabled");
+			LogUtils.warn("can not access system clipboard, clipboard controller disabled");
 		}
-		LocationController.install(modeController, new LocationController(modeController));
-		new MapStyle(modeController);
-		modeController.getMapController().addNodeSelectionListener(new BNodeNoteViewer(modeController.getController()));
-		final BToolbarContributor toolbarContributor = new BToolbarContributor(modeController);
+		LocationController.install(new LocationController());
+		SummaryNode.install();
+		FreeNode.install();
+		MapStyle.install(true);
+		final BToolbarContributor toolbarContributor = new BToolbarContributor();
 		modeController.addMenuContributor(toolbarContributor);
 		controller.getMapViewManager().addMapViewChangeListener(toolbarContributor);
 		userInputListenerFactory.setNodePopupMenu(new JPopupMenu());
-		userInputListenerFactory.addMainToolBar("/main_toolbar", new FreeplaneToolBar("main_toolbar",
-		    SwingConstants.HORIZONTAL));
-		userInputListenerFactory.addMainToolBar("/filter_toolbar", FilterController.getController(controller)
-		    .getFilterToolbar());
-		userInputListenerFactory.setMenuStructure(menuStructure);
-		userInputListenerFactory.updateMenus(modeController);
-		modeController.updateMenus();
-		new ViewerController(modeController);
-		NodeHistory.install(modeController);
+		final FreeplaneToolBar toolBar = new FreeplaneToolBar("main_toolbar", SwingConstants.HORIZONTAL);
+		toolBar.putClientProperty(ViewController.VISIBLE_PROPERTY_KEY, "toolbarVisible");
+		userInputListenerFactory.addToolBar("/main_toolbar", ViewController.TOP, toolBar);
+		userInputListenerFactory.addToolBar("/filter_toolbar", ViewController.TOP, FilterController.getController(
+		    controller).getFilterToolbar());
+		userInputListenerFactory.addToolBar("/status", ViewController.BOTTOM, controller.getViewController()
+		    .getStatusBar());
+		FoldingController.install(new FoldingController());
+		new ViewerController();
+		EncryptionController.install(new EncryptionController(modeController));
+		new AutomaticLayoutController();
 		return modeController;
 	}
 }

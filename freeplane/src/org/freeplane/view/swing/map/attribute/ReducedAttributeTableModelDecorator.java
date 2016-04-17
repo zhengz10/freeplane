@@ -24,18 +24,15 @@ import java.util.Vector;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.TableModelEvent;
 
-import org.freeplane.features.common.attribute.Attribute;
-import org.freeplane.features.mindmapmode.attribute.MAttributeController;
+import org.freeplane.features.attribute.Attribute;
+import org.freeplane.features.attribute.mindmapmode.MAttributeController;
 
 /**
  * @author Dimitry Polivaev
  */
 class ReducedAttributeTableModelDecorator extends AttributeTableModelDecoratorAdapter {
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
-	private Vector index = null;
+	private Vector<Integer> index = null;
 	private int visibleRowCount;
 
 	ReducedAttributeTableModelDecorator(final AttributeView attrView) {
@@ -64,12 +61,12 @@ class ReducedAttributeTableModelDecorator extends AttributeTableModelDecoratorAd
 	}
 
 	private int calcRow(final int row) {
-		return ((Integer) index.get(row)).intValue();
+		return index.get(row).intValue();
 	}
 
-	private Vector getIndex() {
+	private Vector<Integer> getIndex() {
 		if (index == null && getAttributeRegistry().getVisibleElementsNumber() > 0) {
-			index = new Vector(getNodeAttributeModel().getRowCount(), 10);
+			index = new Vector<Integer>(getNodeAttributeModel().getRowCount(), 10);
 		}
 		return index;
 	}
@@ -79,6 +76,8 @@ class ReducedAttributeTableModelDecorator extends AttributeTableModelDecoratorAd
 	}
 
 	public Object getValueAt(final int row, final int col) {
+		if(index == null)
+			return null;
 		return getNodeAttributeModel().getValueAt(calcRow(row), col);
 	}
 
@@ -142,6 +141,7 @@ class ReducedAttributeTableModelDecorator extends AttributeTableModelDecoratorAd
 	}
 
 	public void tableChanged(final TableModelEvent e) {
+		super.tableChanged(e);
 		if (e.getType() != TableModelEvent.UPDATE || e.getColumn() != 0) {
 			rebuildTableModel();
 		}

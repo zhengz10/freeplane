@@ -11,7 +11,7 @@
 ; Predrag Cuklin 18/06/2009 - Universial Version
 ;****************************************************************************
 
-#define MyVersion "1.1.2"
+#define MyVersion "1.2.19 beta"
 #define MyAppName "Freeplane"
 #define MyAppVerName "Freeplane"
 #define MyAppPublisher "Open source"
@@ -22,7 +22,7 @@
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{D3941722-C4DD-4509-88C4-0E87F675A859}
-AppCopyright=Copyright © 2000-2010 Joerg Mueller, Daniel Polansky, Christian Foltin, Dimitry Polivaev, Predrag Cuklin  and others.
+AppCopyright=Copyright © 2000-2012 Freeplane team and others
 AppName={#MyAppName}
 AppVerName={#MyAppVerName}
 AppPublisher={#MyAppPublisher}
@@ -34,7 +34,7 @@ DefaultGroupName={#MyAppName}
 OutputDir=..\dist
 OutputBaseFilename=Freeplane-Setup-{#MyVersion}
 SetupIconFile=Setup.ico
-VersionInfoDescription=Amazing open source program for mind mapping
+VersionInfoDescription=Free mind mapping software. Fast. Simple. Streamlined.
 ChangesAssociations=true
 PrivilegesRequired=none
 AllowNoIcons=true
@@ -82,16 +82,17 @@ Filename: {app}\{#MyAppExeName}; Description: {cm:LaunchProgram,{#MyAppName}}; F
 ;".myp" is the extension we're associating. "MyProgramFile" is the internal name for the file type as stored in the registry. Make sure you use a unique name for this so you don't inadvertently overwrite another application's registry key.
 ;"My Program File" above is the name for the file type as shown in Explorer.
 ;"DefaultIcon" is the registry key that specifies the filename containing the icon to associate with the file type. ",0" tells Explorer to use the first icon from MYPROG.EXE. (",1" would mean the second icon.)
-Root: HKLM; Subkey: Software\JavaSoft\Prefs
-Root: HKCR; Subkey: Applications\freeplane.exe; Flags: deletekey; Tasks: associate
-Root: HKCR; Subkey: .mm; Flags: deletekey; Tasks: associate
-Root: HKLM; Subkey: SOFTWARE\Classes\.mm; Flags: deletekey; Tasks: associate
-Root: HKCU; Subkey: Software\Classes\Applications\freeplane.exe; Flags: deletekey; Tasks: associate
-Root: HKCU; Subkey: Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.mm; Flags: deletekey; Tasks: associate
-Root: HKCR; SubKey: .mm; ValueType: string; ValueData: Freeplane; Flags: uninsdeletekey; Tasks: associate
-Root: HKCR; SubKey: Freeplane; ValueType: string; ValueData: Freeplane mind map; Flags: uninsdeletekey; Tasks: associate
-Root: HKCR; SubKey: Freeplane\Shell\Open\Command; ValueType: string; ValueData: """{app}\freeplane.exe"" ""%1"""; Flags: uninsdeletevalue; Tasks: associate
-Root: HKCR; Subkey: Freeplane\DefaultIcon; ValueType: string; ValueData: {app}\freeplane.exe,1; Flags: uninsdeletevalue; Tasks: associate
+Root: "HKLM"; Subkey: "Software\JavaSoft\Prefs"
+Root: "HKCR"; Subkey: "Applications\freeplane.exe"; Flags: deletekey; Tasks: associate
+Root: "HKCR"; Subkey: ".mm"; Flags: deletekey; Tasks: associate
+Root: "HKLM"; Subkey: "SOFTWARE\Classes\.mm"; Flags: deletekey; Tasks: associate
+Root: "HKCU"; Subkey: "Software\Classes\Applications\freeplane.exe"; Flags: deletekey; Tasks: associate
+Root: "HKCU"; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.mm"; Flags: deletekey; Tasks: associate
+Root: "HKCR"; Subkey: ".mm"; ValueType: string; ValueData: "Freeplane"; Flags: uninsdeletekey; Tasks: associate
+Root: "HKCR"; Subkey: "Freeplane"; ValueType: string; ValueData: "Freeplane mind map"; Flags: uninsdeletekey; Tasks: associate
+Root: "HKCR"; Subkey: "Freeplane\Shell\Open\Command"; ValueType: string; ValueData: """{app}\freeplane.exe"" ""%1"""; Flags: uninsdeletevalue; Tasks: associate
+Root: "HKCR"; Subkey: "Freeplane\DefaultIcon"; ValueType: string; ValueData: "{app}\freeplaneIcons.dll,0"; Flags: uninsdeletevalue; Tasks: associate
+
 [InstallDelete]
 Name: {app}\core; Type: filesandordirs
 Name: {app}\plugins; Type: filesandordirs; Tasks: ; Languages: 
@@ -129,3 +130,5 @@ function InitializeSetup(): Boolean;
 begin
 	Result := CheckJavaVersion;
 end;
+[Dirs]
+Name: {userappdata}\Freeplane; Flags: uninsneveruninstall; Tasks: ; Languages: 

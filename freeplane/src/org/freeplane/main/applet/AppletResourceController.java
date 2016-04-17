@@ -19,43 +19,33 @@
  */
 package org.freeplane.main.applet;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.util.Enumeration;
-import java.util.InvalidPropertiesFormatException;
 import java.util.Properties;
 
 import javax.swing.JApplet;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.resources.ResourceController;
 
 /**
  * @author Dimitry Polivaev
  */
 class AppletResourceController extends ResourceController {
+	private static final String APPLET_PROPERTIES = "/special_applet.properties";
 	private Properties userProps;
 
 	public AppletResourceController(final FreeplaneApplet freeplaneApplet) {
 		super();
 		final URL defaultPropsURL = getResource(ResourceController.FREEPLANE_PROPERTIES);
-		try {
-			userProps = new Properties();
-			final InputStream in = new BufferedInputStream(defaultPropsURL.openStream());
-			userProps.load(in);
-			in.close();
-		}
-		catch (final Exception ex) {
-			System.err.println("Could not load properties.");
-		}
-		final Enumeration allKeys = userProps.propertyNames();
+		userProps = new Properties();
+		loadProperties(userProps, defaultPropsURL);
+		final URL appletPropsURL = getResource(APPLET_PROPERTIES);
+		loadProperties(userProps, appletPropsURL);
+		final Enumeration<?> allKeys = userProps.propertyNames();
 		while (allKeys.hasMoreElements()) {
 			final String key = (String) allKeys.nextElement();
 			setPropertyByParameter(freeplaneApplet, key);
 		}
-		ResourceController.setResourceController(this);
 	}
 
 	@Override
@@ -94,26 +84,17 @@ class AppletResourceController extends ResourceController {
 	}
 
 	@Override
-	public void init(final Controller controller) {
-		super.init(controller);
+	public void init() {
+		super.init();
 	}
 
 	@Override
-	public void loadProperties(final InputStream inStream) throws IOException {
-		userProps.load(inStream);
-	}
-
-	@Override
-	public void loadPropertiesFromXML(final InputStream in) throws IOException, InvalidPropertiesFormatException {
-		userProps.loadFromXML(in);
-	}
-
-	@Override
-	public void saveProperties(final Controller controller) {
+	public void saveProperties() {
 	}
 
 	@Override
 	public void setDefaultProperty(final String key, final String value) {
+		// FIXME: shouldn't this be if (!userProps.contains(key)) ??
 		userProps.setProperty(key, value);
 	}
 

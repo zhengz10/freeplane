@@ -1,14 +1,19 @@
 package org.freeplane.core.util;
 
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.ui.MenuBuilder;
+import org.freeplane.features.mode.Controller;
 
 /**
  * Provides methods and constants which are dependend on the underlying java version
@@ -24,6 +29,16 @@ public class Compat {
 	};
 
 	private static OS os = null;
+	public static final Set<String> executableExtensions = new HashSet<String>(Arrays.asList(new String[] { "exe",
+	        "com", "vbs", "bat", "lnk", "cmd" }));
+
+	public static boolean isWindowsExecutable(final URI link) {
+		if (link == null 
+				|| !"file".equalsIgnoreCase(link.getScheme())) {
+			return false;
+		}
+		return isWindowsOS() && executableExtensions.contains(FileUtils.getExtension(link.toString()));
+	}
 
 	public static URL fileToUrl(final File pFile) throws MalformedURLException {
 		return pFile.toURL();
@@ -79,49 +94,57 @@ public class Compat {
 	 * slightly differently.
 	 */
 	private static String urlGetFile(final URL url) {
+		if( !url.getProtocol().equals("file"))
+			return null;
+		String fileName = url.toString().replaceFirst("^file:", "");
 		final String osNameStart = System.getProperty("os.name").substring(0, 3);
 		if (osNameStart.equals("Win") && url.getProtocol().equals("file")) {
-			final String fileName = url.toString().replaceFirst("^file:", "").replace('/', '\\');
+			fileName = fileName.replace('/', File.separatorChar);
 			return (fileName.indexOf(':') >= 0) ? fileName.replaceFirst("^\\\\*", "") : fileName;
 		}
 		else {
-			return url.getFile();
+			return fileName;
 		}
 	}
 
 	public static File urlToFile(final URL pUrl) throws URISyntaxException {
-		return new File(Compat.urlGetFile(pUrl));
+		final String path = Compat.urlGetFile(pUrl);
+		if(path != null)
+			return new File(path);
+		else
+			return null;
 	}
 
-	public static void macAppChanges(final Controller controller) {
+	public static void macAppChanges() {
 		if (!Compat.isMacOsX()) {
 			return;
 		}
 		try {
-			final Class<?> macChanges = controller.getClass().getClassLoader().loadClass(
+			final Class<?> macChanges = Controller.class.getClassLoader().loadClass(
 			    "org.freeplane.plugin.macos.MacChanges");
 			final Method method = macChanges.getMethod("apply", Controller.class);
-			method.invoke(null, controller);
+			method.invoke(null, Controller.getCurrentController());
 		}
 		catch (final Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	public static void macMenuChanges(final Controller controller) {
+	public static void macMenuChanges() {
 		if (!Compat.isMacOsX()) {
 			return;
 		}
-		final Set<String> modes = controller.getModes();
+		final Controller controller = Controller.getCurrentController();
+		final Set<String> modes = controller .getModes();
 		for (final String mode : modes) {
 			final MenuBuilder builder = controller.getModeController(mode).getUserInputListenerFactory()
 			    .getMenuBuilder();
 			final String[] keys = { 
-					"/menu_bar/view/toolbars/ToggleMenubarAction", 
-					"/map_popup/toolbars/ToggleMenubarAction", 
-					"/menu_bar/file/quit",
-			        "/menu_bar/extras/first/options/PropertyAction", 
-			        "/menu_bar/help/doc/AboutAction" 
+					"MB_ToggleMenubarAction", 
+					"MP_ToggleMenubarAction", 
+					"MB_QuitAction",
+			        "MB_PropertyAction", 
+			        "MB_AboutAction" 
 			};
 			for (final String key : keys) {
 				if (builder.contains(key)) {
@@ -130,4 +153,64 @@ public class Compat {
 			}
 		}
 	}
+	final private static String PREVIEW_DIR=File.separatorChar + "1.2.x";
+	
+	public static String getFreeplaneUserDirectory() {
+		String userFpDir = System.getProperty("org.freeplane.userfpdir");
+		if(userFpDir == null){
+			userFpDir = System.getProperty("user.home")+ File.separator + ".freeplane";
+		}
+		if(PREVIEW_DIR != null)
+			return userFpDir + PREVIEW_DIR;
+		return userFpDir;
+	}
+
+	static public String smbUri2unc(final URI uri) {
+		String uriString;
+ 		uriString = ("//" + uri.getHost() + uri.getPath()) .replace('/', '\\');
+		final String fragment = uri.getFragment();
+		if(fragment != null)
+			uriString = uriString + '#' + fragment;
+		return uriString;
+	}
+
+	static public boolean isPlainEvent(final MouseEvent e) {
+        final int modifiers = getModifiers(e);
+        return modifiers == 0;
+    }
+
+	private static int getModifiers(final MouseEvent e) {
+	    return e.getModifiersEx() & 
+        		(InputEvent.CTRL_DOWN_MASK 
+        				| InputEvent.META_DOWN_MASK
+        				| InputEvent.SHIFT_DOWN_MASK
+        				| InputEvent.ALT_DOWN_MASK
+        				);
+    }
+
+	static public boolean isCtrlEvent(final MouseEvent e) {
+         return isExtendedCtrlEvent(e, 0);
+    }
+
+	public static boolean isCtrlShiftEvent(MouseEvent e) {
+		return isExtendedCtrlEvent(e, InputEvent.SHIFT_DOWN_MASK);
+    }
+	
+	public static boolean isCtrlAltEvent(MouseEvent e) {
+		return isExtendedCtrlEvent(e, InputEvent.ALT_DOWN_MASK);
+    }
+	
+	static private boolean isExtendedCtrlEvent(final MouseEvent e, int otherModifiers) {
+        final int modifiers = getModifiers(e);
+		if (isMacOsX())
+        	return modifiers == (InputEvent.META_DOWN_MASK | otherModifiers);
+        return modifiers == (InputEvent.CTRL_DOWN_MASK|otherModifiers);
+    }
+
+	public static boolean isShiftEvent(MouseEvent e) {
+        final int modifiers = getModifiers(e);
+        return modifiers == InputEvent.SHIFT_DOWN_MASK;
+    }
+
+
 }

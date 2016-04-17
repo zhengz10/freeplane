@@ -21,8 +21,8 @@ package org.freeplane.main.application;
 
 import java.awt.event.ActionEvent;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.ui.AFreeplaneAction;
+import org.freeplane.features.mode.Controller;
 
 class NavigationPreviousMapAction extends AFreeplaneAction {
 	/**
@@ -30,12 +30,12 @@ class NavigationPreviousMapAction extends AFreeplaneAction {
 	 */
 	private static final long serialVersionUID = 1L;
 
-	NavigationPreviousMapAction(final Controller controller) {
-		super("NavigationPreviousMapAction", controller);
+	NavigationPreviousMapAction() {
+		super("NavigationPreviousMapAction");
 		setEnabled(false);
 	}
 
 	public void actionPerformed(final ActionEvent event) {
-		getController().getMapViewManager().previousMapView();
+		Controller.getCurrentController().getMapViewManager().previousMapView();
 	}
 }

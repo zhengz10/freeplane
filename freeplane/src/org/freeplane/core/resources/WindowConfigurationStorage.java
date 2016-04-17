@@ -10,7 +10,7 @@ import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.util.LogTool;
+import org.freeplane.core.util.LogUtils;
 import org.freeplane.n3.nanoxml.IXMLParser;
 import org.freeplane.n3.nanoxml.IXMLReader;
 import org.freeplane.n3.nanoxml.StdXMLReader;
@@ -19,11 +19,17 @@ import org.freeplane.n3.nanoxml.XMLException;
 import org.freeplane.n3.nanoxml.XMLParserFactory;
 import org.freeplane.n3.nanoxml.XMLWriter;
 
-abstract public class WindowConfigurationStorage {
+public class WindowConfigurationStorage {
 	protected int height;
 	protected int width;
 	protected int x;
 	protected int y;
+	final private String name;
+
+	public WindowConfigurationStorage(String name) {
+	    super();
+	    this.name = name;
+    }
 
 	public int getHeight() {
 		return height;
@@ -47,6 +53,7 @@ abstract public class WindowConfigurationStorage {
 		xml.setAttribute("y", Integer.toString(y));
 		xml.setAttribute("width", Integer.toString(width));
 		xml.setAttribute("height", Integer.toString(height));
+		xml.setName(name);
 		marshallSpecificElements(xml);
 		final StringWriter string = new StringWriter();
 		final XMLWriter writer = new XMLWriter(string);
@@ -55,12 +62,13 @@ abstract public class WindowConfigurationStorage {
 			return string.toString();
 		}
 		catch (final IOException e) {
-			LogTool.severe(e);
+			LogUtils.severe(e);
 			return null;
 		}
 	}
 
-	abstract protected void marshallSpecificElements(XMLElement xml);
+	protected void marshallSpecificElements(XMLElement xml){
+	};
 
 	public void setHeight(final int height) {
 		this.height = height;
@@ -78,6 +86,9 @@ abstract public class WindowConfigurationStorage {
 		this.y = y;
 	}
 
+	public void storeDialogPositions(final JDialog dialog) {
+		storeDialogPositions(dialog, name);
+	}
 	public void storeDialogPositions(final JDialog dialog, final String window_preference_storage_property) {
 		setX((dialog.getX()));
 		setY((dialog.getY()));
@@ -87,6 +98,13 @@ abstract public class WindowConfigurationStorage {
 		ResourceController.getResourceController().setProperty(window_preference_storage_property, marshalled);
 	}
 
+	public XMLElement restoreDialogPositions(final JDialog dialog) {
+		return restoreDialogPositions(dialog, name);
+	}
+	public XMLElement restoreDialogPositions(final JDialog dialog, final String window_preference_storage_property) {
+		String marshalled = ResourceController.getResourceController().getProperty(window_preference_storage_property);
+		return unmarschall(marshalled, dialog);
+	}
 	protected XMLElement unmarschall(final String marshalled, final JDialog dialog) {
 		if (marshalled != null) {
 			final IXMLParser parser = XMLParserFactory.createDefaultXMLParser();
@@ -95,19 +113,19 @@ abstract public class WindowConfigurationStorage {
 			try {
 				final XMLElement storage = (XMLElement) parser.parse();
 				if (storage != null) {
-					x = Integer.parseInt(storage.getAttribute("x", null));
-					y = Integer.parseInt(storage.getAttribute("y", null));
-					width = Integer.parseInt(storage.getAttribute("width", null));
-					height = Integer.parseInt(storage.getAttribute("height", null));
+					x = Integer.parseInt(storage.getAttribute("x", "-1"));
+					y = Integer.parseInt(storage.getAttribute("y", "-1"));
+					width = Integer.parseInt(storage.getAttribute("width", "-1"));
+					height = Integer.parseInt(storage.getAttribute("height", "-1"));
 					UITools.setBounds(dialog, x, y, width, height);
 					return storage;
 				}
 			}
 			catch (final NumberFormatException e) {
-				LogTool.severe(e);
+				LogUtils.severe(e);
 			}
 			catch (final XMLException e) {
-				LogTool.severe(e);
+				LogUtils.severe(e);
 			}
 		}
 		final Frame rootFrame = JOptionPane.getFrameForComponent(dialog);

@@ -30,16 +30,19 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
 import java.net.URL;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.Set;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
 import javax.swing.ButtonGroup;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -53,26 +56,28 @@ import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.io.IElementHandler;
 import org.freeplane.core.io.ReadManager;
 import org.freeplane.core.io.xml.TreeXmlReader;
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.MapModel;
-import org.freeplane.core.resources.FpStringUtils;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.resources.ResourceController;
+import org.freeplane.core.resources.SetBooleanPropertyAction;
 import org.freeplane.core.ui.components.JAutoCheckBoxMenuItem;
 import org.freeplane.core.ui.components.JAutoRadioButtonMenuItem;
 import org.freeplane.core.ui.components.JAutoToggleButton;
 import org.freeplane.core.ui.components.JFreeplaneMenuItem;
 import org.freeplane.core.ui.components.UITools;
 import org.freeplane.core.util.Compat;
-import org.freeplane.core.util.LogTool;
+import org.freeplane.core.util.FileUtils;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.map.MapModel;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.ModeController;
 import org.freeplane.n3.nanoxml.XMLElement;
-import org.freeplane.n3.nanoxml.XMLException;
 
 public class MenuBuilder extends UIBuilder {
+	private static final String EXTRA_SUBMENU = MenuBuilder.class.getName()+".extra_submenu";
+	private static final int MAX_MENU_ITEM_COUNT = ResourceController.getResourceController().getIntProperty("max_menu_item_count");
 	private static class ActionHolder implements INameMnemonicHolder {
 		final private Action action;
 
@@ -95,6 +100,8 @@ public class MenuBuilder extends UIBuilder {
 		 * freeplane.main.Tools.IAbstractButton#setDisplayedMnemonicIndex(int)
 		 */
 		public void setDisplayedMnemonicIndex(final int mnemoSignIndex) {
+			action.putValue("SwingDisplayedMnemonicIndexKey", mnemoSignIndex);
+			
 		}
 
 		/*
@@ -232,24 +239,28 @@ public class MenuBuilder extends UIBuilder {
 	private static class MenuPath {
 		static MenuPath emptyPath() {
 			final MenuPath menuPath = new MenuPath("");
-			menuPath.path = "";
+			menuPath.key = "";
 			return menuPath;
 		}
 
-		String parentPath;
-		String path;
+		String parentKey;
+		String key;
 
-		MenuPath(final String path) {
-			parentPath = path;
+		MenuPath(final String key) {
+			parentKey = key;
 		}
 
-		void setName(final String name) {
-			path = parentPath + '/' + name;
+		void setKey(final String name) {
+			key = name;
+		}
+
+		void setLastKeySection(final String name) {
+			key = parentKey + '/' + name;
 		}
 
 		@Override
 		public String toString() {
-			return path;
+			return key;
 		}
 	}
 
@@ -261,34 +272,47 @@ public class MenuBuilder extends UIBuilder {
 				}
 				final MenuPath menuPath = new MenuPath(parent.toString());
 				final String action = attributes.getAttribute("action", null);
-				menuPath.setName(action);
-				String accelerator = attributes.getAttribute("accelerator", null);
-				if (accelerator != null) {
-					if (Compat.isMacOsX()) {
-						accelerator = accelerator.replaceFirst("CONTROL", "META").replaceFirst("control", "meta");
-					}
-					setDefaultAccelerator(menuPath.path, accelerator);
-				}
+				final String plugin = attributes.getAttribute("plugin", null);
+				if(plugin != null && ! plugins.contains(plugin))
+				    return null;
 				try {
-					final AFreeplaneAction theAction = modeController.getAction(action);
+				    AFreeplaneAction theAction = modeController.getAction(action);
 					if (theAction == null) {
-						LogTool.severe("action " + action + " not found");
-						return null;
+						if(action.startsWith("SetBooleanPropertyAction.")){
+							String propertyName = action.substring("SetBooleanPropertyAction.".length());
+							theAction = new SetBooleanPropertyAction(propertyName);
+							modeController.addAction(theAction);
+						}
+						else{
+						    LogUtils.severe("action " + action + " not found");
+						    return null;
+						}
+					}
+					String menuKey = attributes.getAttribute("menu_key", null);
+					if(menuKey == null)
+					    menuKey = getMenuKey(menuPath.parentKey, theAction.getKey());
+					menuPath.setKey(menuKey);
+					String accelerator = attributes.getAttribute("accelerator", null);
+					if (accelerator != null) {
+					    if (Compat.isMacOsX()) {
+					        accelerator = accelerator.replaceFirst("CONTROL", "META").replaceFirst("control", "meta");
+					    }
+					    setDefaultAccelerator(menuPath.key, accelerator);
 					}
 					if (tag.equals("menu_radio_action")) {
-						final JRadioButtonMenuItem item = (JRadioButtonMenuItem) addRadioItem(menuPath.parentPath,
-						    theAction, "true".equals(attributes.getAttribute("selected", "false")));
+						final JRadioButtonMenuItem item = (JRadioButtonMenuItem) 
+						addRadioItem(menuPath.parentKey, menuPath.key, theAction, "true".equals(attributes.getAttribute("selected", "false")));
 						if (buttonGroup == null) {
 							buttonGroup = new ButtonGroup();
 						}
 						buttonGroup.add(item);
 					}
 					else {
-						addAction(menuPath.parentPath, theAction, MenuBuilder.AS_CHILD);
+					    addAction(menuPath.parentKey, menuPath.key, theAction, MenuBuilder.AS_CHILD);
 					}
 				}
 				catch (final Exception e) {
-					LogTool.severe(e);
+					LogUtils.severe(e);
 				}
 				return menuPath;
 			}
@@ -299,19 +323,33 @@ public class MenuBuilder extends UIBuilder {
 				if (attributes == null) {
 					return null;
 				}
+				final String plugin = attributes.getAttribute("plugin", null);
+				if(plugin != null && ! plugins.contains(plugin))
+					return null;
 				buttonGroup = null;
 				final MenuPath menuPath = new MenuPath(parent.toString());
-				menuPath.setName(attributes.getAttribute("name", null));
-				if (!contains(menuPath.path)) {
+				final String menuKey = attributes.getAttribute("menu_key", null);
+				if(menuKey == null)
+					menuPath.setLastKeySection(attributes.getAttribute("name", null));
+				else
+					menuPath.setKey(menuKey);
+				if (!contains(menuPath.key)) {
 					if (tag.equals("menu_submenu")) {
 						final JMenu menuItem = new JMenu();
-						MenuBuilder.setLabelAndMnemonic(menuItem, ResourceBundles.getText(attributes.getAttribute(
-						    "name_ref", null)));
-						addMenuItem(menuPath.parentPath, menuItem, menuPath.path, MenuBuilder.AS_CHILD);
+						String nameRef = attributes.getAttribute("name_ref", null);
+						if(nameRef == null)
+						    nameRef = attributes.getAttribute("name", null);
+						final String iconResource = ResourceController.getResourceController().getProperty(nameRef + ".icon", null);
+						MenuBuilder.setLabelAndMnemonic(menuItem, TextUtils.getRawText(nameRef));
+						if(iconResource != null){
+							final URL url = ResourceController.getResourceController().getResource(iconResource);
+							menuItem.setIcon(new ImageIcon(url));
+						}
+						addMenuItem(menuPath.parentKey, menuItem, menuPath.key, MenuBuilder.AS_CHILD);
 					}
 					else {
-						if (!(menuPath.parentPath.equals(""))) {
-							addMenuItemGroup(menuPath.parentPath, menuPath.path, MenuBuilder.AS_CHILD);
+						if (!(menuPath.parentKey.equals(""))) {
+							addMenuItemGroup(menuPath.parentKey, menuPath.key, MenuBuilder.AS_CHILD);
 						}
 					}
 				}
@@ -346,16 +384,18 @@ public class MenuBuilder extends UIBuilder {
 		}
 
 		public void processMenu(final URL menu) {
-			final TreeXmlReader reader = new TreeXmlReader(readManager);
+			InputStreamReader streamReader = null;
 			try {
-				reader.load(new InputStreamReader(new BufferedInputStream(menu.openStream())));
+				streamReader = new InputStreamReader(new BufferedInputStream(menu.openStream()));
+				final TreeXmlReader reader = new TreeXmlReader(readManager);
+				reader.load(streamReader);
 			}
-			catch (final IOException e) {
+			catch (final Exception e) {
 				throw new RuntimeException(e);
 			}
-			catch (final XMLException e) {
-				throw new RuntimeException(e);
-			}
+	        finally {
+	        	FileUtils.silentlyClose(streamReader);
+	        }
 		}
 	}
 
@@ -364,19 +404,19 @@ public class MenuBuilder extends UIBuilder {
 
 	static public JMenu createMenu(final String name) {
 		final JMenu menu = new JMenu();
-		final String text = ResourceBundles.getText(name);
+		final String text = TextUtils.getRawText(name);
 		MenuBuilder.setLabelAndMnemonic(menu, text);
 		return menu;
 	}
 
 	static public JMenuItem createMenuItem(final String name) {
 		final JMenuItem menu = new JFreeplaneMenuItem();
-		final String text = ResourceBundles.getText(name);
+		final String text = TextUtils.getRawText(name);
 		MenuBuilder.setLabelAndMnemonic(menu, text);
 		return menu;
 	}
 
-	public static void loadAcceleratorPresets(final InputStream in, final Controller controller) {
+	public static void loadAcceleratorPresets(final InputStream in) {
 		final Properties prop = new Properties();
 		try {
 			prop.load(in);
@@ -384,30 +424,31 @@ public class MenuBuilder extends UIBuilder {
 				final String shortcutKey = (String) property.getKey();
 				final String keystrokeString = (String) property.getValue();
 				if (!shortcutKey.startsWith(SHORTCUT_PROPERTY_PREFIX)) {
-					LogTool.warn("wrong property key " + shortcutKey);
+					LogUtils.warn("wrong property key " + shortcutKey);
 					continue;
 				}
 				final int pos = shortcutKey.indexOf("/", SHORTCUT_PROPERTY_PREFIX.length());
 				if (pos <= 0) {
-					LogTool.warn("wrong property key " + shortcutKey);
+					LogUtils.warn("wrong property key " + shortcutKey);
 					continue;
 				}
 				final String modeName = shortcutKey.substring(SHORTCUT_PROPERTY_PREFIX.length(), pos);
 				final String itemKey = shortcutKey.substring(pos + 1);
+				Controller controller = Controller.getCurrentController();
 				final ModeController modeController = controller.getModeController(modeName);
 				if (modeController == null) {
-					LogTool.warn("unknown mode name in " + shortcutKey);
+					LogUtils.warn("unknown mode name in " + shortcutKey);
 					continue;
 				}
 				final MenuBuilder menuBuilder = modeController.getUserInputListenerFactory().getMenuBuilder();
 				final Node node = (Node) menuBuilder.get(itemKey);
 				if (node == null) {
-					LogTool.warn("wrong key in " + shortcutKey);
+					LogUtils.warn("wrong key in " + shortcutKey);
 					continue;
 				}
 				final Object obj = node.getUserObject();
 				if (!(obj instanceof JMenuItem)) {
-					LogTool.warn("wrong key in " + shortcutKey);
+					LogUtils.warn("wrong key in " + shortcutKey);
 					continue;
 				}
 				final KeyStroke keyStroke;
@@ -459,8 +500,8 @@ public class MenuBuilder extends UIBuilder {
 		if (rawLabel == null) {
 			return;
 		}
-		item.setText(FpStringUtils.removeMnemonic(rawLabel));
-		final int mnemoSignIndex = rawLabel.indexOf("&");
+		item.setText(TextUtils.removeMnemonic(rawLabel));
+		final int mnemoSignIndex = rawLabel.indexOf('&');
 		if (mnemoSignIndex >= 0 && mnemoSignIndex + 1 < rawLabel.length()) {
 			final char charAfterMnemoSign = rawLabel.charAt(mnemoSignIndex + 1);
 			if (charAfterMnemoSign != ' ') {
@@ -474,31 +515,14 @@ public class MenuBuilder extends UIBuilder {
 
 	private IAcceleratorChangeListener acceleratorChangeListener;
 	private final Map<KeyStroke, Node> accelerators = new HashMap<KeyStroke, Node>();
-	final private ModeController modeController;
+ 	final private ModeController modeController;
 	final MenuStructureReader reader;
+	private Set<String> plugins;
 
-	public MenuBuilder(final ModeController modeController) {
+	public MenuBuilder(ModeController modeController) {
 		super(null);
 		this.modeController = modeController;
 		reader = new MenuStructureReader();
-	}
-
-	public void addAction(final AFreeplaneAction action, final ActionLocationDescriptor actionAnnotation) {
-		final String[] actionLocations = actionAnnotation.locations();
-		for (int i = 0; i < actionLocations.length; i++) {
-			final String key = actionLocations.length == 0 ? action.getKey() : action.getKey() + "[" + i + "]";
-			final String itemKey = actionLocations[i] + '/' + key;
-			if (i == 0) {
-				String accelerator = actionAnnotation.accelerator();
-				if (!accelerator.equals("")) {
-					if (Compat.isMacOsX()) {
-						accelerator = accelerator.replaceFirst("CONTROL", "META").replaceFirst("control", "meta");
-					}
-					setDefaultAccelerator(itemKey, accelerator);
-				}
-			}
-			addAction(actionLocations[i], itemKey, action, MenuBuilder.AS_CHILD);
-		}
 	}
 
 	private void setDefaultAccelerator(final String itemKey, final String accelerator) {
@@ -512,7 +536,19 @@ public class MenuBuilder extends UIBuilder {
 	 * @return returns the new JMenuItem.
 	 */
 	public void addAction(final String category, final AFreeplaneAction action, final int position) {
-		addAction(category, category + '/' + action.getKey(), action, position);
+		final String menuKey = getMenuKey(category, action.getKey());
+		addAction(category, menuKey, action, position);
+	}
+
+    public String getMenuKey(final String category, String actionKey) {
+		actionKey = "$" + actionKey + '$';
+		for (int i = 0; i < 1000; i++) {
+			final String key = actionKey + i;
+			if (null == get(key)) {
+				return key;
+			}
+		}
+		return category + '/' + actionKey;
 	}
 
 	public void addAction(final String category, final String key, final AFreeplaneAction action, final int position) {
@@ -538,19 +574,6 @@ public class MenuBuilder extends UIBuilder {
 		if (action instanceof PopupMenuListener) {
 			addPopupMenuListener(key, (PopupMenuListener) action);
 		}
-		if (AFreeplaneAction.checkSelectionOnPopup(action)) {
-			addPopupMenuListener(key, new PopupMenuListener() {
-				public void popupMenuCanceled(final PopupMenuEvent e) {
-				}
-
-				public void popupMenuWillBecomeInvisible(final PopupMenuEvent e) {
-				}
-
-				public void popupMenuWillBecomeVisible(final PopupMenuEvent e) {
-					action.setSelected();
-				}
-			});
-		}
 		if (AFreeplaneAction.checkEnabledOnPopup(action)) {
 			addPopupMenuListener(key, new PopupMenuListener() {
 				public void popupMenuCanceled(final PopupMenuEvent e) {
@@ -564,10 +587,20 @@ public class MenuBuilder extends UIBuilder {
 				}
 			});
 		}
-	}
+		if (AFreeplaneAction.checkSelectionOnPopup(action)) {
+			addPopupMenuListener(key, new PopupMenuListener() {
+				public void popupMenuCanceled(final PopupMenuEvent e) {
+				}
 
-	public void addAnnotatedAction(final AFreeplaneAction action) {
-		addAction(action, action.getClass().getAnnotation(ActionLocationDescriptor.class));
+				public void popupMenuWillBecomeInvisible(final PopupMenuEvent e) {
+				}
+
+				public void popupMenuWillBecomeVisible(final PopupMenuEvent e) {
+					if(action.isEnabled())
+						action.setSelected();
+				}
+			});
+		}
 	}
 
 	private void addButton(final String category, final Action action, final String key, final int position) {
@@ -586,7 +619,25 @@ public class MenuBuilder extends UIBuilder {
 	protected void addComponent(final Container container, final Component component, final int index) {
 		if (container instanceof JMenu) {
 			final JMenu menu = (JMenu) container;
-			menu.getPopupMenu().insert(component, index);
+			final JPopupMenu popupMenu = menu.getPopupMenu();
+			final int itemCount = popupMenu.getComponentCount();
+			if(itemCount < MAX_MENU_ITEM_COUNT || index < itemCount)
+				popupMenu.insert(component, index);
+			else{
+				final JMenu submenu;
+				final Component lastMenuItem = popupMenu.getComponent(itemCount - 1);
+				if(itemCount == MAX_MENU_ITEM_COUNT || ! isExtraSubMenu(lastMenuItem)){
+					if (component instanceof JPopupMenu.Separator)
+						return;
+					submenu = new JMenu("");
+					submenu.putClientProperty(EXTRA_SUBMENU, Boolean.TRUE);
+					popupMenu.add(submenu);
+				}
+				else{
+					submenu = (JMenu) lastMenuItem;
+				}
+				addComponent(submenu, component, submenu.getPopupMenu().getComponentCount());
+			}
 			return;
 		}
 		if (container instanceof JToolBar && component instanceof AbstractButton) {
@@ -596,6 +647,10 @@ public class MenuBuilder extends UIBuilder {
 		}
 		super.addComponent(container, component, index);
 	}
+
+	private boolean isExtraSubMenu(final Component c) {
+	    return (c instanceof JMenu) &&  (Boolean.TRUE.equals(((JMenu)c).getClientProperty(EXTRA_SUBMENU)));
+    }
 
 	public void addComponent(final String parent, final Container item, final Action action, final int position) {
 		action.addPropertyChangeListener(new Enabler(item));
@@ -611,9 +666,9 @@ public class MenuBuilder extends UIBuilder {
 
 	public void addMenuItem(final String relativeKey, final JMenuItem item, final String key, final int position) {
 		final String shortcutKey = getShortcutKey(key);
-		final String keyStrokeString = ResourceController.getResourceController().getAdjustableProperty(shortcutKey);
+		final String keyStrokeString = ResourceController.getResourceController().getProperty(shortcutKey);
 		final Node element = (Node) addElement(relativeKey, item, key, position);
-		if (null == getMenubar(element)) {
+		if (null == getMenuBar(element)) {
 			return;
 		}
 		if (keyStrokeString != null && !keyStrokeString.equals("")) {
@@ -662,7 +717,18 @@ public class MenuBuilder extends UIBuilder {
 
 	public JMenuItem addRadioItem(final String category, final AFreeplaneAction action, final boolean isSelected) {
 		assert action != null;
-		final String key = action.getKey();
+		final String actionKey = "$" + action.getKey() + '$';
+		for(int i = 0; i < 1000; i++){
+			String key = actionKey + i;
+			if (null == get(key)){
+				return addRadioItem(category, key, action, isSelected);
+			}
+		}
+		return addRadioItem(category, category + '/' + actionKey, action, isSelected);
+	}
+
+	public JMenuItem addRadioItem(final String category, final String key,
+			final AFreeplaneAction action, final boolean isSelected) {
 		assert key != null;
 		final JRadioButtonMenuItem item;
 		if (action.getClass().getAnnotation(SelectableAction.class) != null) {
@@ -671,10 +737,9 @@ public class MenuBuilder extends UIBuilder {
 		else {
 			item = new JRadioButtonMenuItem(decorateAction(category, action));
 		}
-		final String fullKey = category + '/' + key;
-		addMenuItem(category, item, fullKey, MenuBuilder.AS_CHILD);
+		addMenuItem(category, item, key, MenuBuilder.AS_CHILD);
 		item.setSelected(isSelected);
-		addListeners(fullKey, action);
+		addListeners(key, action);
 		return item;
 	}
 
@@ -721,7 +786,7 @@ public class MenuBuilder extends UIBuilder {
 	}
 
 	IFreeplaneAction decorateAction(final String category, final AFreeplaneAction action) {
-		if (null == getMenubar(get(category)) || modeController.getController().getViewController().isApplet()) {
+		if (null == getMenuBar(get(category)) || Controller.getCurrentController().getViewController().isApplet()) {
 			return action;
 		}
 		return decorateAction(action);
@@ -742,17 +807,28 @@ public class MenuBuilder extends UIBuilder {
 		}
 		return super.getChildComponent(parentComponent, index);
 	}
+	
+	@Override
+	protected Container getNextParentComponent(Container parentComponent) {
+		if(parentComponent.getComponentCount() > 0 && parentComponent instanceof JMenu)
+		{
+			final Component lastComponent = parentComponent.getComponent(parentComponent.getComponentCount()-1);
+			if(isExtraSubMenu(lastComponent))
+				return (Container) lastComponent;
+		}
+		return null;
+    }
 
-	Object getMenubar(DefaultMutableTreeNode element) {
-		do {
+	public Node getMenuBar(DefaultMutableTreeNode element) {
+	    while (element != null) {
 			final Object userObject = element.getUserObject();
 			if (userObject instanceof JMenuBar) {
-				return ((Node) element).getKey();
+				return (Node) element;
 			}
 			element = (DefaultMutableTreeNode) element.getParent();
-		} while (element != null);
+		} 
 		return null;
-	}
+    }
 
 	private Node getMenuItemForKeystroke(final KeyStroke keyStroke) {
 		return accelerators.get(keyStroke);
@@ -776,8 +852,15 @@ public class MenuBuilder extends UIBuilder {
 		return SHORTCUT_PROPERTY_PREFIX + modeController.getModeName() + "/" + key;
 	}
 
-	public void processMenuCategory(final URL menu) {
-		reader.processMenu(menu);
+	public void processMenuCategory(final URL menu, Set<String> plugins) {
+		final Set<String> oldPlugins = this.plugins;
+		this.plugins = plugins;
+		try{
+			reader.processMenu(menu);
+		}
+		finally{
+			this.plugins = oldPlugins;
+		}
 	}
 
 	private KeyStroke removeAccelerator(final Node node) throws AssertionError {
@@ -791,8 +874,10 @@ public class MenuBuilder extends UIBuilder {
 		return oldAccelerator;
 	}
 
+	@SuppressWarnings("unchecked")
 	private void removeAccelerators(final DefaultMutableTreeNode node) {
-		if (node.getUserObject() instanceof JMenuItem) {
+		final Object userObject = node.getUserObject();
+		if (userObject instanceof JMenuItem && !(userObject instanceof JMenu)) {
 			setAccelerator((Node) node, null);
 		}
 		for (final Enumeration<Object> children = node.children(); children.hasMoreElements();) {
@@ -803,7 +888,24 @@ public class MenuBuilder extends UIBuilder {
 	@Override
 	protected void removeChildComponents(final Container parentComponent, final DefaultMutableTreeNode node) {
 		removeAccelerators(node);
-		super.removeChildComponents(parentComponent, node);
+		if (parentComponent instanceof JMenu) {
+			final JMenu menu = (JMenu) parentComponent;
+			final JPopupMenu popupMenu = menu.getPopupMenu();
+			super.removeChildComponents(popupMenu, node);
+			for(int i = popupMenu.getComponentCount()-1; i >= 0; i--){
+				final Component component = popupMenu.getComponent(i);
+				if(isExtraSubMenu(component)){
+					final Container container = (Container) component;
+					super.removeChildComponents(container, node);
+					if(container.getComponentCount() == 0)
+						popupMenu.remove(container);
+				}
+			}
+		}
+		else{
+			super.removeChildComponents(parentComponent, node);
+			
+		}
 	}
 
 	public void removePopupMenuListener(final Object key, final PopupMenuListener listener) {
@@ -836,7 +938,7 @@ public class MenuBuilder extends UIBuilder {
 		final Node oldAction = accelerators.put(keyStroke, node);
 		final JMenuItem item = (JMenuItem) node.getUserObject();
 		if (keyStroke != null && oldAction != null) {
-			UITools.errorMessage(FpStringUtils.format("action_keystroke_in_use_error", keyStroke, item
+			UITools.errorMessage(TextUtils.format("action_keystroke_in_use_error", keyStroke, item
 			    .getActionCommand(), ((JMenuItem) oldAction.getUserObject()).getActionCommand()));
 			accelerators.put(keyStroke, oldAction);
 			final String shortcutKey = getShortcutKey(node.getKey().toString());
@@ -844,7 +946,7 @@ public class MenuBuilder extends UIBuilder {
 			return;
 		}
 		if (item instanceof JMenu) {
-			UITools.errorMessage(FpStringUtils.format("submenu_keystroke_in_use_error", keyStroke, item.getText()));
+			UITools.errorMessage(TextUtils.format("submenu_keystroke_in_use_error", keyStroke, item.getText()));
 			accelerators.put(keyStroke, oldAction);
 			final String shortcutKey = getShortcutKey(node.getKey().toString());
 			ResourceController.getResourceController().setProperty(shortcutKey, "");
@@ -859,5 +961,9 @@ public class MenuBuilder extends UIBuilder {
 
 	public void setAcceleratorChangeListener(final IAcceleratorChangeListener acceleratorChangeListener) {
 		this.acceleratorChangeListener = acceleratorChangeListener;
+	}
+
+	public Map<KeyStroke, Node> getAcceleratorMap() {
+		return Collections.unmodifiableMap(accelerators);
 	}
 }

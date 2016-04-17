@@ -29,73 +29,84 @@ import java.io.OutputStreamWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.InvalidPropertiesFormatException;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Properties;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.controller.FreeplaneVersion;
-import org.freeplane.core.filter.FilterController;
 import org.freeplane.core.resources.IFreeplanePropertyListener;
 import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.util.Compat;
+import org.freeplane.core.util.FileUtils;
+import org.freeplane.core.util.FreeplaneVersion;
+import org.freeplane.features.filter.FilterController;
 
 /**
  * @author Dimitry Polivaev
  */
-class ApplicationResourceController extends ResourceController {
+public class ApplicationResourceController extends ResourceController {
 	private static final String FREEPLANE_MAC_PROPERTIES = "/freeplane_mac.properties";
 	final private File autoPropertiesFile;
 	final private Properties defProps;
 	private LastOpenedList lastOpened;
 	final private Properties props;
-	private ClassLoader urlResourceLoader;
+	final private ClassLoader urlResourceLoader;
 
 	/**
 	 * @param controller
 	 */
 	public ApplicationResourceController() {
 		super();
-		urlResourceLoader = null;
+		defProps = readDefaultPreferences();
+		props = readUsersPreferences(defProps);
+		final File userDir = createUserDirectory(defProps);
+		final ArrayList<URL> urls = new ArrayList<URL>(2);
 		final String resourceBaseDir = getResourceBaseDir();
 		if (resourceBaseDir != null) {
 			try {
+				final File userResourceDir = new File(userDir, "resources");
+				if (userResourceDir.exists()) {
+					final URL userResourceUrl = Compat.fileToUrl(userResourceDir);
+					urls.add(userResourceUrl);
+				}
 				final File resourceDir = new File(resourceBaseDir);
 				if (resourceDir.exists()) {
 					final URL globalResourceUrl = Compat.fileToUrl(resourceDir);
-					urlResourceLoader = new URLClassLoader(new URL[] { globalResourceUrl }, null);
+					urls.add(globalResourceUrl);
 				}
 			}
 			catch (final Exception e) {
 				e.printStackTrace();
 			}
 		}
-		defProps = readDefaultPreferences();
-		props = readUsersPreferences(defProps);
-		createUserDirectory(defProps);
+		if(urls.size() > 0)
+			urlResourceLoader = new URLClassLoader(urls.toArray(new URL[]{}), null);
+		else
+			urlResourceLoader = null;
 		setDefaultLocale(props);
-		autoPropertiesFile = getUserPreferencesFile(defProps);
+		autoPropertiesFile = getUserPreferencesFile();
 		addPropertyChangeListener(new IFreeplanePropertyListener() {
 			public void propertyChanged(final String propertyName, final String newValue, final String oldValue) {
 				if (propertyName.equals(ResourceBundles.RESOURCE_LANGUAGE)) {
-					clearLanguageResources();
+					loadAnotherLanguage();
 				}
 			}
 		});
 	}
 
-	private void createUserDirectory(final Properties pDefaultProperties) {
+	private File createUserDirectory(final Properties pDefaultProperties) {
 		final File userPropertiesFolder = new File(getFreeplaneUserDirectory());
 		try {
 			if (!userPropertiesFolder.exists()) {
-				userPropertiesFolder.mkdir();
+				userPropertiesFolder.mkdirs();
 			}
+			return userPropertiesFolder;
 		}
 		catch (final Exception e) {
 			e.printStackTrace();
 			System.err.println("Cannot create folder for user properties and logging: '"
 			        + userPropertiesFolder.getAbsolutePath() + "'");
+			return null;
 		}
 	}
 
@@ -106,7 +117,7 @@ class ApplicationResourceController extends ResourceController {
 
 	@Override
 	public String getFreeplaneUserDirectory() {
-		return FreeplaneStarter.getFreeplaneUserDirectory();
+		return Compat.getFreeplaneUserDirectory();
 	}
 
 	public LastOpenedList getLastOpenedList() {
@@ -167,31 +178,22 @@ class ApplicationResourceController extends ResourceController {
 		return FreeplaneStarter.getResourceBaseDir();
 	}
 
-	private File getUserPreferencesFile(final Properties defaultPreferences) {
-		if (defaultPreferences == null) {
-			System.err.println("Panic! Error while loading default properties.");
-			System.exit(1);
-		}
-		final String freeplaneDirectory = getFreeplaneUserDirectory();
+	@Override
+	public String getInstallationBaseDir() {
+		return new File(getResourceBaseDir()).getAbsoluteFile().getParent();
+    }
+
+	public static File getUserPreferencesFile() {
+		final String freeplaneDirectory = Compat.getFreeplaneUserDirectory();
 		final File userPropertiesFolder = new File(freeplaneDirectory);
-		final File autoPropertiesFile = new File(userPropertiesFolder, defaultPreferences.getProperty("autoproperties"));
+		final File autoPropertiesFile = new File(userPropertiesFolder, "auto.properties");
 		return autoPropertiesFile;
 	}
 
 	@Override
-	public void init(final Controller controller) {
-		lastOpened = new LastOpenedList(controller);
-		super.init(controller);
-	}
-
-	@Override
-	public void loadProperties(final InputStream inStream) throws IOException {
-		defProps.load(inStream);
-	}
-
-	@Override
-	public void loadPropertiesFromXML(final InputStream in) throws IOException, InvalidPropertiesFormatException {
-		defProps.loadFromXML(in);
+	public void init() {
+		lastOpened = new LastOpenedList();
+		super.init();
 	}
 
 	private Properties readDefaultPreferences() {
@@ -213,36 +215,28 @@ class ApplicationResourceController extends ResourceController {
 
 	private void readDefaultPreferences(final Properties props, final String propsLoc) {
 		final URL defaultPropsURL = getResource(propsLoc);
-		try {
-			InputStream in = null;
-			in = defaultPropsURL.openStream();
-			props.load(in);
-			in.close();
-		}
-		catch (final Exception ex) {
-			ex.printStackTrace();
-			System.err.println("Panic! Error while loading default properties.");
-		}
+		loadProperties(props, defaultPropsURL);
 	}
 
 	private Properties readUsersPreferences(final Properties defaultPreferences) {
-		Properties auto = null;
-		auto = new Properties(defaultPreferences);
+		final Properties auto = new Properties(defaultPreferences);
+		InputStream in = null;
 		try {
-			InputStream in = null;
-			final File autoPropertiesFile = getUserPreferencesFile(defaultPreferences);
+			final File autoPropertiesFile = getUserPreferencesFile();
 			in = new FileInputStream(autoPropertiesFile);
 			auto.load(in);
-			in.close();
 		}
 		catch (final Exception ex) {
 			System.err.println("User properties not found, new file created");
+		}
+		finally {
+			FileUtils.silentlyClose(in);
 		}
 		return auto;
 	}
 
 	@Override
-	public void saveProperties(final Controller controller) {
+	public void saveProperties() {
 		lastOpened.saveProperties();
 		OutputStream out = null;
 		try {
@@ -265,7 +259,7 @@ class ApplicationResourceController extends ResourceController {
 				}
 			}
 		}
-		FilterController.getController(controller).saveConditions();
+		FilterController.getCurrentFilterController().saveConditions();
 	}
 
 	/**

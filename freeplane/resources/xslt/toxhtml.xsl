@@ -256,6 +256,9 @@ Todo:
 			<xsl:call-template name="textnode" />
 		</xsl:otherwise>
 		</xsl:choose>
+		<xsl:if test="richcontent[@TYPE='DETAILS']">
+			<xsl:apply-templates select="richcontent[@TYPE='DETAILS']/html/body" mode="richcontent" />
+		</xsl:if>
 </xsl:template> <!-- xsl:template name="output-nodecontent" -->
 
 <xsl:template match="body" mode="richcontent">
@@ -275,21 +278,24 @@ Todo:
 		none, but who knows?) and take its text as the title -->
 	<xsl:choose>
 	<xsl:when test="/map/node/@TEXT">
-		<xsl:value-of select="/map/node/@TEXT" />
+		<xsl:value-of select="normalize-space(/map/node/@TEXT)" />
 	</xsl:when>
 	<xsl:when test="/map/node/richcontent[@TYPE='NODE']">
-		<xsl:apply-templates select="/map/node/richcontent[@TYPE='NODE']/html/body" mode="strip-tags" />
+		<xsl:variable name="t">
+			<xsl:apply-templates select="/map/node/richcontent[@TYPE='NODE']/html/body" mode="strip-tags" />			
+		</xsl:variable>
+		<xsl:value-of select="normalize-space($t)" />
 	</xsl:when>
 	<xsl:otherwise>
-		<xsl:text>Freeplane2HTML Mindmap</xsl:text>
+		<xsl:text>Mind Map</xsl:text>
 	</xsl:otherwise>
 	</xsl:choose>
 </xsl:template>
 
-	
-	<xsl:template match="text()|@*"  mode="strip-tags">
-		  <xsl:value-of select="string(.)"/>
-	</xsl:template>
+
+<xsl:template match="text()|@*"  mode="strip-tags">
+	  <xsl:value-of select="string(.)"/>
+</xsl:template>
 
 
 <!-- replace ASCII line breaks through HTML line breaks (br) -->

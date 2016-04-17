@@ -23,21 +23,22 @@ import java.awt.event.ActionEvent;
 
 import javax.swing.SwingUtilities;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.ui.AFreeplaneAction;
+import org.freeplane.features.mode.Controller;
 
 class ModesMenuActionListener extends AFreeplaneAction {
+	private static final long serialVersionUID = 1L;
 	private final String mode;
 
 	public ModesMenuActionListener(final String mode, final Controller controller) {
-		super("ModesMenuAction." + mode, controller);
+		super("ModesMenuAction." + mode);
 		this.mode = mode;
 	}
 
 	public void actionPerformed(final ActionEvent e) {
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
-				getController().selectMode(mode);
+				Controller.getCurrentController().selectMode(mode);
 			}
 		});
 	}

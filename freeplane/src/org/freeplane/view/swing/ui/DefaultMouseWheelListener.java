@@ -3,14 +3,13 @@ package org.freeplane.view.swing.ui;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
-import java.util.Iterator;
 import java.util.Set;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.modecontroller.ModeController;
 import org.freeplane.core.resources.IFreeplanePropertyListener;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.IMouseWheelEventHandler;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.ModeController;
 import org.freeplane.view.swing.map.MapView;
 
 /**
@@ -22,14 +21,14 @@ public class DefaultMouseWheelListener implements MouseWheelListener {
 	public static final String RESOURCES_WHEEL_VELOCITY = "wheel_velocity";
 	private static int SCROLL_SKIPS = 8;
 	private static final int ZOOM_MASK = InputEvent.CTRL_MASK;
-	final private Controller controller;
+// // 	final private Controller controller;
 
 	/**
 	 *
 	 */
-	public DefaultMouseWheelListener(final Controller controller) {
+	public DefaultMouseWheelListener() {
 		super();
-		this.controller = controller;
+//		this.controller = controller;
 		ResourceController.getResourceController().addPropertyChangeListener(new IFreeplanePropertyListener() {
 			public void propertyChanged(final String propertyName, final String newValue, final String oldValue) {
 				if (propertyName.equals(DefaultMouseWheelListener.RESOURCES_WHEEL_VELOCITY)) {
@@ -53,10 +52,9 @@ public class DefaultMouseWheelListener implements MouseWheelListener {
 		if (mController.isBlocked()) {
 			return;
 		}
-		final Set registeredMouseWheelEventHandler = mController.getUserInputListenerFactory()
+		final Set<IMouseWheelEventHandler> registeredMouseWheelEventHandler = mController.getUserInputListenerFactory()
 		    .getMouseWheelEventHandlers();
-		for (final Iterator i = registeredMouseWheelEventHandler.iterator(); i.hasNext();) {
-			final IMouseWheelEventHandler handler = (IMouseWheelEventHandler) i.next();
+		for (final IMouseWheelEventHandler handler : registeredMouseWheelEventHandler) {
 			final boolean result = handler.handleMouseWheelEvent(e);
 			if (result) {
 				return;
@@ -73,7 +71,7 @@ public class DefaultMouseWheelListener implements MouseWheelListener {
 			newZoom = Math.max(1f / 32f, newZoom);
 			newZoom = Math.min(32f, newZoom);
 			if (newZoom != oldZoom) {
-				controller.getViewController().setZoom(newZoom);
+				Controller.getCurrentController().getViewController().setZoom(newZoom);
 			}
 		}
 		else if ((e.getModifiers() & DefaultMouseWheelListener.HORIZONTAL_SCROLL_MASK) != 0) {

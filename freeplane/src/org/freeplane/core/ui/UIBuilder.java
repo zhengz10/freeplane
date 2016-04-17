@@ -47,7 +47,7 @@ public abstract class UIBuilder extends IndexedTree {
 	 */
 	protected void addComponent(final DefaultMutableTreeNode childNode, final int position) {
 		int index;
-		final Container parentComponent = getParentComponent(childNode, Container.class);
+		Container parentComponent = getParentComponent(childNode, Container.class);
 		if (parentComponent == null) {
 			return;
 		}
@@ -59,10 +59,13 @@ public abstract class UIBuilder extends IndexedTree {
 			final Component relative = getPrevious(childNode);
 			index = -1;
 			if (relative != null) {
-				for (int i = 0; i < getParentComponentCount(parentComponent); i++) {
-					if (getChildComponent(parentComponent, i) == relative) {
-						index = i;
-						break;
+				ParentLoop: for (Container nextParentComponent = parentComponent; nextParentComponent != null; nextParentComponent = getNextParentComponent(nextParentComponent)) {
+					parentComponent = nextParentComponent;
+					for (int i = 0; i < getParentComponentCount(parentComponent); i++) {
+						if (getChildComponent(parentComponent, i) == relative) {
+							index = i;
+							break ParentLoop;
+						}
 					}
 				}
 			}
@@ -73,6 +76,10 @@ public abstract class UIBuilder extends IndexedTree {
 		final Component component = (Component) childNode.getUserObject();
 		addComponent(parentComponent, component, index);
 	}
+
+	protected Container getNextParentComponent(Container parentComponent) {
+	    return null;
+    }
 
 	@Override
 	protected void addNode(final DefaultMutableTreeNode relativeNode, final DefaultMutableTreeNode node,
@@ -87,7 +94,7 @@ public abstract class UIBuilder extends IndexedTree {
 		return parentComponent.getComponent(index);
 	}
 
-	protected Container getContainer(final DefaultMutableTreeNode node, final Class clazz) {
+	protected Container getContainer(final DefaultMutableTreeNode node, final Class<?> clazz) {
 		if (node == null) {
 			return null;
 		}
@@ -101,7 +108,7 @@ public abstract class UIBuilder extends IndexedTree {
 	/**
 	 * @param clazz
 	 */
-	Container getParentComponent(final DefaultMutableTreeNode child, final Class clazz) {
+	Container getParentComponent(final DefaultMutableTreeNode child, final Class<?> clazz) {
 		final DefaultMutableTreeNode parent = (DefaultMutableTreeNode) child.getParent();
 		return getContainer(parent, clazz);
 	}
@@ -152,7 +159,7 @@ public abstract class UIBuilder extends IndexedTree {
 				return;
 			}
 		}
-		final Enumeration children = node.children();
+		final Enumeration<?> children = node.children();
 		while (children.hasMoreElements()) {
 			final DefaultMutableTreeNode child = (DefaultMutableTreeNode) children.nextElement();
 			final Object userObject = child.getUserObject();
@@ -169,7 +176,7 @@ public abstract class UIBuilder extends IndexedTree {
 	public void removeChildElements(final Object key) {
 		final DefaultMutableTreeNode node = getNode(key);
 		final Container parentComponent = getContainer(node, Container.class);
-		final Enumeration children = node.children();
+		final Enumeration<?> children = node.children();
 		while (children.hasMoreElements()) {
 			final Node child = (Node) children.nextElement();
 			removeChildComponents(parentComponent, child);

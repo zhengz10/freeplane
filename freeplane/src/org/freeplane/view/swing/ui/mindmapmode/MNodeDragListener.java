@@ -1,6 +1,7 @@
 package org.freeplane.view.swing.ui.mindmapmode;
 
 import java.awt.Cursor;
+import java.awt.Rectangle;
 import java.awt.datatransfer.Transferable;
 import java.awt.dnd.DnDConstants;
 import java.awt.dnd.DragGestureEvent;
@@ -12,39 +13,37 @@ import java.awt.dnd.DragSourceEvent;
 import java.awt.dnd.DragSourceListener;
 import java.awt.dnd.InvalidDnDOperationException;
 import java.awt.event.InputEvent;
-
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.core.resources.ResourceController;
-import org.freeplane.features.common.clipboard.ClipboardController;
-import org.freeplane.features.common.clipboard.MindMapNodesSelection;
+import org.freeplane.features.clipboard.ClipboardController;
+import org.freeplane.features.clipboard.MindMapNodesSelection;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.Controller;
 import org.freeplane.view.swing.map.MainView;
+import org.freeplane.view.swing.map.NodeView;
 
 /**
  * The NodeDragListener which belongs to every NodeView
  */
 public class MNodeDragListener implements DragGestureListener {
-	final private Controller controller;
-
-	public MNodeDragListener(final Controller controller) {
-		this.controller = controller;
-	}
-
 	public void dragGestureRecognized(final DragGestureEvent e) {
-		if (!ResourceController.getResourceController().getBooleanProperty("draganddrop")) {
-			return;
+		final MainView mainView = (MainView) e.getComponent();
+		final NodeView nodeView = mainView.getNodeView();
+		if(! nodeView.isSelected()){
+			nodeView.getMap().getModeController().getController().getSelection().selectAsTheOnlyOneSelected(nodeView.getModel());
 		}
+		Rectangle bounds = new Rectangle(0, 0, mainView.getWidth(), mainView.getHeight());
+		if(!bounds.contains(e.getDragOrigin()))
+			return;
 		final int dragActionType = e.getDragAction();
 		if (dragActionType == DnDConstants.ACTION_MOVE) {
-			final NodeModel node = ((MainView) e.getComponent()).getNodeView().getModel();
+			final NodeModel node = nodeView.getModel();
 			if (node.isRoot()) {
-				return;
+				if(! isLinkDragEvent(e))
+					return;
 			}
 		}
 		final String dragActionName;
 		Cursor cursor = getCursorByAction(dragActionType);
-		if ((e.getTriggerEvent().getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0) {
+		if (isLinkDragEvent(e)) {
 			cursor = DragSource.DefaultLinkDrop;
 			dragActionName = "LINK";
 		}
@@ -55,8 +54,7 @@ public class MNodeDragListener implements DragGestureListener {
 		else {
 			dragActionName = "MOVE";
 		}
-		final ModeController modeController = controller.getModeController();
-		final Transferable t = ClipboardController.getController(modeController).copy(controller.getSelection());
+		final Transferable t = ClipboardController.getController().copy(Controller.getCurrentController().getSelection());
 		((MindMapNodesSelection) t).setDropAction(dragActionName);
 		try {
 			e.startDrag(cursor, t, new DragSourceListener() {
@@ -80,6 +78,10 @@ public class MNodeDragListener implements DragGestureListener {
 		catch (final InvalidDnDOperationException ex) {
 		}
 	}
+
+	private boolean isLinkDragEvent(final DragGestureEvent e) {
+	    return (e.getTriggerEvent().getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0;
+    }
 
 	public Cursor getCursorByAction(final int dragAction) {
 		switch (dragAction) {

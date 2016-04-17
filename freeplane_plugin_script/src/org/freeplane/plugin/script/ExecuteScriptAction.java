@@ -20,25 +20,21 @@
 package org.freeplane.plugin.script;
 
 import java.awt.event.ActionEvent;
-import java.io.IOException;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.ui.AFreeplaneAction;
-import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.util.LogTool;
-import org.freeplane.core.util.ResUtil;
-import org.freeplane.features.mindmapmode.MModeController;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.mindmapmode.MModeController;
 
 /**
  * Action that executes a script defined by filename.
  * 
  * @author vboerchers
  */
-//not needed: @ActionLocationDescriptor(locations = { "/menu_bar/extras/first/scripting" })
 public class ExecuteScriptAction extends AFreeplaneAction {
 	private static final long serialVersionUID = 1L;
 
@@ -52,92 +48,57 @@ public class ExecuteScriptAction extends AFreeplaneAction {
 		ON_SELECTED_NODE_RECURSIVELY
 	}
 
-	final private ScriptingEngine engine;
-	private final String script;
+	private final File script;
 	private final ExecutionMode mode;
-	private final boolean cacheContent;
-	private String content;
+	private ScriptingPermissions permissions;
 
-	public ExecuteScriptAction(final Controller controller, final ScriptingEngine engine, final String scriptName,
-	                           final String menuItemName, final String script, final ExecutionMode mode,
-	                           final boolean cacheContent) {
-		super(ExecuteScriptAction.makeMenuItemKey(scriptName, mode), controller, menuItemName, null);
-		this.engine = engine;
-		this.script = script;
+	public ExecuteScriptAction(final String scriptName, final String menuItemName, final String script,
+	                           final ExecutionMode mode, final boolean cacheContent, ScriptingPermissions permissions) {
+		super(ExecuteScriptAction.makeMenuItemKey(scriptName, mode), menuItemName, null);
+		this.script = new File(script);
 		this.mode = mode;
-		this.cacheContent = cacheContent;
+		this.permissions = permissions;
 	}
 
-	private static String makeMenuItemKey(final String scriptName, final ExecutionMode mode) {
+	public static String makeMenuItemKey(final String scriptName, final ExecutionMode mode) {
 		return scriptName + "_" + mode.toString().toLowerCase();
 	}
 
 	public void actionPerformed(final ActionEvent e) {
-		getController().getViewController().setWaitingCursor(true);
-		boolean result = true;
+		Controller.getCurrentController().getViewController().setWaitingCursor(true);
 		try {
-			String scriptContent = getContentIfCached();
-			if (scriptContent == null) {
-				scriptContent = ResUtil.slurpFile(script);
-			}
 			final List<NodeModel> nodes = new ArrayList<NodeModel>();
 			if (mode == ExecutionMode.ON_SINGLE_NODE) {
-				nodes.add(getController().getSelection().getSelected());
+				nodes.add(Controller.getCurrentController().getSelection().getSelected());
 			}
 			else {
-				nodes.addAll(getController().getSelection().getSelection());
+				nodes.addAll(Controller.getCurrentController().getSelection().getSelection());
 			}
-			final MModeController modeController = (MModeController) getController().getModeController();
+			final MModeController modeController = (MModeController) Controller.getCurrentModeController();
 			modeController.startTransaction();
 			for (final NodeModel node : nodes) {
-				if (mode == ExecutionMode.ON_SELECTED_NODE_RECURSIVELY) {
-					// TODO: ensure that a script is invoked only once on every node?
-					// (might be a problem with recursive actions if parent and child
-					// are selected.)
-					result = engine.executeScriptRecursive(modeController, node, scriptContent);
-				}
-				else {
-					result = engine.executeScript(modeController, node, scriptContent);
-				}
-				if (!result) {
-					LogTool.warn("error executing script " + script + " - giving up");
-					modeController.delayedRollback();
-					UITools.errorMessage(ResourceBundles.getText("ExecuteScriptError.text"));
-					return;
-				}
+				try {
+					if (mode == ExecutionMode.ON_SELECTED_NODE_RECURSIVELY) {
+						// TODO: ensure that a script is invoked only once on every node?
+						// (might be a problem with recursive actions if parent and child
+						// are selected.)
+						ScriptingEngine.executeScriptRecursive(node, script, permissions);
+					}
+					else {
+						ScriptingEngine.executeScript(node, script, permissions);
+					}
+                }
+				catch (ExecuteScriptException ex) {
+				    LogUtils.warn("error executing script " + script + " - giving up", ex);
+				    modeController.delayedRollback();
+					ScriptingEngine.showScriptExceptionErrorMessage(ex);
+                	return;
+                }
 			}
 			modeController.delayedCommit();
 		}
-		catch (final IOException ex) {
-			LogTool.warn("error reading " + script, ex);
-			UITools.errorMessage(ResourceBundles.getText("ReadScriptError.text"));
-		}
 		finally {
-			getController().getViewController().setWaitingCursor(false);
-		}
-	}
-
-	private String getContentIfCached() throws IOException {
-		if (cacheContent && content == null) {
-			content = ResUtil.slurpFile(script);
-			// oops, logtool seems to be inoperable right now
-			LogTool.info("cached " + String.format("%.1f", content.length() / 1000.) + " KB for script " + script);
-			System.out
-			    .println("cached " + String.format("%.1f", content.length() / 1000.) + " KB for script " + script);
-		}
-		return content;
-	}
-
-	static String getExecutionModeKey(final ExecutionMode executionMode) {
-		switch (executionMode) {
-			case ON_SINGLE_NODE:
-				return "ExecuteScriptOnSingleNode.text";
-			case ON_SELECTED_NODE:
-				return "ExecuteScriptOnSelectedNode.text";
-			case ON_SELECTED_NODE_RECURSIVELY:
-				return "ExecuteScriptOnSelectedNodeRecursively.text";
-			default:
-				throw new AssertionError("unknown ExecutionMode " + executionMode);
+			Controller.getCurrentController().getViewController().setWaitingCursor(false);
 		}
 	}
 }

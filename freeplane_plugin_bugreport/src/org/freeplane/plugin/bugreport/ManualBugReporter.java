@@ -7,20 +7,19 @@ import java.util.Map;
 
 import javax.swing.JOptionPane;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.resources.FpStringUtils;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.util.HtmlTools;
-import org.freeplane.core.util.LogTool;
+import org.freeplane.core.util.HtmlUtils;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.mode.Controller;
 
 class ManualBugReporter implements IBugReportListener {
-	final private Controller controller;
+// // 	final private Controller controller;
 
-	public ManualBugReporter(final Controller controller) {
+	public ManualBugReporter() {
 		super();
-		this.controller = controller;
+//		this.controller = controller;
 	}
 
 	public void onReportSent(final Map<String, String> report, final String status) {
@@ -46,31 +45,31 @@ class ManualBugReporter implements IBugReportListener {
 		try {
 			final ResourceController resourceController = ResourceController.getResourceController();
 			final String location = resourceController.getProperty("bugTrackerLocation");
+			final Controller controller = Controller.getCurrentController();
 			controller.getViewController().openDocument(new URL(location));
 		}
 		catch (final MalformedURLException ex) {
-			UITools.errorMessage(ResourceBundles.getText("url_error") + "\n" + ex);
-			LogTool.warn(ex);
+			UITools.errorMessage(TextUtils.getText("url_error") + "\n" + ex);
+			LogUtils.warn(ex);
 		}
 		catch (final Exception ex) {
 			UITools.errorMessage(ex);
-			LogTool.warn(ex);
+			LogUtils.warn(ex);
 		}
 	}
 
 	private String showBugReportDialog(final String log, final String hash) {
-		final String title = ResourceBundles.getText("org.freeplane.plugin.bugreport.freeplane_team").replaceAll("\\n",
-		    "\n");
+		final String title = TextUtils.getText("org.freeplane.plugin.bugreport.freeplane_team").replaceAll("\\n", "\n");
 		String option = ResourceController.getResourceController().getProperty(OPTION, BugReportDialogManager.ASK);
 		if (option.equals(BugReportDialogManager.ASK)) {
-			String question = ResourceBundles.getText("org.freeplane.plugin.bugreport.wanted_bug");
+			String question = TextUtils.getText("org.freeplane.plugin.bugreport.wanted_bug");
 			if (!question.startsWith("<html>")) {
-				question = HtmlTools.plainToHTML(question);
+				question = HtmlUtils.plainToHTML(question);
 			}
-			final Object[] options = new Object[] { FpStringUtils.removeMnemonic(ResourceBundles.getText("ok")),
-			        FpStringUtils.removeMnemonic(ResourceBundles.getText("cancel")),
-			        ResourceBundles.getText("org.freeplane.plugin.bugreport.never") };
-			final String reportName = ResourceBundles.getText("org.freeplane.plugin.bugreport.lastreport");
+			final Object[] options = new Object[] { TextUtils.getText("ok"),
+			        TextUtils.getText("cancel"),
+			        TextUtils.getText("org.freeplane.plugin.bugreport.never") };
+			final String reportName = TextUtils.getText("org.freeplane.plugin.bugreport.lastreport");
 			final int choice = BugReportDialogManager.showBugReportDialog(title, question,
 			    JOptionPane.QUESTION_MESSAGE, options, options[0], reportName, log);
 			final ReportRegistry register = ReportRegistry.getInstance();

@@ -25,23 +25,27 @@ import java.awt.event.ActionEvent;
 
 import javax.swing.SwingUtilities;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.ui.AFreeplaneAction;
+import org.freeplane.core.ui.EnabledAction;
+import org.freeplane.features.map.IMapSelection;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.text.ShortenedTextModel;
 import org.freeplane.view.swing.map.MapView;
 
+@EnabledAction(checkOnNodeChange=true)
 public class EditAttributesAction extends AFreeplaneAction {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
 
-	public EditAttributesAction(final Controller controller) {
-		super("EditAttributesAction", controller);
+	public EditAttributesAction() {
+		super("EditAttributesAction");
 	};
 
 	public void actionPerformed(final ActionEvent e) {
 		final Component focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
-		final Controller controller = getController();
+		final Controller controller = Controller.getCurrentController();
 		final AttributeView attributeView = (((MapView) controller.getViewController().getMapView()).getSelected())
 		    .getAttributeView();
 		final boolean attributesClosed = null == SwingUtilities.getAncestorOfClass(AttributeTable.class, focusOwner);
@@ -52,4 +56,11 @@ public class EditAttributesAction extends AFreeplaneAction {
 			attributeView.stopEditing();
 		}
 	}
+
+	@Override
+	public void setEnabled() {
+		final IMapSelection selection = Controller.getCurrentController().getSelection();
+		setEnabled(selection != null && ! ShortenedTextModel.isShortened(selection.getSelected()));
+	}
+
 }

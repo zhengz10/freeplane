@@ -26,21 +26,21 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.components.EnterPasswordDialog;
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.util.LogTool;
-import org.freeplane.features.common.addins.encrypt.DesEncrypter;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.features.encrypt.DesEncrypter;
+import org.freeplane.features.mode.Controller;
 
 /**
  * @author foltin
@@ -115,10 +115,10 @@ class SignedScriptHandler {
 			SignedScriptHandler.mKeyStore.load(fis, pPassword);
 		}
 		catch (final FileNotFoundException e) {
-			LogTool.warn(e);
+			LogUtils.warn(e);
 		}
 		catch (final Exception e) {
-			LogTool.severe(e);
+			LogUtils.severe(e);
 		}
 		finally {
 			if (fis != null) {
@@ -126,7 +126,7 @@ class SignedScriptHandler {
 					fis.close();
 				}
 				catch (final IOException e) {
-					LogTool.severe(e);
+					LogUtils.severe(e);
 				}
 			}
 		}
@@ -159,14 +159,12 @@ class SignedScriptHandler {
 					        + "Pnhu6Y6b1uAwCwYHKoZIzjgEAwUAAzAAMC0CFQCFHGwe+HHOvY0MmKYHbiq7fRxMGwIUC0voAGYU"
 					        + "u6vgVFqdLI5F96JLTqk=" + "\n-----END CERTIFICATE-----\n";
 					final CertificateFactory cf = CertificateFactory.getInstance("X.509");
-					final Collection c = cf.generateCertificates(new ByteArrayInputStream(cer.getBytes()));
-					final Iterator i = c.iterator();
-					if (i.hasNext()) {
-						final Certificate cert = (Certificate) i.next();
-						instanceVerify.initVerify(cert);
-					}
-					else {
+					final Collection<? extends Certificate> c = cf.generateCertificates(new ByteArrayInputStream(cer
+					    .getBytes()));
+					if (c.isEmpty())
 						throw new IllegalArgumentException("Internal certificate wrong.");
+					for (Certificate cert : c) {
+						instanceVerify.initVerify(cert);
 					}
 				}
 				else {
@@ -178,22 +176,22 @@ class SignedScriptHandler {
 				return verify;
 			}
 			catch (final Exception e) {
-				LogTool.severe(e);
+				LogUtils.severe(e);
 				try {
 					pOutStream.write(e.toString().getBytes());
 					pOutStream.write("\n".getBytes());
 				}
 				catch (final Exception e1) {
-					LogTool.severe(e1);
+					LogUtils.severe(e1);
 				}
 			}
 		}
 		return false;
 	}
 
-	public String signScript(final Controller controller, final String pScript) {
+	public String signScript(final String pScript) {
 		final ScriptContents content = new ScriptContents(pScript);
-		final EnterPasswordDialog pwdDialog = new EnterPasswordDialog(controller.getViewController().getJFrame(), false);
+		final EnterPasswordDialog pwdDialog = new EnterPasswordDialog(Controller.getCurrentController().getViewController().getJFrame(), false);
 		pwdDialog.setModal(true);
 		pwdDialog.setVisible(true);
 		if (pwdDialog.getResult() == EnterPasswordDialog.CANCEL) {
@@ -205,7 +203,7 @@ class SignedScriptHandler {
 			final Signature instance = Signature.getInstance("SHA1withDSA");
 			String keyName = SignedScriptHandler.FREEPLANE_SCRIPT_KEY_NAME;
 			final String propertyKeyName = ResourceController.getResourceController().getProperty(
-			    ScriptingEngine.RESOURCES_SCRIPT_USER_KEY_NAME_FOR_SIGNING);
+			    ScriptingPermissions.RESOURCES_SCRIPT_USER_KEY_NAME_FOR_SIGNING);
 			if (content.mKeyName != null) {
 				keyName = content.mKeyName;
 			}
@@ -220,7 +218,8 @@ class SignedScriptHandler {
 			return content.toString();
 		}
 		catch (final Exception e) {
-			LogTool.severe(e);
+			if(! (e instanceof KeyStoreException))
+				LogUtils.severe(e);
 			UITools.errorMessage(e.getLocalizedMessage());
 		}
 		return content.mScript;

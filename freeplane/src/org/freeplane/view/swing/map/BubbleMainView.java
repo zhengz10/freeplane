@@ -28,60 +28,27 @@ import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.features.common.edge.EdgeController;
-import org.freeplane.features.common.nodestyle.NodeStyleModel;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.nodestyle.NodeStyleModel;
 
 class BubbleMainView extends MainView {
-	final static Stroke DEF_STROKE = new BasicStroke();
+
+    final static Stroke DEF_STROKE = new BasicStroke();
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
 
-	/**
-	 * Returns the relative position of the Edge
-	 */
 	@Override
-	int getAlignment() {
-		return NodeView.ALIGN_CENTER;
-	}
-
-	@Override
-	Point getCenterPoint() {
-		final Point in = getLeftPoint();
-		in.x = getWidth() / 2;
-		return in;
-	}
-
-	@Override
-	public int getDeltaX() {
-		final NodeModel model = getNodeView().getModel();
-		if (getNodeView().getMap().getModeController().getMapController().isFolded(model) && getNodeView().isLeft()) {
-			return super.getDeltaX() + getZoomedFoldingSymbolHalfWidth() * 2;
-		}
-		return super.getDeltaX();
-	}
-
-	@Override
+    public
 	Point getLeftPoint() {
 		final Point in = new Point(0, getHeight() / 2);
 		return in;
 	}
 
 	@Override
-	protected int getMainViewWidthWithFoldingMark() {
-		int width = getWidth();
-		final int dW = getZoomedFoldingSymbolHalfWidth() * 2;
-		final NodeModel model = getNodeView().getModel();
-		if (getNodeView().getMap().getModeController().getMapController().isFolded(model)) {
-			width += dW;
-		}
-		return width + dW;
-	}
-
-	@Override
+    public
 	Point getRightPoint() {
 		final Point in = getLeftPoint();
 		in.x = getWidth() - 1;
@@ -93,12 +60,13 @@ class BubbleMainView extends MainView {
 	 * @see freeplane.view.mindmapview.NodeView#getStyle()
 	 */
 	@Override
-	String getStyle() {
+    public
+	String getShape() {
 		return NodeStyleModel.STYLE_BUBBLE;
 	}
 
 	@Override
-	public void paint(final Graphics graphics) {
+	public void paintComponent(final Graphics graphics) {
 		final Graphics2D g = (Graphics2D) graphics;
 		final NodeView nodeView = getNodeView();
 		final NodeModel model = nodeView.getModel();
@@ -109,12 +77,12 @@ class BubbleMainView extends MainView {
 		final Object renderingHint = modeController.getController().getViewController().setEdgesRenderingHint(g);
 		paintBackgound(g);
 		paintDragOver(g);
-		final Color edgeColor = EdgeController.getController(modeController).getColor(model);
+		final Color edgeColor = nodeView.getEdgeColor();
 		g.setColor(edgeColor);
 		g.setStroke(BubbleMainView.DEF_STROKE);
 		g.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, renderingHint);
-		super.paint(g);
+		super.paintComponent(g);
 	}
 
 	@Override
@@ -122,32 +90,15 @@ class BubbleMainView extends MainView {
 		graphics.setColor(color);
 		graphics.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
 	}
+    private static Insets insets = new Insets(3, 3, 3, 3);
+    
+    @Override
+    public Insets getInsets() {
+        return BubbleMainView.insets;
+    }
 
-	@Override
-	public Insets getInsets() {
-		final Insets insets = super.getInsets();
-		fitInsets(insets);
-		return insets;
-	}
-
-	private void fitInsets(final Insets insets) {
-		final NodeView nodeView = getNodeView();
-		final int zoomedFoldingSymbolHalfWidth = nodeView.getZoomedFoldingSymbolHalfWidth();
-		final int extraSpace = nodeView.getMap().getZoomed(1);
-		if (nodeView.isLeft()) {
-			insets.left += zoomedFoldingSymbolHalfWidth;
-		}
-		else {
-			insets.right += zoomedFoldingSymbolHalfWidth;
-		}
-		insets.left += extraSpace;
-		insets.right += extraSpace;
-	}
-
-	@Override
-	public Insets getInsets(Insets insets) {
-		insets = super.getInsets(insets);
-		fitInsets(insets);
-		return insets;
-	}
+    @Override
+    public Insets getInsets(Insets insets) {
+        return BubbleMainView.insets;
+    }
 }

@@ -37,7 +37,7 @@ import javax.swing.JFileChooser;
 import javax.swing.border.MatteBorder;
 
 import org.freeplane.core.resources.ResourceController;
-import org.freeplane.core.util.LogTool;
+import org.freeplane.core.util.LogUtils;
 
 public class BitmapImagePreview extends JComponent implements PropertyChangeListener {
 	/**
@@ -70,24 +70,21 @@ public class BitmapImagePreview extends JComponent implements PropertyChangeList
 		else {
 			return;
 		}
-		if(! file.exists()){
+		if (file == null || !file.exists()) {
 			return;
 		}
 		if (getComponentCount() == 1) {
 			remove(0);
 		}
 		repaint();
-		if (file == null) {
-			return;
-		}
 		try {
 			updateView(file);
 		}
 		catch (final MalformedURLException e1) {
-			LogTool.warn(e1);
+			LogUtils.warn(e1);
 		}
 		catch (final IOException e1) {
-			LogTool.warn(e1);
+			LogUtils.warn(e1);
 		}
 	}
 

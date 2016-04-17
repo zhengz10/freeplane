@@ -19,13 +19,15 @@
  */
 package org.freeplane.view.swing.map;
 
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.event.ActionEvent;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.ui.AFreeplaneAction;
 import org.freeplane.core.ui.SelectableAction;
-import org.freeplane.features.common.addins.mapstyle.MapStyle;
-import org.freeplane.features.common.addins.mapstyle.MapViewLayout;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.styles.MapStyle;
+import org.freeplane.features.styles.MapViewLayout;
 
 /**
  * @author Dimitry Polivaev
@@ -42,13 +44,13 @@ public class ViewLayoutTypeAction extends AFreeplaneAction {
 	 */
 	private final MapViewLayout layoutType;
 
-	public ViewLayoutTypeAction(final Controller controller, final MapViewLayout layoutType) {
-		super("ViewLayoutTypeAction." + layoutType.toString(), controller);
+	public ViewLayoutTypeAction(final MapViewLayout layoutType) {
+		super("ViewLayoutTypeAction." + layoutType.toString());
 		this.layoutType = layoutType;
 	}
 
 	public void actionPerformed(final ActionEvent e) {
-		final MapView map = (MapView) getController().getViewController().getMapView();
+		final MapView map = (MapView) Controller.getCurrentController().getViewController().getMapView();
 		if (isSelected()) {
 			map.setLayoutType(MapViewLayout.MAP);
 			setSelected(false);
@@ -60,12 +62,23 @@ public class ViewLayoutTypeAction extends AFreeplaneAction {
 		final MapStyle mapStyle = (MapStyle) map.getModeController().getExtension(MapStyle.class);
 		mapStyle.setMapViewLayout(map.getModel(), map.getLayoutType());
 		map.anchorToSelected(map.getSelected(), 0.5f, 0.5f);
-		map.getRoot().updateAll();
+		final NodeView root = map.getRoot();
+		invalidate(root);
+		root.revalidate();
 	}
+
+	private void invalidate(final Component c) {
+		c.invalidate();
+		if(! (c instanceof Container))
+			return;
+		Container c2 = (Container) c;
+		for(int i = 0; i < c2.getComponentCount(); i++)
+			invalidate(c2.getComponent(i));
+    }
 
 	@Override
 	public void setSelected() {
-		final MapView map = (MapView) getController().getViewController().getMapView();
+		final MapView map = (MapView)  Controller.getCurrentController().getViewController().getMapView();
 		setSelected(map != null && map.getLayoutType() == layoutType);
 	}
 }

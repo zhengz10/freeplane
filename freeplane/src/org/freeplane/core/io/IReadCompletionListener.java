@@ -19,13 +19,13 @@
  */
 package org.freeplane.core.io;
 
-import java.util.HashMap;
+import java.util.Map;
 
-import org.freeplane.core.model.NodeModel;
+import org.freeplane.features.map.NodeModel;
 
 /**
  * @author Dimitry Polivaev 22.11.2008
  */
 public interface IReadCompletionListener {
-	public void readingCompleted(NodeModel topNode, HashMap<String, String> newIds);
+	public void readingCompleted(NodeModel topNode, Map<String, String> newIds);
 }

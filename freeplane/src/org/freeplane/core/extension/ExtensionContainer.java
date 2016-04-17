@@ -17,6 +17,7 @@ public class ExtensionContainer {
 	}
 
 	public void addExtension(final Class<? extends IExtension> clazz, final IExtension extension) {
+		assert(clazz.isAssignableFrom(extension.getClass()));
 		final IExtension oldExtension = getExtensions().put(clazz, extension);
 		if (oldExtension != null && !oldExtension.equals(extension)) {
 			getExtensions().put(clazz, oldExtension);
@@ -28,6 +29,15 @@ public class ExtensionContainer {
 		addExtension(extension.getClass(), extension);
 	}
 
+	public IExtension putExtension(final Class<? extends IExtension> clazz, final IExtension extension) {
+        final IExtension oldExtension = getExtensions().put(clazz, extension);
+		return oldExtension;
+	}
+
+	public IExtension putExtension(final IExtension extension) {
+		return putExtension(extension.getClass(), extension);
+	}
+
 	public boolean containsExtension(final Class<? extends IExtension> clazz) {
 		return extensions.containsKey(clazz);
 	}
@@ -36,16 +46,18 @@ public class ExtensionContainer {
 		return getExtensions().values().iterator();
 	}
 
-	public IExtension getExtension(final Class<? extends IExtension> clazz) {
-		return getExtensions().get(clazz);
+	@SuppressWarnings("unchecked")
+    public <T extends IExtension> T getExtension(final Class<T> clazz) {
+		return (T) getExtensions().get(clazz);
 	}
 
 	public Map<Class<? extends IExtension>, IExtension> getExtensions() {
 		return extensions;
 	}
 
-	public IExtension removeExtension(final Class<? extends IExtension> clazz) {
-		return getExtensions().remove(clazz);
+	@SuppressWarnings("unchecked")
+    public <T extends IExtension> T removeExtension(final Class<T> clazz) {
+		return (T) getExtensions().remove(clazz);
 	}
 
 	public boolean removeExtension(final IExtension extension) {

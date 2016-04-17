@@ -27,31 +27,31 @@ import java.awt.dnd.DropTargetDragEvent;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.dnd.DropTargetEvent;
 import java.awt.dnd.DropTargetListener;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
 import javax.swing.JOptionPane;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.util.LogTool;
-import org.freeplane.features.common.clipboard.ClipboardController;
-import org.freeplane.features.common.clipboard.MindMapNodesSelection;
-import org.freeplane.features.common.link.LinkController;
-import org.freeplane.features.mindmapmode.MMapController;
-import org.freeplane.features.mindmapmode.clipboard.MClipboardController;
-import org.freeplane.features.mindmapmode.link.MLinkController;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.clipboard.ClipboardController;
+import org.freeplane.features.clipboard.MindMapNodesSelection;
+import org.freeplane.features.clipboard.mindmapmode.MClipboardController;
+import org.freeplane.features.link.LinkController;
+import org.freeplane.features.link.mindmapmode.MLinkController;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.map.mindmapmode.MMapController;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.ModeController;
 import org.freeplane.view.swing.map.MainView;
 import org.freeplane.view.swing.map.NodeView;
 
 public class MNodeDropListener implements DropTargetListener {
-	final private ModeController modeController;
+// 	final private ModeController modeController;
 
-	public MNodeDropListener(final ModeController controller) {
-		modeController = controller;
+	public MNodeDropListener() {
 	}
 
 	/**
@@ -98,7 +98,7 @@ public class MNodeDropListener implements DropTargetListener {
 			final MainView mainView = (MainView) dtde.getDropTargetContext().getComponent();
 			final NodeView targetNodeView = mainView.getNodeView();
 			final NodeModel targetNode = targetNodeView.getModel();
-			final Controller controller = modeController.getController();
+			final Controller controller = Controller.getCurrentController();
 			if (dtde.isLocalTransfer() && t.isDataFlavorSupported(MindMapNodesSelection.dropActionFlavor)) {
 				final String sourceAction = (String) t.getTransferData(MindMapNodesSelection.dropActionFlavor);
 				if (sourceAction.equals("LINK")) {
@@ -115,31 +115,31 @@ public class MNodeDropListener implements DropTargetListener {
 				return;
 			}
 			final boolean dropAsSibling = mainView.dropAsSibling(dtde.getLocation().getX());
+			ModeController modeController = controller.getModeController();
 			final MMapController mapController = (MMapController) modeController.getMapController();
 			if ((dropAction == DnDConstants.ACTION_MOVE || dropAction == DnDConstants.ACTION_COPY)) {
 				final NodeModel parent = dropAsSibling ? targetNode.getParentNode() : targetNode;
 				if (!mapController.isWriteable(parent)) {
 					dtde.rejectDrop();
-					final String message = ResourceBundles.getText("node_is_write_protected");
+					final String message = TextUtils.getText("node_is_write_protected");
 					UITools.errorMessage(message);
 					return;
 				}
 			}
-			dtde.acceptDrop(dtde.getDropAction());
-			final boolean isLeft = mainView.dropPosition(dtde.getLocation().getX());
+			final boolean isLeft = mainView.dropLeft(dtde.getLocation().getX());
 			if (!dtde.isLocalTransfer()) {
-				((MClipboardController) ClipboardController.getController(modeController)).paste(t, targetNode,
-				    dropAsSibling, isLeft);
+				dtde.acceptDrop(DnDConstants.ACTION_COPY);
+				((MClipboardController) ClipboardController.getController()).paste(t, targetNode, dropAsSibling, isLeft, dropAction);
 				dtde.dropComplete(true);
 				return;
 			}
+			dtde.acceptDrop(dropAction);
 			if (dropAction == DnDConstants.ACTION_LINK) {
 				int yesorno = JOptionPane.YES_OPTION;
 				if (controller.getSelection().size() >= 5) {
-					yesorno = JOptionPane.showConfirmDialog(controller.getViewController().getContentPane(),
-					    ResourceBundles.getText("lots_of_links_warning"), Integer.toString(controller.getSelection()
-					        .size())
-					            + " links to the same node", JOptionPane.YES_NO_OPTION);
+					yesorno = JOptionPane.showConfirmDialog(controller.getViewController().getContentPane(), TextUtils
+					    .getText("lots_of_links_warning"), Integer.toString(controller.getSelection().size())
+					        + " links to the same node", JOptionPane.YES_NO_OPTION);
 				}
 				if (yesorno == JOptionPane.YES_OPTION) {
 					for (final Iterator<NodeModel> it = controller.getSelection().getSelection().iterator(); it
@@ -152,12 +152,12 @@ public class MNodeDropListener implements DropTargetListener {
 			}
 			else {
 				Transferable trans = null;
-				final List selecteds = mapController.getSelectedNodes();
+				final Collection<NodeModel> selecteds = mapController.getSelectedNodes();
 				if (DnDConstants.ACTION_MOVE == dropAction) {
 					NodeModel actualNode = targetNode;
 					do {
 						if (selecteds.contains(actualNode)) {
-							final String message = ResourceBundles.getText("cannot_move_to_child");
+							final String message = TextUtils.getText("cannot_move_to_child");
 							JOptionPane.showMessageDialog(controller.getViewController().getContentPane(), message,
 							    "Freeplane", JOptionPane.WARNING_MESSAGE);
 							dtde.dropComplete(true);
@@ -165,21 +165,31 @@ public class MNodeDropListener implements DropTargetListener {
 						}
 						actualNode = (actualNode.isRoot()) ? null : actualNode.getParentNode();
 					} while (actualNode != null);
+	                final NodeModel[] array = selecteds.toArray(new NodeModel[selecteds.size()]);
 					final List<NodeModel> sortedSelection = controller.getSelection().getSortedSelection(true);
 					for (final NodeModel node : sortedSelection) {
-						mapController.moveNode(node, targetNode, dropAsSibling, isLeft, isLeft != node.isLeft());
+						boolean changeSide = isLeft != node.isLeft();
+                        if (dropAsSibling) {
+                        	mapController.moveNodeBefore(node, targetNode, isLeft, changeSide);
+                        }
+                        else {
+                        	mapController.moveNodeAsChild(node, targetNode, isLeft, changeSide);
+                        }
 					}
+					if(dropAsSibling || ! targetNode.isFolded())
+					    controller.getSelection().replaceSelection(array);
+					else
+					    controller.getSelection().selectAsTheOnlyOneSelected(targetNode);
 				}
 				else {
-					trans = ClipboardController.getController(modeController).copy(controller.getSelection());
-					((MClipboardController) ClipboardController.getController(modeController)).paste(trans, targetNode,
-					    dropAsSibling, isLeft);
+					trans = ClipboardController.getController().copy(controller.getSelection());
+					((MClipboardController) ClipboardController.getController()).paste(trans, targetNode, dropAsSibling, isLeft);
+	                controller.getSelection().selectAsTheOnlyOneSelected(targetNode);
 				}
-				controller.getSelection().selectAsTheOnlyOneSelected(targetNode);
 			}
 		}
 		catch (final Exception e) {
-			LogTool.severe("Drop exception:", e);
+			LogUtils.severe("Drop exception:", e);
 			dtde.dropComplete(false);
 			return;
 		}
@@ -201,6 +211,7 @@ public class MNodeDropListener implements DropTargetListener {
 
 	private boolean isDropAcceptable(final DropTargetDropEvent event) {
 		final NodeModel node = ((MainView) event.getDropTargetContext().getComponent()).getNodeView().getModel();
+		final ModeController modeController = Controller.getCurrentController().getModeController();
 		final NodeModel selected = modeController.getMapController().getSelectedNode();
 		return ((node != selected) && !node.isDescendantOf(selected));
 	}

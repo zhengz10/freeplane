@@ -21,14 +21,13 @@ package org.freeplane.view.swing.map.edge;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Stroke;
 
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.core.ui.components.UITools;
-import org.freeplane.features.common.edge.EdgeController;
-import org.freeplane.features.common.edge.EdgeStyle;
+import org.freeplane.features.edge.EdgeStyle;
+import org.freeplane.features.nodestyle.NodeStyleModel;
 import org.freeplane.view.swing.map.NodeView;
 
 /**
@@ -36,9 +35,9 @@ import org.freeplane.view.swing.map.NodeView;
  * 29.08.2009
  */
 public class OutlineEdgeView extends EdgeView {
-	public OutlineEdgeView(final NodeView target) {
-		super(target);
-	}
+	public OutlineEdgeView(NodeView source, NodeView target, Component paintedComponent) {
+	    super(source, target, paintedComponent);
+    }
 
 	@Override
 	public boolean detectCollision(final Point p) {
@@ -47,8 +46,8 @@ public class OutlineEdgeView extends EdgeView {
 
 	@Override
 	protected void createStart() {
-		start = getSource().getMainViewInPoint();
-		UITools.convertPointToAncestor(getSource().getMainView(), start, getSource());
+		start = getSource().getMainView().getLeftPoint();
+		end = getTarget().getMainView().getLeftPoint();
 	}
 
 	@Override
@@ -59,15 +58,28 @@ public class OutlineEdgeView extends EdgeView {
 		g.setStroke(stroke);
 		g.drawLine(start.x, start.y, start.x, end.y);
 		g.drawLine(start.x, end.y, end.x, end.y);
+		if(getTarget().isSummary()){
+			final int gap = getWidth();
+			final int y1 = end.y + gap * 13/8;
+			g.drawLine(start.x, start.y, start.x, y1);
+			int x2 = end.x;
+			if(NodeStyleModel.STYLE_FORK.equals(getTarget().getMainView().getShape()))
+				x2 += getTarget().getContent().getWidth();
+			g.drawLine(start.x, y1, x2, y1);
+		}
 	}
 
 	@Override
 	protected Stroke getStroke() {
-		final EdgeController edgeController = EdgeController.getController(getSource().getMap().getModeController());
-		final NodeModel model = getTarget().getModel();
-		int edgeWidth = edgeController.getWidth(model);
-		final EdgeStyle style = edgeController.getStyle(model);
-		edgeWidth = style.getNodeLineWidth(edgeWidth);
-		return new BasicStroke(edgeWidth);
+		final NodeView target = getTarget();
+		int edgeWidth = target.getEdgeWidth();
+		final EdgeStyle style = target.getEdgeStyle();
+		final int nodeLineWidth = style.getNodeLineWidth(edgeWidth);
+		final int zoomedWidth;
+		if(edgeWidth != 0)
+	        zoomedWidth = getTarget().getZoomed(nodeLineWidth);
+        else
+	        zoomedWidth = nodeLineWidth;
+		return new BasicStroke(zoomedWidth);
 	}
 }

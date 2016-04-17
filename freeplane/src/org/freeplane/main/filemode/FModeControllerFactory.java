@@ -22,25 +22,29 @@ package org.freeplane.main.filemode;
 import javax.swing.JPopupMenu;
 import javax.swing.SwingConstants;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.filter.FilterController;
-import org.freeplane.core.icon.IconController;
-import org.freeplane.core.modecontroller.IPropertyHandler;
-import org.freeplane.core.model.NodeModel;
 import org.freeplane.core.ui.components.FreeplaneToolBar;
-import org.freeplane.core.url.UrlManager;
-import org.freeplane.features.common.addins.mapstyle.MapStyle;
-import org.freeplane.features.common.clipboard.ClipboardController;
-import org.freeplane.features.common.edge.EdgeController;
-import org.freeplane.features.common.link.LinkController;
-import org.freeplane.features.common.nodelocation.LocationController;
-import org.freeplane.features.common.nodestyle.NodeStyleController;
-import org.freeplane.features.common.text.TextController;
-import org.freeplane.features.filemode.CenterAction;
-import org.freeplane.features.filemode.FMapController;
-import org.freeplane.features.filemode.FModeController;
-import org.freeplane.features.filemode.OpenPathAction;
-import org.freeplane.view.swing.addins.nodehistory.NodeHistory;
+import org.freeplane.features.clipboard.ClipboardController;
+import org.freeplane.features.cloud.CloudController;
+import org.freeplane.features.edge.EdgeController;
+import org.freeplane.features.filter.FilterController;
+import org.freeplane.features.icon.IconController;
+import org.freeplane.features.link.LinkController;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.map.filemode.CenterAction;
+import org.freeplane.features.map.filemode.FMapController;
+import org.freeplane.features.map.filemode.OpenPathAction;
+import org.freeplane.features.mapio.MapIO;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.IPropertyHandler;
+import org.freeplane.features.mode.filemode.FModeController;
+import org.freeplane.features.nodelocation.LocationController;
+import org.freeplane.features.nodestyle.NodeStyleController;
+import org.freeplane.features.styles.LogicalStyleController;
+import org.freeplane.features.styles.MapStyle;
+import org.freeplane.features.text.TextController;
+import org.freeplane.features.ui.ViewController;
+import org.freeplane.features.url.UrlManager;
+import org.freeplane.view.swing.features.nodehistory.NodeHistory;
 import org.freeplane.view.swing.ui.UserInputListenerFactory;
 
 /**
@@ -49,37 +53,40 @@ import org.freeplane.view.swing.ui.UserInputListenerFactory;
 public class FModeControllerFactory {
 	static private FModeController modeController;
 
-	static public FModeController createModeController(final Controller controller) {
+	static public FModeController createModeController() {
+		final Controller controller = Controller.getCurrentController();
 		modeController = new FModeController(controller);
 		final UserInputListenerFactory userInputListenerFactory = new UserInputListenerFactory(modeController);
 		modeController.setUserInputListenerFactory(userInputListenerFactory);
 		controller.addModeController(modeController);
-		modeController.setMapController(new FMapController(modeController));
-		UrlManager.install(modeController, new UrlManager(modeController));
-		IconController.install(modeController, new IconController(modeController));
-		NodeStyleController.install(modeController, new NodeStyleController(modeController));
-		EdgeController.install(modeController, new EdgeController(modeController));
-		LinkController.install(modeController, new LinkController(modeController));
-		TextController.install(modeController, new TextController(modeController));
-		ClipboardController.install(modeController, new ClipboardController(modeController));
-		LocationController.install(modeController, new LocationController(modeController));
-		new MapStyle(modeController);
-		NodeStyleController.getController(modeController).addShapeGetter(new Integer(0),
+		controller.selectModeForBuild(modeController);
+		new FMapController(modeController);
+		UrlManager.install(new UrlManager());
+		MapIO.install(modeController);
+		IconController.install(new IconController(modeController));
+		NodeStyleController.install(new NodeStyleController(modeController));
+		EdgeController.install(new EdgeController(modeController));
+		TextController.install(new TextController(modeController));
+		LinkController.install(new LinkController());
+		CloudController.install(new CloudController(modeController));
+		ClipboardController.install(new ClipboardController());
+		LocationController.install(new LocationController());
+		LogicalStyleController.install(new LogicalStyleController(modeController));
+		MapStyle.install(true);
+		NodeStyleController.getController().addShapeGetter(new Integer(0),
 		    new IPropertyHandler<String, NodeModel>() {
 			    public String getProperty(final NodeModel node, final String currentValue) {
 				    return "fork";
 			    }
 		    });
-		modeController.addAction(new CenterAction(controller));
-		modeController.addAction(new OpenPathAction(controller));
+		modeController.addAction(new CenterAction());
+		modeController.addAction(new OpenPathAction());
 		userInputListenerFactory.setNodePopupMenu(new JPopupMenu());
-		userInputListenerFactory.addMainToolBar("/main_toolbar", new FreeplaneToolBar("main_toolbar",
-		    SwingConstants.HORIZONTAL));
-		userInputListenerFactory.addMainToolBar("/filter_toolbar", FilterController.getController(controller)
-		    .getFilterToolbar());
-		userInputListenerFactory.setMenuStructure("/xml/filemodemenu.xml");
-		userInputListenerFactory.updateMenus(modeController);
-		modeController.updateMenus();
+		final FreeplaneToolBar toolBar = new FreeplaneToolBar("main_toolbar", SwingConstants.HORIZONTAL);
+		toolBar.putClientProperty(ViewController.VISIBLE_PROPERTY_KEY, "toolbarVisible");
+		userInputListenerFactory.addToolBar("/main_toolbar", ViewController.TOP, toolBar);
+		userInputListenerFactory.addToolBar("/filter_toolbar", ViewController.TOP, FilterController.getCurrentFilterController().getFilterToolbar());
+		userInputListenerFactory.addToolBar("/status", ViewController.BOTTOM, controller.getViewController().getStatusBar());
 		NodeHistory.install(modeController);
 		return modeController;
 	}

@@ -22,7 +22,6 @@ package org.freeplane.plugin.script;
 
 import java.awt.BorderLayout;
 import java.awt.Container;
-import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -35,6 +34,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.DefaultListModel;
 import javax.swing.JDialog;
+import javax.swing.JEditorPane;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JMenu;
@@ -50,16 +50,15 @@ import javax.swing.event.CaretEvent;
 import javax.swing.event.CaretListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.Element;
+import javax.swing.text.JTextComponent;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.ui.MenuBuilder;
 import org.freeplane.core.ui.UIBuilder;
 import org.freeplane.core.ui.components.BlindIcon;
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.util.LogTool;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.mode.Controller;
 import org.freeplane.plugin.script.ScriptingEngine.IErrorHandler;
 
 /**
@@ -109,7 +108,7 @@ class ScriptEditorPanel extends JDialog {
 
 		void endDialog(boolean pIsCanceled);
 
-		boolean executeScript(int pIndex, PrintStream outStream, IErrorHandler pErrorHandler);
+		Object executeScript(int pIndex, PrintStream outStream, IErrorHandler pErrorHandler);
 
 		int getAmountOfScripts();
 
@@ -191,7 +190,22 @@ class ScriptEditorPanel extends JDialog {
 			storeCurrent();
 			if (!mScriptList.isSelectionEmpty()) {
 				mScriptResultField.setText("");
-				mScriptModel.executeScript(mScriptList.getSelectedIndex(), getPrintStream(), getErrorHandler());
+				Object result = null;
+				try {
+					result = mScriptModel.executeScript(mScriptList.getSelectedIndex(), getPrintStream(),
+						getErrorHandler());
+                }
+                catch (Throwable e2) {
+        			Throwable cause = e2.getCause();
+					String causeMessage = "";
+					if(cause != null && cause.getMessage()!= null)
+						causeMessage = cause.getMessage();
+        			final String message = e2.getMessage() != null ? e2.getMessage() : "";
+        			UITools.errorMessage(e2.getClass().getName() + ": " + causeMessage
+        			        + ((causeMessage.length() != 0 && message.length() != 0) ? ", " : "") + message);
+        			result = message;
+                }
+				getPrintStream().print(TextUtils.getText("plugins/ScriptEditor/window.Result") + result);
 			}
 		}
 	}
@@ -237,11 +251,11 @@ class ScriptEditorPanel extends JDialog {
 		 * 
 		 */
 		private static final long serialVersionUID = 1L;
-		final private Controller controller;
+// // 		final private Controller controller;
 
-		private SignAction(final Controller controller, final String pArg0) {
+		private SignAction( final String pArg0) {
 			super(pArg0);
-			this.controller = controller;
+//			this.controller = controller;
 		}
 
 		public void actionPerformed(final ActionEvent arg0) {
@@ -249,7 +263,7 @@ class ScriptEditorPanel extends JDialog {
 			if (!mScriptList.isSelectionEmpty()) {
 				final int selectedIndex = mScriptList.getSelectedIndex();
 				final ScriptHolder script = mScriptModel.getScript(selectedIndex);
-				final String signedScript = new SignedScriptHandler().signScript(controller, script.mScript);
+				final String signedScript = new SignedScriptHandler().signScript(script.mScript);
 				script.setScript(signedScript);
 				mScriptModel.setScript(selectedIndex, script);
 				mScriptTextField.setText(signedScript);
@@ -273,15 +287,15 @@ class ScriptEditorPanel extends JDialog {
 	final private JList mScriptList;
 	final private IScriptModel mScriptModel;
 	final private JTextArea mScriptResultField;
-	final private JTextArea mScriptTextField;
+	final private JTextComponent mScriptTextField;
 	final private SignAction mSignAction;
 	final private JLabel mStatus;
 
-	public ScriptEditorPanel(final Controller controller, final IScriptModel pScriptModel,
+	public ScriptEditorPanel( final IScriptModel pScriptModel,
 	                         final boolean pHasNewScriptFunctionality) {
-		super(controller.getViewController().getJFrame(), true /* modal */);
+		super(Controller.getCurrentController().getViewController().getJFrame(), true /* modal */);
 		mScriptModel = pScriptModel;
-		this.setTitle(ResourceBundles.getText("plugins/ScriptEditor/window.title"));
+		this.setTitle(TextUtils.getText("plugins/ScriptEditor/window.title"));
 		this.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 		this.addWindowListener(new WindowAdapter() {
 			@Override
@@ -312,11 +326,17 @@ class ScriptEditorPanel extends JDialog {
 				select(mScriptList.getSelectedIndex());
 			}
 		});
-		mScriptTextField = new JTextArea();
-		mScriptTextField.setFont(new Font("Monospaced", Font.PLAIN, 12));
+		final JEditorPane editorPane = new JEditorPane();
+		editorPane.putClientProperty(JEditorPane.HONOR_DISPLAY_PROPERTIES, true);
+		mScriptTextField = editorPane;
 		mScriptTextField.setEnabled(false);
-		mScriptTextField.setTabSize(2);
 		mCentralUpperPanel = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, mScriptList, new JScrollPane(mScriptTextField));
+		try {
+			editorPane.setContentType("text/groovy");
+		} catch (Exception e) {
+			LogUtils.warn(e);
+			editorPane.setContentType("text/plain");
+		}
 		mCentralUpperPanel.setContinuousLayout(true);
 		mScriptResultField = new JTextArea();
 		mScriptResultField.setEditable(false);
@@ -331,33 +351,28 @@ class ScriptEditorPanel extends JDialog {
 		mScriptTextField.addCaretListener(new CaretListener() {
 			public void caretUpdate(final CaretEvent arg0) {
 				final int caretPosition = mScriptTextField.getCaretPosition();
-				try {
-					final int lineOfOffset = mScriptTextField.getLineOfOffset(caretPosition);
-					mStatus.setText("Line: " + (lineOfOffset + 1) + ", Column: "
-					        + (caretPosition - mScriptTextField.getLineStartOffset(lineOfOffset) + 1));
-				}
-				catch (final BadLocationException e) {
-					LogTool.severe(e);
-				}
+				final int lineOfOffset = JSyntaxPaneProxy.getLineOfOffset(mScriptTextField, caretPosition);
+				mStatus.setText("Line: " + (lineOfOffset + 1) + ", Column: "
+					+ (caretPosition - JSyntaxPaneProxy.getLineOfOffset(mScriptTextField, lineOfOffset) + 1));
 			}
 		});
 		updateFields();
 		mScriptTextField.repaint();
 		final JMenuBar menuBar = new JMenuBar();
 		final JMenu menu = new JMenu();
-		MenuBuilder.setLabelAndMnemonic(menu, ResourceBundles.getText("plugins/ScriptEditor.menu_actions"));
+		MenuBuilder.setLabelAndMnemonic(menu, TextUtils.getRawText("plugins/ScriptEditor.menu_actions"));
 		if (pHasNewScriptFunctionality) {
-			addAction(menu, new NewScriptAction(ResourceBundles.getText("plugins/ScriptEditor.new_script")));
+			addAction(menu, new NewScriptAction(TextUtils.getRawText("plugins/ScriptEditor.new_script")));
 		}
-		mRunAction = new RunAction(ResourceBundles.getText("plugins/ScriptEditor.run"));
+		mRunAction = new RunAction(TextUtils.getRawText("plugins/ScriptEditor.run"));
 		mRunAction.setEnabled(false);
 		addAction(menu, mRunAction);
-		mSignAction = new SignAction(controller, ResourceBundles.getText("plugins/ScriptEditor.sign"));
+		mSignAction = new SignAction(TextUtils.getRawText("plugins/ScriptEditor.sign"));
 		mSignAction.setEnabled(false);
 		addAction(menu, mSignAction);
-		final AbstractAction cancelAction = new CancelAction(ResourceBundles.getText("plugins/ScriptEditor.cancel"));
+		final AbstractAction cancelAction = new CancelAction(TextUtils.getRawText("plugins/ScriptEditor.cancel"));
 		addAction(menu, cancelAction);
-		final AbstractAction exitAction = new ExitAction(ResourceBundles.getText("plugins/ScriptEditor.exit"));
+		final AbstractAction exitAction = new ExitAction(TextUtils.getRawText("plugins/ScriptEditor.exit"));
 		addAction(menu, exitAction);
 		menuBar.add(menu);
 		this.setJMenuBar(menuBar);
@@ -387,7 +402,7 @@ class ScriptEditorPanel extends JDialog {
 			select(mScriptList.getSelectedIndex());
 		}
 		if (pIsCanceled && mScriptModel.isDirty()) {
-			final int action = JOptionPane.showConfirmDialog(this, ResourceBundles
+			final int action = JOptionPane.showConfirmDialog(this, TextUtils
 			    .getText("ScriptEditorPanel.changed_cancel"), "Freeplane", JOptionPane.OK_CANCEL_OPTION);
 			if (action == JOptionPane.CANCEL_OPTION) {
 				return;
@@ -405,13 +420,7 @@ class ScriptEditorPanel extends JDialog {
 	IErrorHandler getErrorHandler() {
 		return new IErrorHandler() {
 			public void gotoLine(final int pLineNumber) {
-				if (pLineNumber > 0 && pLineNumber <= mScriptTextField.getLineCount()) {
-					final Element element3 = mScriptTextField.getDocument().getDefaultRootElement();
-					final Element element4 = element3.getElement(pLineNumber - 1);
-					if (element4 != null) {
-						mScriptTextField.select((element4.getStartOffset()), element4.getEndOffset());
-					}
-				}
+				JSyntaxPaneProxy.gotoPosition(mScriptTextField, pLineNumber, 1);
 			}
 		};
 	}

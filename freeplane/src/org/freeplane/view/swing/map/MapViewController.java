@@ -36,16 +36,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
-import org.freeplane.core.frame.IMapSelectionListener;
-import org.freeplane.core.frame.IMapViewChangeListener;
-import org.freeplane.core.frame.IMapViewManager;
-import org.freeplane.core.modecontroller.IMapSelection;
-import org.freeplane.core.modecontroller.MapController;
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.MapModel;
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.features.common.addins.mapstyle.MapStyle;
-import org.freeplane.features.common.addins.mapstyle.MapViewLayout;
+import org.freeplane.core.resources.ResourceController;
+import org.freeplane.features.map.IMapSelection;
+import org.freeplane.features.map.IMapSelectionListener;
+import org.freeplane.features.map.MapController;
+import org.freeplane.features.map.MapModel;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.styles.MapStyle;
+import org.freeplane.features.styles.MapViewLayout;
+import org.freeplane.features.ui.IMapViewChangeListener;
+import org.freeplane.features.ui.IMapViewManager;
 
 /**
  * Manages the list of MapViews. As this task is very complex, I exported it
@@ -111,6 +112,7 @@ public class MapViewController implements IMapViewManager {
 		mapViewChangeListeners.beforeMapViewChange(oldMapView, newMapView);
 		mapView = newMapView;
 		if (mapView != null) {
+			mapView.revalidateSelecteds();
 			final ModeController modeController = mapView.getModeController();
 			lastModeName = modeController.getModeName();
 			final float mapViewZoom = mapView.getZoom();
@@ -197,6 +199,7 @@ public class MapViewController implements IMapViewManager {
 		}
 		int index = mapViewVector.indexOf(mapView);
 		mapController.removeMapChangeListener(mapView);
+		ResourceController.getResourceController().removePropertyChangeListener(mapView);
 		mapViewVector.remove(mapView);
 		if (mapViewVector.isEmpty()) {
 			/* Keep the current running mode */
@@ -235,6 +238,7 @@ public class MapViewController implements IMapViewManager {
 		final Graphics g = myImage.getGraphics();
 		g.translate(-innerBounds.x, -innerBounds.y);
 		view.print(g);
+		view.endPrinting();
 		return myImage;
 	}
 
@@ -257,8 +261,12 @@ public class MapViewController implements IMapViewManager {
 	 * @see org.freeplane.core.frame.IMapViewController#getComponent(org.freeplane.core.model.NodeModel)
 	 */
 	public Component getComponent(final NodeModel node) {
+		if(mapView == null)
+			return null;
 		final NodeView nodeView = mapView.getNodeView(node);
-		return nodeView != null ? nodeView.getMainView() : null;
+		if(nodeView == null)
+			return null;
+		return nodeView.getMainView();
 	}
 
 	/* (non-Javadoc)
@@ -388,6 +396,7 @@ public class MapViewController implements IMapViewManager {
 		final MapView mapView = new MapView(map, modeController);
 		addToOrChangeInMapViews(mapView.getName(), mapView);
 		modeController.getMapController().addMapChangeListener(mapView);
+		ResourceController.getResourceController().addPropertyChangeListener(mapView);
 		mapViewChangeListeners.mapViewCreated(mapView);
 		changeToMapView(mapView);
 	}
@@ -479,6 +488,9 @@ public class MapViewController implements IMapViewManager {
 		}
 		final MapModel map = mapView.getModel();
 		final MapStyle mapStyle = (MapStyle) mapView.getModeController().getExtension(MapStyle.class);
+		if(mapView.getZoom() == zoom){
+			return;
+		}
 		mapStyle.setZoom(map, zoom);
 		mapView.setZoom(zoom);
 	}
@@ -495,6 +507,15 @@ public class MapViewController implements IMapViewManager {
 			return false;
 		}
 	}
+
+	public boolean tryToChangeToMapView(URL url) throws MalformedURLException {
+		final String mapExtensionKey = checkIfFileIsAlreadyOpened(url);
+		if (mapExtensionKey != null) {
+			tryToChangeToMapView(mapExtensionKey);
+			return true;
+		}
+		return false;
+    }
 
 	/* (non-Javadoc)
 	 * @see org.freeplane.core.frame.IMapViewController#updateMapViewName()
@@ -518,5 +539,15 @@ public class MapViewController implements IMapViewManager {
 			}
 		}
 		return Collections.unmodifiableMap(returnValue);
+	}
+
+	public List<Component> getViews(final MapModel map) {
+		final LinkedList<Component> list = new LinkedList<Component>();
+		for (final MapView view : mapViewVector) {
+			if (view.getModel().equals(map)) {
+				list.add(view);
+			}
+		}
+		return list;
 	}
 }

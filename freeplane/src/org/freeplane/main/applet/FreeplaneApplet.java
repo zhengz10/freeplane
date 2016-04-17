@@ -19,40 +19,88 @@
  */
 package org.freeplane.main.applet;
 
+import java.awt.AWTEvent;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.EventQueue;
 import java.awt.HeadlessException;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.swing.JApplet;
+import javax.swing.JComponent;
+import javax.swing.JOptionPane;
+import javax.swing.text.html.parser.ParserDelegator;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.filter.FilterController;
-import org.freeplane.core.frame.ViewController;
-import org.freeplane.core.icon.IconController;
-import org.freeplane.core.resources.ResourceController;
-import org.freeplane.features.browsemode.BModeController;
-import org.freeplane.features.common.addins.mapstyle.MapViewLayout;
-import org.freeplane.features.common.attribute.ModelessAttributeController;
-import org.freeplane.features.common.link.LinkController;
-import org.freeplane.features.common.text.NextNodeAction;
-import org.freeplane.features.common.text.TextController;
-import org.freeplane.features.common.text.TextController.Direction;
-import org.freeplane.features.common.time.TimeController;
-import org.freeplane.features.controller.help.HelpController;
-import org.freeplane.features.controller.print.PrintController;
+import org.freeplane.core.ui.ShowSelectionAsRectangleAction;
+import org.freeplane.features.attribute.ModelessAttributeController;
+import org.freeplane.features.filter.FilterController;
+import org.freeplane.features.filter.NextNodeAction;
+import org.freeplane.features.filter.NextPresentationItemAction;
+import org.freeplane.features.format.FormatController;
+import org.freeplane.features.help.HelpController;
+import org.freeplane.features.icon.IconController;
+import org.freeplane.features.link.LinkController;
+import org.freeplane.features.map.MapController;
+import org.freeplane.features.map.MapController.Direction;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.browsemode.BModeController;
+import org.freeplane.features.print.PrintController;
+import org.freeplane.features.styles.LogicalStyleFilterController;
+import org.freeplane.features.styles.MapViewLayout;
+import org.freeplane.features.text.TextController;
+import org.freeplane.features.time.TimeController;
+import org.freeplane.features.ui.ViewController;
 import org.freeplane.main.browsemode.BModeControllerFactory;
-import org.freeplane.view.swing.addins.nodehistory.NodeHistory;
+import org.freeplane.view.swing.features.nodehistory.NodeHistory;
 import org.freeplane.view.swing.map.MapViewController;
 import org.freeplane.view.swing.map.ViewLayoutTypeAction;
 
 public class FreeplaneApplet extends JApplet {
-	static private AppletResourceController appletResourceController;
+	
+	@SuppressWarnings("serial")
+	private class GlassPane extends JComponent{
+		public GlassPane() {
+			addMouseListener(new MouseAdapter(){});
+		}
+
+
+		@Override
+        protected void processMouseEvent(MouseEvent e) {
+			if (e.getID() == MouseEvent.MOUSE_EXITED){
+				return;
+			}
+			Controller currentController = Controller.getCurrentController();
+			if( controller != currentController ){
+				if(! appletLock.tryLock()){
+					return;
+				}
+				Controller.setCurrentController(controller);
+				appletLock.unlock();
+				JOptionPane.getFrameForComponent(this).getMostRecentFocusOwner().requestFocus();
+				if(currentController != null){
+					currentController.getViewController().getRootPaneContainer().getGlassPane().setVisible(true);
+				}
+			}
+			setVisible(false);
+		}
+	}
+	
+	private AppletResourceController appletResourceController;
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
 	private AppletViewController appletViewController;
-	private Controller controller;
+ 	private Controller controller;
+ 	
+ 	final static Lock appletLock = new ReentrantLock();
 
 	public FreeplaneApplet() throws HeadlessException {
 	    super();
@@ -60,51 +108,81 @@ public class FreeplaneApplet extends JApplet {
 
 	@Override
 	public void destroy() {
-		controller.shutdown();
 	}
-
-	@Override
+	
+	@SuppressWarnings("serial")
+    @Override
 	public void init() {
-		synchronized (FreeplaneApplet.class){
+		try{
+			appletLock.lock();
+			appletResourceController = new AppletResourceController(this);
 			if (appletResourceController == null) {
 				appletResourceController = new AppletResourceController(this);
 			}
+			new ParserDelegator(){
+				{
+					setDefaultDTD();
+				}
+			};
 			updateLookAndFeel();
 			createRootPane();
-			controller = new Controller();
-			appletResourceController.init(controller);
+			controller = new Controller(appletResourceController);
+			appletResourceController.init();
+			Controller.setCurrentController(controller);
 			final Container contentPane = getContentPane();
 			contentPane.setLayout(new BorderLayout());
-			ResourceController.setResourceController(appletResourceController);
-			appletViewController = new AppletViewController(controller, this, new MapViewController());
-			controller.addAction(new ViewLayoutTypeAction(controller, MapViewLayout.OUTLINE));
-			FilterController.install(controller);
-			PrintController.install(controller);
-			HelpController.install(controller);
+			appletViewController = new AppletViewController(this, controller, new MapViewController());
+			controller.addAction(new ViewLayoutTypeAction(MapViewLayout.OUTLINE));
+			FilterController.install();
+			PrintController.install();
+			HelpController.install();
 			NodeHistory.install(controller);
-			ModelessAttributeController.install(controller);
-			TextController.install(controller);
-			TimeController.install(controller);
-			LinkController.install(controller);
-			IconController.install(controller);
-			final BModeController browseController = BModeControllerFactory.createModeController(controller,
-			"/xml/appletMenu.xml");
-			controller.addAction(new NextNodeAction(controller, Direction.FORWARD));
-			controller.addAction(new NextNodeAction(controller, Direction.BACK));
+			FormatController.install(new FormatController());
+			ModelessAttributeController.install();
+			TextController.install();
+			MapController.install();
+
+			TimeController.install();
+			LinkController.install();
+			IconController.install();
+			FilterController.getCurrentFilterController().getConditionFactory().addConditionController(7,
+			    new LogicalStyleFilterController());
+			final BModeController browseController = BModeControllerFactory.createModeController();
+			final Set<String> emptySet = Collections.emptySet();
+			FilterController.getController(controller).loadDefaultConditions();
+			browseController.updateMenus("/xml/appletMenu.xml", emptySet);
+			controller.addAction(new ShowSelectionAsRectangleAction());
+			controller.addAction(new NextNodeAction(Direction.FORWARD));
+			controller.addAction(new NextNodeAction(Direction.BACK));
+			controller.addAction(new NextPresentationItemAction());
 			controller.selectMode(browseController);
 			appletResourceController.setPropertyByParameter(this, "browsemode_initial_map");
-			appletViewController.init();
-			appletViewController.setMenubarVisible(false);
+			appletViewController.init(controller);
+			final GlassPane glassPane = new GlassPane();
+			setGlassPane(glassPane);
+			glassPane.setVisible(true);
+			controller.getViewController().setMenubarVisible(false);
+		}
+		catch(RuntimeException e){
+			e.printStackTrace();
+			throw e;
+		}
+		finally{
+			appletLock.unlock();
 		}
 	}
 
 	@Override
 	public void start() {
-		appletViewController.start();
+		EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				appletViewController.start();
+			}
+		});
 	}
 
 	@Override
-	synchronized public void stop() {
+	public void stop() {
 		super.stop();
 	}
 
@@ -114,4 +192,35 @@ public class FreeplaneApplet extends JApplet {
 		lookAndFeel = appletResourceController.getProperty("lookandfeel");
 		ViewController.setLookAndFeel(lookAndFeel);
 	}
+
+	@Override
+    public Component findComponentAt(int x, int y) {
+	    final Component c = super.findComponentAt(x, y);
+	    if(c == null){
+	    	return null;
+	    }
+		final AWTEvent currentEvent = EventQueue.getCurrentEvent();
+		if(controller != Controller.getCurrentController() 
+				&& currentEvent instanceof MouseEvent 
+				&& currentEvent.getID() == MouseEvent.MOUSE_MOVED){
+			if(appletLock.tryLock()){
+				Controller.setCurrentController(controller);
+				appletLock.unlock();
+			}
+		}
+		return c;
+	}
+
+	public void setWaitingCursor(final boolean waiting) {
+		Component glassPane = getRootPane().getGlassPane();
+		if (waiting) {
+			glassPane.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+			glassPane.setVisible(true);
+		}
+		else {
+			glassPane.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+			glassPane.setVisible(false);
+		}
+	}
+
 }

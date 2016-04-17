@@ -22,12 +22,12 @@ package org.freeplane.core.ui.components;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Insets;
+import java.awt.LayoutManager;
 import java.awt.event.HierarchyBoundsListener;
 import java.awt.event.HierarchyEvent;
 
 import javax.swing.AbstractButton;
 import javax.swing.Action;
-import javax.swing.JButton;
 import javax.swing.JToolBar;
 
 /**
@@ -48,7 +48,7 @@ public class FreeplaneToolBar extends JToolBar {
 		setFloatable(false);
 		setRollover(true);
 		if (orientation == HORIZONTAL) {
-			setLayout(ToolbarLayout.getInstance());
+			super.setLayout(ToolbarLayout.getInstance());
 			addHierarchyBoundsListener(new HierarchyBoundsListener() {
 				public void ancestorResized(final HierarchyEvent e) {
 					revalidate();
@@ -60,20 +60,16 @@ public class FreeplaneToolBar extends JToolBar {
 			});
 		}
 	}
+	
+	
 
-	/*
-	 * (non-Javadoc)
-	 * @see javax.swing.JToolBar#add(javax.swing.Action)
-	 */
 	@Override
-	public JButton add(final Action arg0) {
-		final String actionName = (String) arg0.getValue(Action.NAME);
-		arg0.putValue(Action.SHORT_DESCRIPTION, actionName);
-		final JButton returnValue = super.add(arg0);
-		returnValue.setName(actionName);
-		configureComponent(returnValue);
-		return returnValue;
-	}
+    public void setLayout(LayoutManager mgr) {
+		if (getOrientation() != HORIZONTAL)
+			super.setLayout(mgr);
+    }
+
+
 
 	@Override
 	public Component add(final Component comp) {
@@ -113,6 +109,8 @@ public class FreeplaneToolBar extends JToolBar {
 			return;
 		}
 		final AbstractButton abstractButton = (AbstractButton) comp;
+		final String actionName = (String) abstractButton.getAction().getValue(Action.NAME);
+		abstractButton.setName(actionName);
 		if (null != abstractButton.getIcon()) {
 			final String text = abstractButton.getText();
 			final String toolTipText = abstractButton.getToolTipText();

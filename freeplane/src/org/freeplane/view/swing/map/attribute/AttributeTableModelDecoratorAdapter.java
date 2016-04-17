@@ -24,18 +24,22 @@ import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.AbstractTableModel;
 
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.features.common.attribute.AttributeController;
-import org.freeplane.features.common.attribute.AttributeRegistry;
-import org.freeplane.features.common.attribute.IAttributeTableModel;
-import org.freeplane.features.common.attribute.NodeAttributeTableModel;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.features.attribute.AttributeController;
+import org.freeplane.features.attribute.AttributeRegistry;
+import org.freeplane.features.attribute.IAttributeTableModel;
+import org.freeplane.features.attribute.NodeAttributeTableModel;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.text.TextController;
+import org.freeplane.view.swing.map.NodeView;
 
 /**
  * @author Dimitry Polivaev
  */
-abstract class AttributeTableModelDecoratorAdapter extends AbstractTableModel implements IAttributeTableModel,
-        TableModelListener, ChangeListener {
+abstract class AttributeTableModelDecoratorAdapter extends AbstractTableModel 
+		implements IAttributeTableModel,
+        TableModelListener, ChangeListener{
 	/**
 	 * 
 	 */
@@ -43,14 +47,16 @@ abstract class AttributeTableModelDecoratorAdapter extends AbstractTableModel im
 	final private AttributeController attributeController;
 	private AttributeRegistry attributeRegistry;
 	private NodeAttributeTableModel nodeAttributeModel;
+	final private TextController textController;
 
 	public AttributeTableModelDecoratorAdapter(final AttributeView attrView) {
 		super();
+		final ModeController modeController = attrView.getMapView().getModeController();
+		attributeController = AttributeController.getController(modeController);
+		textController = TextController.getController(modeController);
 		setNodeAttributeModel(attrView.getAttributes());
 		setAttributeRegistry(attrView.getAttributeRegistry());
 		getNodeAttributeModel().getNode();
-		final ModeController modeController = attrView.getMapView().getModeController();
-		attributeController = AttributeController.getController(modeController);
 		addListeners();
 	}
 
@@ -76,7 +82,7 @@ abstract class AttributeTableModelDecoratorAdapter extends AbstractTableModel im
 	}
 
 	@Override
-	public Class getColumnClass(final int columnIndex) {
+	public Class<?> getColumnClass(final int columnIndex) {
 		return getNodeAttributeModel().getColumnClass(columnIndex);
 	}
 
@@ -116,9 +122,35 @@ abstract class AttributeTableModelDecoratorAdapter extends AbstractTableModel im
 
 	public void setNodeAttributeModel(final NodeAttributeTableModel nodeAttributeModel) {
 		this.nodeAttributeModel = nodeAttributeModel;
+		int rowCount = nodeAttributeModel.getRowCount();
+		cacheTransformedValues(0, (rowCount-1));
 	}
 
-	public void viewRemoved() {
+	private void cacheTransformedValue(int row) {
+			try {
+				final Object value = nodeAttributeModel.getValueAt(row, 1);
+				if (value != null)
+					textController.getTransformedText(value.toString(), getNode(), null);
+            }
+            catch (Exception e) {
+            	LogUtils.warn(e);
+            }
+	}
+
+	public void viewRemoved(NodeView nodeView) {
 		removeListeners();
+	}
+	public void tableChanged(final TableModelEvent e) {
+		switch(e.getType()){
+		case TableModelEvent.INSERT:
+		case TableModelEvent.UPDATE:
+			cacheTransformedValues(e.getFirstRow(), e.getLastRow());
+		}
+		
+	}
+	private void cacheTransformedValues(int firstRow, int lastRow) {
+		for(int row = firstRow; row <= lastRow; row++){
+			cacheTransformedValue(row);
+		}
 	}
 }

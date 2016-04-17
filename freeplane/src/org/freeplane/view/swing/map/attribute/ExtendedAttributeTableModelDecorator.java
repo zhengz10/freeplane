@@ -22,8 +22,7 @@ package org.freeplane.view.swing.map.attribute;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.TableModelEvent;
 
-import org.freeplane.features.common.attribute.Attribute;
-import org.freeplane.features.mindmapmode.attribute.MAttributeController;
+import org.freeplane.features.attribute.Attribute;
 
 /**
  * @author Dimitry Polivaev
@@ -35,9 +34,11 @@ class ExtendedAttributeTableModelDecorator extends AttributeTableModelDecoratorA
 	 */
 	private static final long serialVersionUID = 1L;
 	int newRow;
+	final private AttributeView attributeView;
 
 	public ExtendedAttributeTableModelDecorator(final AttributeView attrView) {
 		super(attrView);
+		this.attributeView = attrView;
 		newRow = ExtendedAttributeTableModelDecorator.AFTER_LAST_ROW;
 	}
 
@@ -49,7 +50,7 @@ class ExtendedAttributeTableModelDecorator extends AttributeTableModelDecoratorA
 	 */
 	@Override
 	public boolean areAttributesVisible() {
-		return getRowCount() != 0;
+		return getRowCount() != 0 || ! attributeView.addToNodeView();
 	}
 
 	@Override
@@ -86,7 +87,7 @@ class ExtendedAttributeTableModelDecorator extends AttributeTableModelDecoratorA
 	@Override
 	public boolean isCellEditable(final int row, final int col) {
 		if (row != newRow) {
-			return getAttributeController() instanceof MAttributeController;
+			return getAttributeController().canEdit();
 		}
 		return col == 0;
 	}
@@ -135,6 +136,7 @@ class ExtendedAttributeTableModelDecorator extends AttributeTableModelDecoratorA
 	}
 	
 	public void tableChanged(final TableModelEvent e) {
+		super.tableChanged(e);
 		fireTableChanged(new TableModelEvent(this, e.getFirstRow(), e.getLastRow(), e.getColumn(), e.getType()));
 	}
 }

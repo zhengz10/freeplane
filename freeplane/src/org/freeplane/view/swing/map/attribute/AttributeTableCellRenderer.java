@@ -19,14 +19,22 @@
  */
 package org.freeplane.view.swing.map.attribute;
 
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
-
+import java.net.URI;
+import javax.swing.Icon;
 import javax.swing.JTable;
 import javax.swing.UIManager;
 import javax.swing.table.DefaultTableCellRenderer;
+
+import org.freeplane.core.util.HtmlUtils;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.attribute.IAttributeTableModel;
+import org.freeplane.features.text.HighlightedTransformedObject;
+import org.freeplane.features.text.TextController;
 
 class AttributeTableCellRenderer extends DefaultTableCellRenderer {
 	/**
@@ -36,6 +44,7 @@ class AttributeTableCellRenderer extends DefaultTableCellRenderer {
 	static final float ZOOM_CORRECTION_FACTOR = 0.97F;
 	private boolean isPainting;
 	private float zoom;
+	private Color borderColor;
 
 	/*
 	 * (non-Javadoc)
@@ -54,12 +63,60 @@ class AttributeTableCellRenderer extends DefaultTableCellRenderer {
 	@Override
 	public Component getTableCellRendererComponent(final JTable table, final Object value, final boolean isSelected,
 	                                               final boolean hasFocus, final int row, final int column) {
-		final Component rendererComponent = super.getTableCellRendererComponent(table, value, hasFocus, false, row,
+		final Component rendererComponent = super.getTableCellRendererComponent(table, value, hasFocus, isSelected, row,
 		    column);
 		if (hasFocus) {
 			setBorder(UIManager.getBorder("Table.focusCellHighlightBorder"));
 		}
 		zoom = ((AttributeTable) table).getZoom();
+	    final IAttributeTableModel attributeTableModel = (IAttributeTableModel) table.getModel();
+		final String originalText = value == null ? null : value.toString();
+		String text = originalText;
+		borderColor = null;
+		Icon icon;
+		if (column == 1 && value != null) {
+			try {
+				// evaluate values only
+				final TextController textController = TextController.getController();
+				Object transformedObject = textController.getTransformedObject(value, attributeTableModel.getNode(), null);
+				text = transformedObject.toString();
+				if (transformedObject instanceof HighlightedTransformedObject && TextController.isMarkTransformedTextSet()) {
+					borderColor = Color.GREEN;
+				}
+			}
+			catch (Exception e) {
+				text = TextUtils.format("MainView.errorUpdateText", originalText, e.getLocalizedMessage());
+				borderColor = Color.RED;
+			}
+			if(value instanceof URI){
+	                icon = ((AttributeTable)table).getLinkIcon((URI) value);
+			}
+			else{
+				icon = null;
+			}
+		}
+		else{
+			icon = null;
+		}
+		if(icon != getIcon()){
+			setIcon(icon);
+		}
+		setText(text);
+		if(text != originalText){
+			final String toolTip = HtmlUtils.isHtmlNode(originalText) ? text : HtmlUtils.plainToHTML(originalText);
+			setToolTipText(toolTip);
+		}
+		else{
+			final int prefWidth = getPreferredSize().width;
+			final int width = table.getColumnModel().getColumn(column).getWidth();
+			if (prefWidth > width) {
+				final String toolTip = HtmlUtils.isHtmlNode(text) ? text : HtmlUtils.plainToHTML(text);
+				setToolTipText(toolTip);
+			}
+			else {
+				setToolTipText(null);
+			}
+		}
 		return rendererComponent;
 	}
 
@@ -91,6 +148,12 @@ class AttributeTableCellRenderer extends DefaultTableCellRenderer {
 		}
 		else {
 			super.paint(g);
+		}
+		if(borderColor != null){
+			final Color color = g.getColor();
+			g.setColor(borderColor);
+			g.drawRect(0, 0, getWidth()-1, getHeight()-1);
+			g.setColor(color);
 		}
 	}
 }

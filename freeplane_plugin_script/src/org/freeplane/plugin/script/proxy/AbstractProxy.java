@@ -1,17 +1,20 @@
 package org.freeplane.plugin.script.proxy;
 
-import org.freeplane.features.mindmapmode.MModeController;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.mindmapmode.MModeController;
+import org.freeplane.plugin.script.ScriptContext;
 
 public abstract class AbstractProxy<T> {
-	final private T delegate;
-	final private MModeController modeController;
+	private final T delegate;
+	private final ScriptContext scriptContext;
 
-	AbstractProxy(final T delegate, final MModeController modeController) {
+	AbstractProxy(final T delegate, final ScriptContext scriptContext) {
 		this.delegate = delegate;
-		this.modeController = modeController;
+		this.scriptContext = scriptContext;
 	}
 
-	@Override
+	@SuppressWarnings("rawtypes")
+    @Override
 	public boolean equals(final Object obj) {
 		if (!getClass().equals(obj.getClass())) {
 			return false;
@@ -23,12 +26,21 @@ public abstract class AbstractProxy<T> {
 		return delegate;
 	}
 
+	public ScriptContext getScriptContext() {
+    	return scriptContext;
+    }
+
 	public MModeController getModeController() {
-		return modeController;
+		return (MModeController) Controller.getCurrentModeController();
 	}
 
 	@Override
 	public int hashCode() {
 		return delegate.hashCode() * 31 + getClass().hashCode();
 	}
+
+	@Override
+    public String toString() {
+	    return getClass() + ":" + delegate.toString();
+    }
 }

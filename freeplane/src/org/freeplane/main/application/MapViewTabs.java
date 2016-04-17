@@ -22,6 +22,7 @@ package org.freeplane.main.application;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Insets;
+import java.awt.dnd.DropTarget;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseListener;
@@ -40,20 +41,22 @@ import javax.swing.event.ChangeListener;
 import javax.swing.plaf.TabbedPaneUI;
 import javax.swing.plaf.basic.BasicTabbedPaneUI;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.frame.IMapViewChangeListener;
-import org.freeplane.core.frame.ViewController;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.ui.IMapViewChangeListener;
+import org.freeplane.features.ui.ViewController;
+import org.freeplane.features.url.mindmapmode.FileOpener;
+import org.freeplane.view.swing.ui.DefaultMapMouseListener;
 
 class MapViewTabs implements IMapViewChangeListener {
-	final private Controller controller;
+// // 	final private Controller controller;
 	private Component mContentComponent;
 	private JTabbedPane mTabbedPane = null;
 	final private Vector<Component> mTabbedPaneMapViews;
 	private boolean mTabbedPaneSelectionUpdate = true;
 	private TabbedPaneUI tabbedPaneUI;
 
-	public MapViewTabs(final Controller controller, final ViewController fm, final JComponent contentComponent) {
-		this.controller = controller;
+	public MapViewTabs( final ViewController fm, final JComponent contentComponent) {
+//		this.controller = controller;
 		mContentComponent = contentComponent;
 		InputMap map;
 		map = (InputMap) UIManager.get("TabbedPane.ancestorInputMap");
@@ -68,6 +71,11 @@ class MapViewTabs implements IMapViewChangeListener {
 				tabSelectionChanged();
 			}
 		});
+		final FileOpener fileOpener = new FileOpener();
+		new DropTarget(mTabbedPane, fileOpener);
+		mTabbedPane.addMouseListener(new DefaultMapMouseListener());
+
+		final Controller controller = Controller.getCurrentController();
 		controller.getMapViewManager().addMapViewChangeListener(this);
 		fm.getContentPane().add(mTabbedPane, BorderLayout.CENTER);
 	}
@@ -151,6 +159,7 @@ class MapViewTabs implements IMapViewChangeListener {
 			return;
 		}
 		final Component mapView = mTabbedPaneMapViews.get(selectedIndex);
+		Controller controller = Controller.getCurrentController();
 		if (mapView != controller.getViewController().getMapView()) {
 			controller.getMapViewManager().changeToMapView(mapView.getName());
 		}

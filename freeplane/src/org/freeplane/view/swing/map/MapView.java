@@ -19,6 +19,7 @@
  */
 package org.freeplane.view.swing.map;
 
+import java.awt.AWTKeyStroke;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
@@ -36,55 +37,63 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.dnd.Autoscroll;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ContainerEvent;
-import java.awt.event.ContainerListener;
-import java.awt.event.KeyEvent;
+import java.awt.event.HierarchyBoundsAdapter;
+import java.awt.event.HierarchyEvent;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.print.PageFormat;
 import java.awt.print.Printable;
+import java.util.AbstractList;
+import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.Vector;
 
 import javax.swing.JComponent;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
-import javax.swing.event.AncestorEvent;
-import javax.swing.event.AncestorListener;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.io.xml.TreeXmlReader;
-import org.freeplane.core.modecontroller.IMapChangeListener;
-import org.freeplane.core.modecontroller.IMapSelection;
-import org.freeplane.core.modecontroller.MapChangeEvent;
-import org.freeplane.core.modecontroller.MapController;
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.MapModel;
-import org.freeplane.core.model.NodeModel;
 import org.freeplane.core.resources.IFreeplanePropertyListener;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.IUserInputListenerFactory;
 import org.freeplane.core.ui.components.UITools;
 import org.freeplane.core.util.ColorUtils;
-import org.freeplane.features.common.addins.mapstyle.MapStyle;
-import org.freeplane.features.common.addins.mapstyle.MapStyleModel;
-import org.freeplane.features.common.addins.mapstyle.MapViewLayout;
-import org.freeplane.features.common.link.ConnectorModel;
-import org.freeplane.features.common.link.LinkController;
-import org.freeplane.features.common.link.LinkModel;
-import org.freeplane.features.common.link.NodeLinks;
-import org.freeplane.features.common.nodestyle.NodeStyleController;
-import org.freeplane.features.controller.print.FitMap;
+import org.freeplane.features.attribute.AttributeController;
+import org.freeplane.features.attribute.ModelessAttributeController;
+import org.freeplane.features.filter.Filter;
+import org.freeplane.features.link.ConnectorModel;
+import org.freeplane.features.link.ConnectorModel.Shape;
+import org.freeplane.features.link.LinkController;
+import org.freeplane.features.link.LinkModel;
+import org.freeplane.features.link.NodeLinks;
+import org.freeplane.features.map.IMapChangeListener;
+import org.freeplane.features.map.IMapSelection;
+import org.freeplane.features.map.INodeView;
+import org.freeplane.features.map.MapChangeEvent;
+import org.freeplane.features.map.MapController;
+import org.freeplane.features.map.MapModel;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.map.SummaryNode;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.nodestyle.NodeStyleController;
+import org.freeplane.features.note.NoteController;
+import org.freeplane.features.print.FitMap;
+import org.freeplane.features.styles.MapStyle;
+import org.freeplane.features.styles.MapStyleModel;
+import org.freeplane.features.styles.MapViewLayout;
+import org.freeplane.features.text.TextController;
+import org.freeplane.features.ui.ViewController;
 import org.freeplane.view.swing.map.link.ConnectorView;
 import org.freeplane.view.swing.map.link.EdgeLinkView;
 import org.freeplane.view.swing.map.link.ILinkView;
@@ -93,23 +102,14 @@ import org.freeplane.view.swing.map.link.ILinkView;
  * This class represents the view of a whole MindMap (in analogy to class
  * JTree).
  */
-public class MapView extends JPanel implements Printable, Autoscroll, IMapChangeListener {
-	private final class ParentListener extends ComponentAdapter implements ContainerListener {
-		public void componentRemoved(final ContainerEvent e) {
-			if (e.getChild() == MapView.this) {
-				final Container container = e.getContainer();
-				container.removeContainerListener(parentListener);
-				SwingUtilities.getAncestorOfClass(JScrollPane.class, container).removeComponentListener(parentListener);
-				parentListener = null;
-			}
-		}
+public class MapView extends JPanel implements Printable, Autoscroll, IMapChangeListener, IFreeplanePropertyListener {
+	
 
-		public void componentAdded(final ContainerEvent e) {
-		}
+	private class Resizer extends HierarchyBoundsAdapter{
 
 		@Override
-		public void componentResized(final ComponentEvent e) {
-			if (anchor == null) {
+		public void ancestorResized(HierarchyEvent e) {
+			if (! isAncorPositionSet()) {
 				return;
 			}
 			if (nodeToBeVisible == null) {
@@ -118,11 +118,8 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			}
 			setViewPositionAfterValidate();
 		}
-	}
 
-	enum PaintingMode {
-		CLOUDS, NODES, ALL
-	};
+	}
 
 	private MapViewLayout layoutType;
 
@@ -133,26 +130,45 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	protected void setLayoutType(final MapViewLayout layoutType) {
 		this.layoutType = layoutType;
 	}
+	
+	private boolean showNotes;
 
-	private PaintingMode paintingMode = PaintingMode.ALL;
+	boolean showNotes() {
+		return showNotes;
+	}
+
+	private void setShowNotes() {
+		final boolean showNotes= NoteController.getController(getModeController()).showNotesInMap(getModel());
+		if(this.showNotes == showNotes){
+			return;
+		}
+		this.showNotes = showNotes;
+		getRoot().updateAll();
+	}
+
+	private PaintingMode paintingMode = null;
 
 	private class MapSelection implements IMapSelection {
 		public void centerNode(final NodeModel node) {
 			final NodeView nodeView = getNodeView(node);
 			if (nodeView != null) {
-				MapView.this.centerNode(nodeView);
+				MapView.this.centerNode(nodeView, false);
 			}
 		}
 
 		public NodeModel getSelected() {
 			final NodeView selected = MapView.this.getSelected();
-			return selected == null ? null : selected.getModel();
+			return selected.getModel();
 		}
 
-		public List<NodeModel> getSelection() {
+		public Set<NodeModel> getSelection() {
 			return MapView.this.getSelectedNodes();
 		}
 
+
+		public List<NodeModel> getOrderedSelection() {
+			return MapView.this.getOrderedSelectedNodes();
+        }
 		public List<NodeModel> getSortedSelection(final boolean differentSubtrees) {
 			return MapView.this.getSelectedNodesSortedByY(differentSubtrees);
 		}
@@ -169,7 +185,7 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		public void makeTheSelected(final NodeModel node) {
 			final NodeView nodeView = getNodeView(node);
 			if (nodeView != null) {
-				MapView.this.makeTheSelected(nodeView);
+				MapView.this.addSelected(nodeView, false);
 			}
 		}
 
@@ -185,7 +201,9 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		}
 
 		public void selectBranch(final NodeModel node, final boolean extend) {
-			MapView.this.selectBranch(getNodeView(node), extend);
+			if(! extend)
+				selectAsTheOnlyOneSelected(node);
+			MapView.this.addBranchToSelection(getNodeView(node));
 		}
 
 		public void selectContinuous(final NodeModel node) {
@@ -207,89 +225,157 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		}
 
 		public void toggleSelected(final NodeModel node) {
-			MapView.this.toggleSelected(getNodeView(node), true);
+			MapView.this.toggleSelected(getNodeView(node));
 		}
+
+        public void replaceSelection(NodeModel[] nodes) {
+            if(nodes.length == 0)
+                return;
+            NodeView views[] = new NodeView[nodes.length];
+            int i = 0;
+            for(NodeModel node : nodes)
+                views[i++] = getNodeView(node);
+            MapView.this.replaceSelection(views);
+        }
+
 	}
 
 	private class Selection {
-		final private Vector mySelected = new Vector();
+		final private Set<NodeView> selectedSet = new LinkedHashSet<NodeView>();
+		final private List<NodeView> selectedList = new ArrayList<NodeView>();
+		private NodeView selectedNode = null;
 
 		public Selection() {
 		};
 
-		public void add(final NodeView node) {
-			if (size() > 0) {
-				removeSelectionForHooks(get(0));
-			}
-			mySelected.add(0, node);
+		private void select(final NodeView node) {
+			clear();
+			selectedSet.add(node);
+			selectedList.add(node);
+			selectedNode = node;
 			addSelectionForHooks(node);
+			node.repaintSelected();
 		}
 
+		private boolean add(final NodeView node) {
+			if(selectedNode == null){
+				select(node);
+				return true;
+			}
+			else{
+				if(selectedSet.add(node)){
+					selectedList.add(node);
+					node.repaintSelected();
+					return true;
+				}
+				return false;
+			}
+		}
+		
 		private void addSelectionForHooks(final NodeView node) {
+			if(! isSelected())
+				return;
 			final ModeController modeController = getModeController();
 			final MapController mapController = modeController.getMapController();
 			final NodeModel model = node.getModel();
 			mapController.onSelect(model);
 		}
 
-		public void clear() {
-			if (size() > 0) {
-				removeSelectionForHooks(get(0));
+		private void clear() {
+			if (selectedNode != null) {
+				removeSelectionForHooks(selectedNode);
+				selectedNode = null;
+				selectedSet.clear();
+				selectedList.clear();
 			}
-			mySelected.clear();
 		}
 
-		public boolean contains(final NodeView node) {
-			return mySelected.contains(node);
-		}
-
-		public NodeView get(final int i) {
-			return (NodeView) mySelected.get(i);
+		private boolean contains(final NodeView node) {
+			return selectedSet.contains(node);
 		}
 
 		/**
 		 * @return
 		 */
-		public List<NodeView> getSelection() {
-			return Collections.unmodifiableList(mySelected);
+		public Set<NodeView> getSelection() {
+			return Collections.unmodifiableSet(selectedSet);
 		}
 
-		/**
-		 */
-		public void moveToFirst(final NodeView newSelected) {
-			if (contains(newSelected)) {
-				final int pos = mySelected.indexOf(newSelected);
-				if (pos > 0) {
-					if (size() > 0) {
-						removeSelectionForHooks(get(0));
-					}
-					mySelected.remove(newSelected);
-					mySelected.add(0, newSelected);
-				}
-			}
-			else {
-				add(newSelected);
-			}
-			addSelectionForHooks(newSelected);
-		}
 
-		public void remove(final NodeView node) {
-			if (mySelected.indexOf(node) == 0) {
+		private boolean deselect(final NodeView node) {
+			final boolean selectedChanged = selectedNode != null && selectedNode.equals(node);
+			if (selectedChanged) {
 				removeSelectionForHooks(node);
 			}
-			mySelected.remove(node);
+			if (selectedSet.remove(node)){
+				final int last = selectedList.size() - 1;
+				if(selectedList.get(last) .equals(node))
+					selectedList.remove(last);
+				else
+					selectedList.remove(node);
+				node.repaintSelected();
+				if(selectedChanged) {
+	                if (size() > 0) {
+	                	selectedNode = selectedSet.iterator().next();
+	                	addSelectionForHooks(selectedNode);
+	                }
+	                else{
+	                	selectedNode = null;
+	                }
+                }
+				return true;
+			}
+			return false;
 		}
 
 		private void removeSelectionForHooks(final NodeView node) {
-			if (node.getModel() == null) {
+			if (node.getModel() == null || ! isSelected()) {
 				return;
 			}
 			getModeController().getMapController().onDeselect(node.getModel());
 		}
 
-		public int size() {
-			return mySelected.size();
+		private int size() {
+			return selectedSet.size();
 		}
+
+		private void replace(NodeView[] newSelection) {
+            if(newSelection.length == 0)
+                return;
+            final boolean selectedChanges = ! newSelection[0].equals(selectedNode);
+            if (selectedChanges) {
+            	if(selectedNode != null)
+            		removeSelectionForHooks(selectedNode);
+            	selectedNode = newSelection[0];
+            }
+            for(NodeView view : newSelection)
+                if (!selectedSet.contains(view))
+                	view.repaintSelected();
+            final NodeView[] oldSelection = selectedSet.toArray(new NodeView[selectedSet.size()]);
+            selectedSet.clear();
+            selectedList.clear();
+            for(NodeView view : newSelection)
+                if (selectedSet.add(view))
+                	selectedList.add(view);
+            if (selectedChanges) {
+                addSelectionForHooks(selectedNode);
+            }
+            for(NodeView view : oldSelection)
+                if (!selectedSet.contains(view))
+                	view.repaintSelected();
+        }
+
+		public NodeView[] toArray() {
+	        return selectedList.toArray(new NodeView[selectedList.size()]);
+        }
+
+		private List<NodeView> getSelectedList() {
+	        return selectedList;
+        }
+
+		private Set<NodeView> getSelectedSet() {
+	        return selectedSet;
+        }
 	}
 
 	private static final int margin = 20;
@@ -297,6 +383,9 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	static private IFreeplanePropertyListener propertyChangeListener;
 	public static final String RESOURCES_SELECTED_NODE_COLOR = "standardselectednodecolor";
 	public static final String RESOURCES_SELECTED_NODE_RECTANGLE_COLOR = "standardselectednoderectanglecolor";
+	private static final String PRESENTATION_DIMMER_TRANSPARENCY = "presentation_dimmer_transparency";
+	private static final String PRESENTATION_MODE_ENABLED = "presentation_mode";
+	
 	/**
 	 * 
 	 */
@@ -312,32 +401,36 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	private Color background = null;
 	private Rectangle boundingRectangle = null;
 	private int centerNodeCounter;
-	final private Controller controller;
+// // 	final private Controller controller;
 	private boolean disableMoveCursor = true;
 	private int extraWidth;
 	private FitMap fitMap = FitMap.USER_DEFINED;
 	private boolean isPreparedForPrinting = false;
 	private boolean isPrinting = false;
-	private final int maxNodeWidth = 0;
 	private final ModeController modeController;
 	final private MapModel model;
 	private NodeView nodeToBeVisible = null;
 	private NodeView rootView = null;
 	private boolean selectedsValid = true;
 	final private Selection selection = new Selection();
-	private NodeView shiftSelectionOrigin = null;
 	private int siblingMaxLevel;
 	private float zoom = 1F;
 	private float anchorHorizontalPoint;
 	private float anchorVerticalPoint;
-	private ParentListener parentListener;
+	private NodeView nodeToBeCentered;
+    private Font noteFont;
+    private Font detailFont;
+    private Color detailForeground;
+    private Color detailBackground;
+	private boolean slowScroll;
+	private static boolean presentationModeEnabled;
+	private static int transparency;
 
 	public MapView(final MapModel model, final ModeController modeController) {
 		super();
 		this.model = model;
 		this.modeController = modeController;
-		controller = modeController.getController();
-		final String name = getModel().getTitle();
+		final String name = model.getTitle();
 		setName(name);
 		if (MapView.standardSelectColor == null) {
 			final String stdcolor = ResourceController.getResourceController().getProperty(
@@ -352,11 +445,17 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			final String printOnWhite = ResourceController.getResourceController()
 			    .getProperty("printonwhitebackground");
 			MapView.printOnWhiteBackground = TreeXmlReader.xmlToBoolean(printOnWhite);
+			MapView.transparency = 255 - ResourceController.getResourceController().getIntProperty(PRESENTATION_DIMMER_TRANSPARENCY, 0x70);
+			MapView.presentationModeEnabled = ResourceController.getResourceController().getBooleanProperty(PRESENTATION_MODE_ENABLED);
+
 			createPropertyChangeListener();
 		}
 		this.setAutoscrolls(true);
 		this.setLayout(new MindMapLayout());
-		initRoot();
+		final NoteController noteController = NoteController.getController(getModeController());
+		showNotes= noteController != null && noteController.showNotesInMap(getModel());
+        updateContentStyle();
+        initRoot();
 		setBackground(requiredBackground());
 		final MapStyleModel mapStyleModel = MapStyleModel.getExtension(model);
 		zoom = mapStyleModel.getZoom();
@@ -365,11 +464,23 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		addMouseListener(userInputListenerFactory.getMapMouseListener());
 		addMouseMotionListener(userInputListenerFactory.getMapMouseListener());
 		addMouseWheelListener(userInputListenerFactory.getMapMouseWheelListener());
-		setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, Collections.EMPTY_SET);
-		setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, Collections.EMPTY_SET);
-		setFocusTraversalKeys(KeyboardFocusManager.UP_CYCLE_TRAVERSAL_KEYS, Collections.EMPTY_SET);
+		setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, emptyNodeViewSet());
+		setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, emptyNodeViewSet());
+		setFocusTraversalKeys(KeyboardFocusManager.UP_CYCLE_TRAVERSAL_KEYS, emptyNodeViewSet());
 		disableMoveCursor = ResourceController.getResourceController().getBooleanProperty("disable_cursor_move_paper");
+		addHierarchyBoundsListener(new Resizer());
 	}
+
+	public void replaceSelection(NodeView[] views) {
+        selection.replace(views);
+        if(views.length > 0)
+        	views[0].requestFocusInWindow();
+    }
+
+    // generics trickery
+	private Set<AWTKeyStroke> emptyNodeViewSet() {
+	    return Collections.emptySet();
+    }
 
 	private void anchorToSelected(final NodeModel node, final float horizontalPoint, final float verticalPoint) {
 		final NodeView view = getNodeView(node);
@@ -377,11 +488,15 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	}
 
 	void anchorToSelected(final NodeView view, final float horizontalPoint, final float verticalPoint) {
-		if (view != null) {
+		if (view != null && view.getMainView() != null) {
 			anchor = view;
 			anchorHorizontalPoint = horizontalPoint;
 			anchorVerticalPoint = verticalPoint;
 			anchorContentLocation = getAnchorCenterPoint();
+			if (nodeToBeVisible == null) {
+				nodeToBeVisible = anchor;
+				extraWidth = 0;
+			}
 		}
 	}
 
@@ -401,39 +516,26 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 * actually scrolled. Thus, as a workaround, I simply call
 	 * scrollRectToVisible twice, the first time the location of the node is
 	 * calculated, the second time the scrollPane is actually scrolled.
+	 * @param slowScroll TODO
 	 */
-	public void centerNode(final NodeView node) {
+//	public void centerNode(final NodeView node) {
+//		
+//	}
+		public void centerNode(final NodeView node, boolean slowScroll) {
+		nodeToBeCentered = node;
+		this.slowScroll = slowScroll;
 		if (SwingUtilities.getRoot(this) == null) {
-			addAncestorListener(new AncestorListener() {
-				public void ancestorAdded(final AncestorEvent event) {
-					removeAncestorListener(this);
-					centerNode(node);
-				}
-
-				public void ancestorMoved(final AncestorEvent event) {
-				}
-
-				public void ancestorRemoved(final AncestorEvent event) {
-				}
-			});
 			return;
 		}
 		nodeToBeVisible = null;
 		if (!(isValid() && isShowing())) {
-			centerNodeCounter = 5;
-		}
-		if (centerNodeCounter != 0) {
-			centerNodeCounter--;
-			EventQueue.invokeLater(new Runnable() {
-				public void run() {
-					centerNode(node);
-				}
-			});
 			return;
 		}
 		final JViewport viewPort = (JViewport) getParent();
+		if(slowScroll)
+			viewPort.putClientProperty(ViewController.SLOW_SCROLLING, Boolean.TRUE);
 		final Dimension d = viewPort.getExtentSize();
-		final JComponent content = node.getContent();
+		final JComponent content = nodeToBeCentered.getContent();
 		final Rectangle rect = new Rectangle(content.getWidth() / 2 - d.width / 2, content.getHeight() / 2 - d.height
 		        / 2, d.width, d.height);
 		final Point oldAnchorContentLocation = anchorContentLocation;
@@ -444,21 +546,14 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		if (oldViewPosition.equals(newViewPosition)) {
 			anchorContentLocation = oldAnchorContentLocation;
 		}
+		nodeToBeCentered = null;
+		this.slowScroll = false;
 	}
 
-	/**
-	 * @return
-	 */
-	public List<NodeView> cloneSelection() {
-		final List<NodeView> copy = new ArrayList<NodeView>();
-		copy.addAll(getSelection());
-		return copy;
-	}
-
-	private void createPropertyChangeListener() {
+	static private void createPropertyChangeListener() {
 		MapView.propertyChangeListener = new IFreeplanePropertyListener() {
 			public void propertyChanged(final String propertyName, final String newValue, final String oldValue) {
-				final Component mapView = controller.getViewController().getMapView();
+				final Component mapView = Controller.getCurrentController().getViewController().getMapView();
 				if (!(mapView instanceof MapView)) {
 					return;
 				}
@@ -481,18 +576,24 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 					MapView.printOnWhiteBackground = TreeXmlReader.xmlToBoolean(newValue);
 					return;
 				}
-				if (propertyName.equals(NodeView.RESOURCES_SHOW_NODE_TOOLTIPS)) {
-					getRoot().updateToolTipsRecursive();
+				if (propertyName.equals(PRESENTATION_DIMMER_TRANSPARENCY)) {
+					MapView.transparency = 255 - ResourceController.getResourceController().getIntProperty(PRESENTATION_DIMMER_TRANSPARENCY, 0x70);
+					((MapView) mapView).repaint();
 					return;
 				}
+				if (propertyName.equals(PRESENTATION_MODE_ENABLED)) {
+					MapView.presentationModeEnabled = ResourceController.getResourceController().getBooleanProperty(PRESENTATION_MODE_ENABLED);
+					((MapView) mapView).repaint();
+					return;
+				}
+
 			}
 		};
 		ResourceController.getResourceController().addPropertyChangeListener(MapView.propertyChangeListener);
 	}
 
 	public void deselect(final NodeView newSelected) {
-		if (isSelected(newSelected)) {
-			selection.remove(newSelected);
+		if (selection.contains(newSelected) && selection.deselect(newSelected)) {
 			newSelected.repaintSelected();
 		}
 	}
@@ -521,81 +622,18 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 * to minimize calculation efforts
 	 */
 	public void endPrinting() {
-		if (isPreparedForPrinting == true) {
-			isPrinting = false;
-			if (zoom == 1f) {
-				getRoot().updateAll();
+		if (isPreparedForPrinting == false)
+			return;
+		isPreparedForPrinting = false;
+		isPrinting = false;
+		if (zoom == 1f) {
+			getRoot().updateAll();
+			synchronized (getTreeLock()) {
 				validateTree();
 			}
-			if (MapView.printOnWhiteBackground) {
-				setBackground(background);
-			}
 		}
-		isPreparedForPrinting = false;
-	}
-
-	private void extendSelectionWithKeyMove(final NodeView newlySelectedNodeView, final KeyEvent e) {
-		if (e.isShiftDown()) {
-			if (e.getKeyCode() == KeyEvent.VK_LEFT || e.getKeyCode() == KeyEvent.VK_RIGHT) {
-				shiftSelectionOrigin = null;
-				final NodeView toBeNewSelected = newlySelectedNodeView.isParentOf(getSelected()) ? newlySelectedNodeView
-				        : getSelected();
-				selectBranch(toBeNewSelected, false);
-				makeTheSelected(toBeNewSelected);
-				return;
-			}
-			if (shiftSelectionOrigin == null) {
-				shiftSelectionOrigin = getSelected();
-			}
-			final int newY = getMainViewY(newlySelectedNodeView);
-			final int selectionOriginY = getMainViewY(shiftSelectionOrigin);
-			final int deltaY = newY - selectionOriginY;
-			NodeView currentSelected = getSelected();
-			if (e.getKeyCode() == KeyEvent.VK_PAGE_UP) {
-				for (;;) {
-					final int currentSelectedY = getMainViewY(currentSelected);
-					if (currentSelectedY > selectionOriginY) {
-						deselect(currentSelected);
-					}
-					else {
-						makeTheSelected(currentSelected);
-					}
-					if (currentSelectedY <= newY) {
-						break;
-					}
-					currentSelected = currentSelected.getPreviousVisibleSibling();
-				}
-				return;
-			}
-			if (e.getKeyCode() == KeyEvent.VK_PAGE_DOWN) {
-				for (;;) {
-					final int currentSelectedY = getMainViewY(currentSelected);
-					if (currentSelectedY < selectionOriginY) {
-						deselect(currentSelected);
-					}
-					else {
-						makeTheSelected(currentSelected);
-					}
-					if (currentSelectedY >= newY) {
-						break;
-					}
-					currentSelected = currentSelected.getNextVisibleSibling();
-				}
-				return;
-			}
-			final boolean enlargingMove = (deltaY > 0) && (e.getKeyCode() == KeyEvent.VK_DOWN) || (deltaY < 0)
-			        && (e.getKeyCode() == KeyEvent.VK_UP);
-			if (enlargingMove) {
-				toggleSelected(newlySelectedNodeView, true);
-			}
-			else {
-				toggleSelected(getSelected(), true);
-				makeTheSelected(newlySelectedNodeView);
-			}
-		}
-		else {
-			shiftSelectionOrigin = null;
-			selectAsTheOnlyOneSelected(newlySelectedNodeView);
+		if (MapView.printOnWhiteBackground) {
+			setBackground(background);
 		}
 	}
 
@@ -635,15 +673,8 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		        + MapView.margin);
 	}
 
-	/**
-	 * Return the bounding box of all the descendants of the source view, that
-	 * without BORDER. Should that be implemented in LayoutManager as minimum
-	 * size?
-	 */
 	public Rectangle getInnerBounds() {
-		final Rectangle innerBounds = getRoot().getInnerBounds();
-		innerBounds.x += getRoot().getX();
-		innerBounds.y += getRoot().getY();
+		final Rectangle innerBounds = rootView.getBounds();
 		final Rectangle maxBounds = new Rectangle(0, 0, getWidth(), getHeight());
 		for (int i = 0; i < arrowLinkViews.size(); ++i) {
 			final ILinkView arrowView = arrowLinkViews.get(i);
@@ -652,19 +683,8 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		return innerBounds.intersection(maxBounds);
 	}
 
-	private int getMainViewY(final NodeView node) {
-		final Point newSelectedLocation = new Point();
-		UITools.convertPointToAncestor(node.getMainView(), newSelectedLocation, this);
-		final int newY = newSelectedLocation.y;
-		return newY;
-	}
-
 	public IMapSelection getMapSelection() {
 		return new MapSelection();
-	}
-
-	public int getMaxNodeWidth() {
-		return MapStyleModel.getExtension(getModel()).getMaxNodeWidth();
 	}
 
 	public ModeController getModeController() {
@@ -681,19 +701,31 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		return contentXY;
 	}
 
+	private NodeView getNodeView(Object o) {
+        if(! (o instanceof NodeModel))
+			return null;
+		final NodeView nodeView = getNodeView((NodeModel)o);
+		return nodeView;
+    }
+
 	public NodeView getNodeView(final NodeModel node) {
 		if (node == null) {
 			return null;
 		}
-		final Collection viewers = node.getViewers();
-		final Iterator iterator = viewers.iterator();
-		while (iterator.hasNext()) {
-			final NodeView candidateView = (NodeView) iterator.next();
+		for (INodeView iNodeView : node.getViewers()) {
+			if(! (iNodeView instanceof NodeView)){
+				continue;
+			}
+			final NodeView candidateView = (NodeView) iNodeView;
 			if (candidateView.getMap() == this) {
 				return candidateView;
 			}
 		}
-		return null;
+		NodeView root = getRoot();
+		if(root.getModel().equals(node))
+			return root;
+		else
+			return null;
 	}
 
 	/*
@@ -714,64 +746,151 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	}
 
 	public NodeView getSelected() {
-		if (selection.size() > 0) {
-			return selection.get(0);
-		}
-		else {
-			return null;
-		}
+		if(! selectedsValid) {
+			NodeView node = selection.selectedNode;
+	        if (node == null || ! SwingUtilities.isDescendingFrom(node, this))
+		        validateSelecteds();
+            else {
+	            final JComponent content = node.getContent();
+	            if (content == null || ! content.isVisible())
+	                validateSelecteds();
+            }
+        }
+		return selection.selectedNode;
 	}
 
-	private NodeView getSelected(final int i) {
-		return selection.get(i);
+	public Set<NodeModel> getSelectedNodes() {
+		validateSelecteds();
+		return new AbstractSet<NodeModel>() {
+
+			@Override
+			public int size() {
+				return selection.size();
+			}
+
+			@Override
+            public boolean contains(Object o) {
+                final NodeView nodeView = getNodeView(o);
+                if(nodeView == null)
+                	return false;
+                return selection.contains(nodeView);
+            }
+
+			@Override
+            public boolean add(NodeModel o) {
+				final NodeView nodeView = getNodeView(o);
+				if(nodeView == null)
+					return false;
+				return selection.add(nodeView);
+            }
+
+			@Override
+            public boolean remove(Object o) {
+				final NodeView nodeView = getNodeView(o);
+				if(nodeView == null)
+					return false;
+				return selection.deselect(nodeView);
+            }
+
+			@Override
+            public Iterator<NodeModel> iterator() {
+				return new Iterator<NodeModel>() {
+					final Iterator<NodeView> i = selection.getSelectedSet().iterator();
+
+					public boolean hasNext() {
+	                    return i.hasNext();
+                    }
+
+					public NodeModel next() {
+	                    return i.next().getModel();
+                    }
+
+					public void remove() {
+	                    i.remove();
+                    } 
+					
+				};
+            }
+		};
 	}
 
-	public List<NodeModel> getSelectedNodes() {
-		final int size = selection.size();
-		final ArrayList<NodeModel> selectedNodes = new ArrayList(size);
-		for (int i = 0; i < size; i++) {
-			selectedNodes.add(getSelected(i).getModel());
-		}
-		return selectedNodes;
-	}
+	public List<NodeModel> getOrderedSelectedNodes() {
+		validateSelecteds();
+		return new AbstractList<NodeModel>(){
+
+			@Override
+            public boolean add(NodeModel o) {
+				final NodeView nodeView = getNodeView(o);
+				if(nodeView == null)
+					return false;
+				return selection.add(nodeView);
+            }
+			
+			
+
+			@Override
+            public boolean contains(Object o) {
+                final NodeView nodeView = getNodeView(o);
+                if(nodeView == null)
+                	return false;
+                return selection.contains(nodeView);
+            }
+
+
+
+			@Override
+            public boolean remove(Object o) {
+				final NodeView nodeView = getNodeView(o);
+				if(nodeView == null)
+					return false;
+				return selection.deselect(nodeView);
+            }
+
+			@Override
+            public NodeModel get(int index) {
+	            return selection.getSelectedList().get(index).getModel();
+            }
+
+			@Override
+            public int size() {
+	            return selection.size();
+            }
+		};
+    }
 
 	/**
-	 * @param differentSubtrees TODO
+	 * @param differentSubtrees
 	 * @return an ArrayList of MindMapNode objects. If both ancestor and
 	 *         descandant node are selected, only the ancestor ist returned
 	 */
 	ArrayList<NodeModel> getSelectedNodesSortedByY(final boolean differentSubtrees) {
-		final HashSet selectedNodesSet = new HashSet();
-		for (int i = 0; i < selection.size(); i++) {
-			selectedNodesSet.add(getSelected(i).getModel());
-		}
-		final TreeMap<Integer, LinkedList<NodeModel>> sortedNodes = new TreeMap();
-		final Point point = new Point();
-		iteration: for (int i = 0; i < selection.size(); i++) {
-			final NodeView view = getSelected(i);
-			final NodeModel node = view.getModel();
+		validateSelecteds();
+		final TreeMap<Integer, LinkedList<NodeModel>> sortedNodes = new TreeMap<Integer, LinkedList<NodeModel>>();
+		iteration: for (final NodeView view : selection.getSelectedSet()) {
 			if (differentSubtrees) {
-				for (NodeModel parent = node.getParentNode(); parent != null; parent = parent.getParentNode()) {
-					if (selectedNodesSet.contains(parent)) {
+				for (Component parent = view.getParent(); parent != null; parent = parent.getParent()) {
+					if (selection.getSelectedSet().contains(parent)) {
 						continue iteration;
 					}
 				}
 			}
-			view.getContent().getLocation(point);
-			UITools.convertPointToAncestor(view, point, this);
-			final Integer pointY = new Integer(point.y);
-			LinkedList<NodeModel> nodeList = sortedNodes.get(pointY);
+			final Point point = new Point();
+			UITools.convertPointToAncestor(view.getParent(), point, this);
+			final NodeModel node = view.getModel();
+			if(node.getParentNode() != null){
+			    point.y += node.getParentNode().getIndex(node); 
+			}
+			LinkedList<NodeModel> nodeList = sortedNodes.get(point.y);
 			if (nodeList == null) {
 				nodeList = new LinkedList<NodeModel>();
-				sortedNodes.put(pointY, nodeList);
+				sortedNodes.put(point.y, nodeList);
 			}
 			nodeList.add(node);
 		}
-		final ArrayList<NodeModel> selectedNodes = new ArrayList();
-		for (final Iterator<LinkedList<NodeModel>> it = sortedNodes.values().iterator(); it.hasNext();) {
-			final LinkedList<NodeModel> nodeList = it.next();
-			for (final Iterator<NodeModel> itn = nodeList.iterator(); itn.hasNext();) {
-				selectedNodes.add(itn.next());
+		final ArrayList<NodeModel> selectedNodes = new ArrayList<NodeModel>();
+		for (final LinkedList<NodeModel> nodeList : sortedNodes.values()) {
+			for (final NodeModel nodeModel : nodeList) {
+				selectedNodes.add(nodeModel);
 			}
 		}
 		return selectedNodes;
@@ -780,7 +899,8 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	/**
 	 * @return
 	 */
-	public List<NodeView> getSelection() {
+	public Collection<NodeView> getSelection() {
+		validateSelecteds();
 		return selection.getSelection();
 	}
 
@@ -814,41 +934,49 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			while (newSelected != null && !newSelected.isContentVisible()) {
 				newSelected = newSelected.getPreferredVisibleChild(layoutType.equals(MapViewLayout.OUTLINE), true);
 			}
+			if(newSelected == null)
+				newSelected = getVisibleSummaryView(oldSelected);
 		}
 		return newSelected;
 	}
 
-	private NodeView getVisibleNeighbour(final int directionCode) {
-		final NodeView oldSelected = getSelected();
-		NodeView newSelected = null;
-		switch (directionCode) {
-			case KeyEvent.VK_LEFT:
-				newSelected = getVisibleLeft(oldSelected);
-				if (newSelected != null) {
-					setSiblingMaxLevel(newSelected.getModel().getNodeLevel(false));
-				}
-				return newSelected;
-			case KeyEvent.VK_RIGHT:
-				newSelected = getVisibleRight(oldSelected);
-				if (newSelected != null) {
-					setSiblingMaxLevel(newSelected.getModel().getNodeLevel(false));
-				}
-				return newSelected;
-			case KeyEvent.VK_UP:
-				newSelected = oldSelected.getPreviousVisibleSibling();
-				break;
-			case KeyEvent.VK_DOWN:
-				newSelected = oldSelected.getNextVisibleSibling();
-				break;
-			case KeyEvent.VK_PAGE_UP:
-				newSelected = oldSelected.getPreviousPage();
-				break;
-			case KeyEvent.VK_PAGE_DOWN:
-				newSelected = oldSelected.getNextPage();
-				break;
-		}
-		return newSelected != oldSelected ? newSelected : null;
-	}
+	private NodeView getVisibleSummaryView(NodeView node) {
+	    if(node.isRoot())
+	    	return null;
+	    final int currentSummaryLevel = SummaryNode.getSummaryLevel(node.getModel());
+		int level = currentSummaryLevel;
+		final int requiredSummaryLevel = level + 1;
+	    final NodeView parent = node.getParentView();
+	    for (int i = 1 + getIndex(node);i < parent.getComponentCount();i++){
+	    	final Component component = parent.getComponent(i);
+	    	if(! (component instanceof NodeView))
+	    		break;
+	    	NodeView next = (NodeView) component;
+	    	if(next.isLeft() != node.isLeft())
+	    		continue;
+	    	if(next.isSummary())
+	    		level++;
+	    	else
+	    		level = 0;
+	    	if(level == requiredSummaryLevel){
+	    		if(next.getModel().isVisible())
+	    			return next;
+	    		break;
+	    	}
+	    	if(level == currentSummaryLevel && SummaryNode.isFirstGroupNode(next.getModel()))
+	    		break;
+	    }
+	    return getVisibleSummaryView(parent);
+    }
+
+	int getIndex(NodeView node) {
+	    final NodeView parent = node.getParentView();
+	    for(int i = 0; i < parent.getComponentCount(); i++){
+	    	if(parent.getComponent(i).equals(node))
+	    		return i;
+	    }
+	    return -1;
+    }
 
 	private NodeView getVisibleRight(final NodeView oldSelected) {
 		NodeView newSelected = oldSelected;
@@ -868,6 +996,8 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			while (newSelected != null && !newSelected.isContentVisible()) {
 				newSelected = newSelected.getPreferredVisibleChild(layoutType.equals(MapViewLayout.OUTLINE), false);
 			}
+			if(newSelected == null)
+				newSelected = getVisibleSummaryView(oldSelected);
 		}
 		return newSelected;
 	}
@@ -880,12 +1010,10 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		return (int) Math.ceil(number * zoom);
 	}
 
-	public void initRoot() {
+	private void initRoot() {
 		anchorContentLocation = new Point();
-		rootView = NodeViewFactory.getInstance().newNodeView(getModel().getRootNode(), 0, this, this);
-		rootView.insert();
+		rootView = NodeViewFactory.getInstance().newNodeView(getModel().getRootNode(), this, this, 0);
 		anchor = rootView;
-		revalidate();
 	}
 
 	public boolean isPrinting() {
@@ -893,9 +1021,9 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	}
 
 	public boolean isSelected(final NodeView n) {
-		if (isPrinting) {
+		if(isPrinting || (! selectedsValid && 
+				(selection.selectedNode == null || ! SwingUtilities.isDescendingFrom(selection.selectedNode, this)  || ! selection.selectedNode.getContent().isVisible())))
 			return false;
-		}
 		return selection.contains(n);
 	}
 
@@ -903,15 +1031,10 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 * Add the node to the selection if it is not yet there, making it the
 	 * focused selected node.
 	 */
-	void makeTheSelected(final NodeView newSelected) {
-		if (isSelected(newSelected)) {
-			selection.moveToFirst(newSelected);
-		}
-		else {
-			selection.add(newSelected);
-		}
-		getSelected().requestFocus();
-		getSelected().repaintSelected();
+	void addSelected(final NodeView newSelected, boolean scroll) {
+		selection.add(newSelected);
+		if(scroll)
+			scrollNodeToVisible(newSelected);
 	}
 
 	public void mapChanged(final MapChangeEvent event) {
@@ -920,22 +1043,128 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			setBackground(requiredBackground());
 			return;
 		}
-		if (property.equals(NodeStyleController.RESOURCES_NODE_TEXT_COLOR) || property.equals(MapStyle.MAX_NODE_WIDTH)) {
+		if (property.equals(MapStyle.MAP_STYLES)){
+	        // set default font for notes:
+	        updateContentStyle();
+		}
+		if (property.equals(MapStyle.MAP_STYLES) && event.getMap().equals(model)
+		        || property.equals(ModelessAttributeController.ATTRIBUTE_VIEW_TYPE)
+		        || property.equals(Filter.class)) {
+			setBackground(requiredBackground());
 			getRoot().updateAll();
 			return;
 		}
+		if(property.equals(AttributeController.SHOW_ICON_FOR_ATTRIBUTES)
+				||property.equals(NoteController.SHOW_NOTE_ICONS))
+			updateStateIconsRecursively(getRoot());
+		if(property.equals(NoteController.SHOW_NOTES_IN_MAP))
+			setShowNotes();
 	}
 
-	public void move(final KeyEvent e) {
-		final NodeView newSelected = getVisibleNeighbour(e.getKeyCode());
-		if (newSelected != null) {
-			if (!(newSelected == getSelected())) {
-				extendSelectionWithKeyMove(newSelected, e);
-				scrollNodeToVisible(newSelected);
-			}
-			e.consume();
+    private void updateStateIconsRecursively(NodeView node) {
+    	final MainView mainView = node.getMainView();
+    	if(mainView == null)
+    		return;
+		mainView.updateIcons(node);
+    	for(int i = 0; i < node.getComponentCount(); i++){
+    		final Component component = node.getComponent(i);
+    		if(component instanceof NodeView)
+    		updateStateIconsRecursively((NodeView) component);
+    	}
+    }
+
+	private void updateContentStyle() {
+        final NodeStyleController style = (NodeStyleController) Controller.getCurrentModeController().getExtension(NodeStyleController.class);
+        MapModel map = getModel();
+        noteFont = UITools.scale(style.getDefaultFont(map, MapStyleModel.NOTE_STYLE));
+        final MapStyleModel model = MapStyleModel.getExtension(map);
+        final NodeModel detailStyleNode = model.getStyleNodeSafe(MapStyleModel.DETAILS_STYLE);
+        detailFont = UITools.scale(style.getFont(detailStyleNode));
+        detailBackground = style.getBackgroundColor(detailStyleNode);
+        detailForeground = style.getColor(detailStyleNode);
+    }
+
+	public boolean selectLeft(boolean continious) {
+		NodeView selected = getSelected();
+		NodeView newSelected = getVisibleLeft(selected);
+		return selectRightOrLeft(newSelected, continious);
+    }
+
+	private boolean selectRightOrLeft(NodeView newSelected, boolean continious) {
+	    if (newSelected == null) {
+	    	return false;
 		}
+		if(continious){
+			if(newSelected.isParentOf(getSelected())){
+				selectAsTheOnlyOneSelected(newSelected);
+				addBranchToSelection(newSelected);
+			}
+			else{
+				addBranchToSelection(getSelected());
+			}
+		}
+		else
+			selectAsTheOnlyOneSelected(newSelected);
+		return true;
+    }
+
+	public boolean selectRight(boolean continious) {
+		NodeView selected = getSelected();
+		NodeView newSelected = getVisibleRight(selected);
+		return selectRightOrLeft(newSelected, continious);
+    }
+    
+
+	public boolean selectUp(boolean continious) {
+		return selectSibling(continious, false, false);
 	}
+	
+	private boolean selectSibling(boolean continious, boolean page, boolean down) {
+		NodeView nextSelected = getSelected();
+		do {
+			final NodeView nextVisibleSibling = getNextVisibleSibling(nextSelected, down);
+			if(nextSelected == null || nextSelected == nextVisibleSibling)
+				return false;
+			nextSelected = nextVisibleSibling;
+		} while (nextSelected.isSelected());
+		if(page){
+			NodeView sibling = nextSelected;
+			for(;;)  {
+				sibling = getNextVisibleSibling(sibling, down);
+				if(sibling == nextSelected || sibling.getParentView() != nextSelected.getParentView())
+					break;
+				nextSelected = sibling;
+			}
+		}
+		if(continious){
+			selectAsTheOnlyOneSelected(getSelected());
+			NodeView node = getSelected();
+			do{
+				node = getNextVisibleSibling(node, down);
+				addSelected(node, false);
+			}while(node != nextSelected);
+			scrollNodeToVisible(nextSelected);
+		}
+		else
+			selectAsTheOnlyOneSelected(nextSelected);
+		return true;
+    }
+
+	public NodeView getNextVisibleSibling(NodeView node, boolean down) {
+	    return down ? node.getNextVisibleSibling() : node.getPreviousVisibleSibling();
+    }
+
+	public boolean selectDown(boolean continious) {
+		return selectSibling(continious, false, true);
+	}
+    
+	public boolean selectPageDown(boolean continious) {
+		return selectSibling(continious, true, true);
+    }
+
+	public boolean selectPageUp(boolean continious) {
+		return selectSibling(continious, true, false);
+    }
 
 	public void onNodeDeleted(final NodeModel parent, final NodeModel child, final int index) {
 	}
@@ -959,51 +1188,106 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 */
 	@Override
 	public void paint(final Graphics g) {
+		if(isPrinting == false && isPreparedForPrinting == true){
+			isPreparedForPrinting = false;
+			EventQueue.invokeLater(new Runnable() {
+				public void run() {
+					endPrinting();
+					repaint();
+				}
+			});
+			return;
+		}
 		if (isValid()) {
 			anchorContentLocation = getAnchorCenterPoint();
 		}
 		final Graphics2D g2 = (Graphics2D) g.create();
 		try {
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-			controller.getViewController().setTextRenderingHint(g2);
+			Controller.getCurrentController().getViewController().setTextRenderingHint(g2);
 			super.paint(g2);
 		}
 		finally {
+			this.paintingMode = null;
 			g2.dispose();
 		}
-	};
+	}
 
 	@Override
-	public void paintChildren(final Graphics graphics) {
-		final boolean paintLinksBehind = ResourceController.getResourceController().getBooleanProperty(
-		    "paint_connectors_behind");
-		if (paintLinksBehind) {
-			paintingMode = PaintingMode.CLOUDS;
-			super.paintChildren(graphics);
-			paintLinks((Graphics2D) graphics);
-			paintingMode = PaintingMode.NODES;
-			super.paintChildren(graphics);
+	protected void paintChildren(final Graphics g) {
+	    final boolean paintLinksBehind = ResourceController.getResourceController().getBooleanProperty(
+	    	    "paint_connectors_behind");
+	    final PaintingMode paintModes[];
+	    if(paintLinksBehind)
+	    	paintModes = new PaintingMode[]{
+	    		PaintingMode.CLOUDS, 
+	    		PaintingMode.LINKS, PaintingMode.NODES, PaintingMode.SELECTED_NODES
+	    		};
+	    else
+	    	paintModes = new PaintingMode[]{
+	    		PaintingMode.CLOUDS, 
+	    		PaintingMode.NODES,PaintingMode.SELECTED_NODES, PaintingMode.LINKS
+	    		};
+	    Graphics2D g2 = (Graphics2D) g;
+	    paintChildren(g2, paintModes);
+	    if(presentationModeEnabled)
+	    	paintDimmer(g2, paintModes);
+		paintSelecteds(g2);
+		highlightEditor(g2);
+    }
+
+	private void paintChildren(Graphics2D g2, final PaintingMode[] paintModes) {
+	    for(PaintingMode paintingMode : paintModes){
+	    	this.paintingMode = paintingMode;
+			switch(paintingMode){
+	    		case LINKS:
+	    			paintLinks(g2);
+	    			break;
+	    		default:
+	    			super.paintChildren(g2);
+	    	}
+	    }
+    };
+
+    
+	private void paintDimmer(Graphics2D g2, PaintingMode[] paintModes) {
+		final Color color = g2.getColor();
+		try{
+			Color dimmer = new Color(0, 0, 0, transparency);
+			g2.setColor(dimmer);
+			g2.fillRect(0, 0, getWidth(), getHeight());
 		}
-		else {
-			paintingMode = PaintingMode.ALL;
-			super.paintChildren(graphics);
-			paintLinks((Graphics2D) graphics);
+		finally{
+			g2.setColor(color);
 		}
-		paintSelecteds((Graphics2D) graphics);
-	}
+		for (final NodeView selected : getSelection()) {
+			highlightSelected(g2, selected, paintModes);
+		}
+    }
+
+	private void highlightEditor(Graphics2D g2) {
+	    final Component editor = getComponent(0);
+		if(editor instanceof NodeView)
+	    	return;
+	    final java.awt.Shape oldClip = g2.getClip();
+	    try{
+	    	g2.setClip(editor.getX(), editor.getY(), editor.getWidth(), editor.getHeight());
+	    	super.paintChildren(g2);
+	    }
+	    finally{
+	    	g2.setClip(oldClip);
+	    }
+	    
+    }
 
 	protected PaintingMode getPaintingMode() {
 		return paintingMode;
 	}
 
 	private void paintLinks(final Collection<LinkModel> links, final Graphics2D graphics,
-	                        final HashSet alreadyPaintedLinks) {
+	                        final HashSet<ConnectorModel> alreadyPaintedLinks) {
 		final Font font = graphics.getFont();
 		try {
-			final String fontFamily = ResourceController.getResourceController().getProperty("label_font_family");
-			final int fontSize = ResourceController.getResourceController().getIntProperty("label_font_size", 12);
-			final Font linksFont = new Font(fontFamily, 0, getZoomed(fontSize));
-			graphics.setFont(linksFont);
 			final Iterator<LinkModel> linkIterator = links.iterator();
 			while (linkIterator.hasNext()) {
 				final LinkModel next = linkIterator.next();
@@ -1021,12 +1305,12 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 					final NodeView targetView = getNodeView(target);
 					final ILinkView arrowLink;
 					if (sourceView != null && targetView != null
-					        && (ref.isEdgeLike() || sourceView.getMap().getLayoutType() == MapViewLayout.OUTLINE)
+					        && (Shape.EDGE_LIKE.equals(ref.getShape()) || sourceView.getMap().getLayoutType() == MapViewLayout.OUTLINE)
 					        && source.isVisible() && target.isVisible()) {
 						arrowLink = new EdgeLinkView(ref, getModeController(), sourceView, targetView);
 					}
 					else {
-						arrowLink = new ConnectorView(ref, sourceView, targetView);
+						arrowLink = new ConnectorView(ref, sourceView, targetView, getBackground());
 					}
 					arrowLink.paint(graphics);
 					arrowLinkViews.add(arrowLink);
@@ -1042,11 +1326,12 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		arrowLinkViews = new Vector<ILinkView>();
 		final Object renderingHint = getModeController().getController().getViewController().setEdgesRenderingHint(
 		    graphics);
-		paintLinks(rootView, graphics, new HashSet());
+		paintLinks(rootView, graphics, new HashSet<ConnectorModel>());
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, renderingHint);
 	}
 
-	private void paintLinks(final NodeView source, final Graphics2D graphics, final HashSet alreadyPaintedLinks) {
+	private void paintLinks(final NodeView source, final Graphics2D graphics,
+	                        final HashSet<ConnectorModel> alreadyPaintedLinks) {
 		final NodeModel node = source.getModel();
 		final Collection<LinkModel> outLinks = NodeLinks.getLinks(node);
 		paintLinks(outLinks, graphics, alreadyPaintedLinks);
@@ -1075,18 +1360,6 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		}
 	}
 
-	private void paintSelected(final Graphics2D g, final NodeView selected) {
-		if (selected.getMainView().isEdited()) {
-			return;
-		}
-		final int arcWidth = 4;
-		final JComponent content = selected.getContent();
-		final Point contentLocation = new Point();
-		UITools.convertPointToAncestor(content, contentLocation, this);
-		g.drawRoundRect(contentLocation.x - arcWidth, contentLocation.y - arcWidth, content.getWidth() + 2 * arcWidth,
-		    content.getHeight() + 2 * arcWidth, 15, 15);
-	}
-
 	private void paintSelecteds(final Graphics2D g) {
 		if (!MapView.standardDrawRectangleForSelection || isPrinting()) {
 			return;
@@ -1094,31 +1367,80 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		final Color c = g.getColor();
 		final Stroke s = g.getStroke();
 		g.setColor(MapView.standardSelectRectangleColor);
-		if (MapView.standardSelectionStroke == null) {
-			MapView.standardSelectionStroke = new BasicStroke(2.0f);
-		}
-		g.setStroke(MapView.standardSelectionStroke);
+		final Stroke standardSelectionStroke = getStandardSelectionStroke();
+		g.setStroke(standardSelectionStroke);
 		final Object renderingHint = getModeController().getController().getViewController().setEdgesRenderingHint(g);
-		final Iterator i = getSelection().iterator();
-		while (i.hasNext()) {
-			final NodeView selected = (NodeView) i.next();
-			paintSelected(g, selected);
+		for (final NodeView selected : getSelection()) {
+			paintSelectionRectangle(g, selected);
 		}
 		g.setColor(c);
 		g.setStroke(s);
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, renderingHint);
 	}
 
+	private RoundRectangle2D.Float getRoundRectangleAround(NodeView selected, int gap, int arcw) {
+		final JComponent content = selected.getContent();
+		final Point contentLocation = new Point();
+		UITools.convertPointToAncestor(content, contentLocation, this);
+		gap -= 1;
+		final RoundRectangle2D.Float roundRectClip = new RoundRectangle2D.Float(
+			contentLocation.x - gap, contentLocation.y - gap, 
+			content.getWidth() + 2 * gap, content.getHeight() + 2 * gap, arcw, arcw);
+		return roundRectClip;
+	}
+	
+	private void paintSelectionRectangle(final Graphics2D g, final NodeView selected) {
+		if (selected.getMainView().isEdited()) {
+			return;
+		}
+		final RoundRectangle2D.Float roundRectClip = getRoundRectangleAround(selected, 4, 15);
+		g.draw(roundRectClip);
+	}
+
+	private void highlightSelected(Graphics2D g, NodeView selected, PaintingMode[] paintedModes) {
+		final java.awt.Shape highlightClip;
+		if (MapView.standardDrawRectangleForSelection)
+			highlightClip = getRoundRectangleAround(selected, 4, 15);
+		else
+			highlightClip = getRoundRectangleAround(selected, 4, 2);
+		final java.awt.Shape oldClip = g.getClip();
+		final Rectangle oldClipBounds = g.getClipBounds();
+		try{
+			g.setClip(highlightClip);
+			if(oldClipBounds != null)
+				g.clipRect(oldClipBounds.x, oldClipBounds.y, oldClipBounds.width, oldClipBounds.height);
+			final Rectangle clipBounds = highlightClip.getBounds();
+			final Color color = g.getColor();
+			g.setColor(getBackground());
+			g.fillRect(clipBounds.x, clipBounds.y, clipBounds.width, clipBounds.height);
+			g.setColor(color);
+			paintChildren(g, paintedModes);
+		}
+		finally{
+			g.setClip(oldClip);
+		}
+    }
+
+	Stroke getStandardSelectionStroke() {
+	    if (MapView.standardSelectionStroke == null) {
+			MapView.standardSelectionStroke = new BasicStroke(2.0f);
+		}
+		final Stroke standardSelectionStroke = MapView.standardSelectionStroke;
+	    return standardSelectionStroke;
+    }
+
 	/**
 	 * Call preparePrinting() before printing and endPrinting() after printing
 	 * to minimize calculation efforts
 	 */
 	public void preparePrinting() {
+		isPrinting = true;
 		if (isPreparedForPrinting == false) {
-			isPrinting = true;
 			if (zoom == 1f) {
 				getRoot().updateAll();
-				validateTree();
+				synchronized (getTreeLock()) {
+					validateTree();
+				}
 			}
 			if (MapView.printOnWhiteBackground) {
 				background = getBackground();
@@ -1137,8 +1459,32 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			super.print(g);
 		}
 		finally {
-			endPrinting();
+			isPrinting = false;
 		}
+	}
+	
+	public void render(Graphics g1, final Rectangle source, final Rectangle target) {
+		Graphics2D g = (Graphics2D) g1;
+		AffineTransform old = g.getTransform();
+		final double scaleX = (0.0 + target.width) / source.width;  
+		final double scaleY = (0.0 + target.height) / source.height;
+		final double zoom;
+		if(scaleX < scaleY){
+			zoom = scaleX;
+		}
+		else{
+			zoom = scaleY;
+		}
+		AffineTransform tr2 = new AffineTransform(old);
+		tr2.translate(target.getWidth() / 2, target.getHeight() / 2);
+		tr2.scale(zoom, zoom);
+		tr2.translate(-source.getX()- (source.getWidth() ) / 2, -source.getY()- (source.getHeight()) / 2);
+		g.setTransform(tr2);
+		final Rectangle clipBounds = g1.getClipBounds();
+		g1.clipRect(source.x, source.y, source.width, source.height);
+		print(g1);
+		g.setTransform(old);
+		g1.setClip(clipBounds.x, clipBounds.y, clipBounds.width, clipBounds.height);
 	}
 
 	public int print(final Graphics graphics, final PageFormat pageFormat, final int pageIndex) {
@@ -1148,53 +1494,55 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		if (fitMap == FitMap.PAGE && pageIndex > 0) {
 			return Printable.NO_SUCH_PAGE;
 		}
-		final Graphics2D graphics2D = (Graphics2D) graphics;
-		try {
-			preparePrinting();
-			double zoomFactor = 1;
-			if (fitMap == FitMap.PAGE) {
-				final double zoomFactorX = pageFormat.getImageableWidth() / boundingRectangle.getWidth();
-				final double zoomFactorY = pageFormat.getImageableHeight() / boundingRectangle.getHeight();
-				zoomFactor = Math.min(zoomFactorX, zoomFactorY);
+		final Graphics2D g2 = (Graphics2D) graphics.create();
+		preparePrinting();
+		final double zoomFactor;
+		final double imageableX = pageFormat.getImageableX();
+		final double imageableY = pageFormat.getImageableY();
+		final double imageableWidth = pageFormat.getImageableWidth();
+		final double imageableHeight = pageFormat.getImageableHeight();
+		g2.clipRect((int)imageableX, (int)imageableY, (int)imageableWidth, (int)imageableHeight);
+		final double mapWidth = boundingRectangle.getWidth();
+		final double mapHeight = boundingRectangle.getHeight();
+		if (fitMap == FitMap.PAGE) {
+			final double zoomFactorX = imageableWidth / mapWidth;
+			final double zoomFactorY = imageableHeight / mapHeight;
+			zoomFactor = Math.min(zoomFactorX, zoomFactorY) * 0.99;
+		}
+		else {
+			if (fitMap == FitMap.WIDTH) {
+				zoomFactor = imageableWidth / mapWidth * 0.99;
+			}
+			else if (fitMap == FitMap.HEIGHT) {
+				zoomFactor = imageableHeight / mapHeight * 0.99;
 			}
 			else {
-				if (fitMap == FitMap.WIDTH) {
-					zoomFactor = pageFormat.getImageableWidth() / boundingRectangle.getWidth();
-				}
-				else if (fitMap == FitMap.HEIGHT) {
-					zoomFactor = pageFormat.getImageableHeight() / boundingRectangle.getHeight();
-				}
-				else {
-					zoomFactor = userZoomFactor;
-				}
-				final int nrPagesInWidth = (int) Math.ceil(zoomFactor * boundingRectangle.getWidth()
-				        / pageFormat.getImageableWidth());
-				final int nrPagesInHeight = (int) Math.ceil(zoomFactor * boundingRectangle.getHeight()
-				        / pageFormat.getImageableHeight());
-				if (pageIndex >= nrPagesInWidth * nrPagesInHeight) {
-					return Printable.NO_SUCH_PAGE;
-				}
-				final int yPageCoord = (int) Math.floor(pageIndex / nrPagesInWidth);
-				final int xPageCoord = pageIndex - yPageCoord * nrPagesInWidth;
-				graphics2D.translate(-pageFormat.getImageableWidth() * xPageCoord, -pageFormat.getImageableHeight()
-				        * yPageCoord);
+				zoomFactor = userZoomFactor / UITools.FONT_SCALE_FACTOR;
 			}
-			graphics2D.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
-			graphics2D.scale(zoomFactor, zoomFactor);
-			graphics2D.translate(-boundingRectangle.getX(), -boundingRectangle.getY());
-			print(graphics2D);
+			final int nrPagesInWidth = (int) Math.ceil(zoomFactor * mapWidth
+				/ imageableWidth);
+			final int nrPagesInHeight = (int) Math.ceil(zoomFactor * mapHeight
+				/ imageableHeight);
+			if (pageIndex >= nrPagesInWidth * nrPagesInHeight) {
+				return Printable.NO_SUCH_PAGE;
+			}
+			final int yPageCoord = (int) Math.floor(pageIndex / nrPagesInWidth);
+			final int xPageCoord = pageIndex - yPageCoord * nrPagesInWidth;
+			g2.translate(-imageableWidth * xPageCoord, -imageableHeight * yPageCoord);
 		}
-		finally {
-			endPrinting();
-		}
+		g2.translate(imageableX, imageableY);
+		g2.scale(zoomFactor, zoomFactor);
+		final double mapX = boundingRectangle.getX();
+		final double mapY = boundingRectangle.getY();
+		g2.translate(-mapX, -mapY);
+		print(g2);
+		g2.dispose();
 		return Printable.PAGE_EXISTS;
 	}
 
 	private void repaintSelecteds() {
-		final Iterator iterator = getSelection().iterator();
-		while (iterator.hasNext()) {
-			final NodeView next = (NodeView) iterator.next();
-			next.repaintSelected();
+		for (final NodeView selected : getSelection()) {
+			selected.repaintSelected();
 		}
 	}
 
@@ -1202,10 +1550,6 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		final MapStyle mapStyle = (MapStyle) getModeController().getExtension(MapStyle.class);
 		final Color mapBackground = mapStyle.getBackground(model);
 		return mapBackground;
-	}
-
-	public void resetShiftSelectionOrigin() {
-		shiftSelectionOrigin = null;
 	}
 
 	void revalidateSelecteds() {
@@ -1244,6 +1588,12 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	}
 
 	public void scrollNodeToVisible(final NodeView node, final int extraWidth) {
+		if (nodeToBeCentered != null) {
+			if (node != nodeToBeCentered) {
+				centerNode(node, false);
+			}
+			return;
+		}
 		if (!isValid()) {
 			nodeToBeVisible = node;
 			this.extraWidth = extraWidth;
@@ -1272,8 +1622,10 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 * Select the node, resulting in only that one being selected.
 	 */
 	public void selectAsTheOnlyOneSelected(final NodeView newSelected) {
+		if(! newSelected.getModel().isVisible())
+			throw new AssertionError("select invisible node");
 		if (ResourceController.getResourceController().getBooleanProperty("center_selected_node")) {
-			centerNode(newSelected);
+			centerNode(newSelected, true);
 		}
 		else {
 			scrollNodeToVisible(newSelected);
@@ -1282,21 +1634,21 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		setSiblingMaxLevel(newSelected.getModel().getNodeLevel(false));
 	}
 
-	public void selectAsTheOnlyOneSelected(final NodeView node, final boolean requestFocus) {
-		final NodeView newSelected = node;
-		final Collection oldSelecteds = cloneSelection();
-		selection.clear();
-		selection.add(newSelected);
+	public void selectAsTheOnlyOneSelected(final NodeView newSelected, final boolean requestFocus) {
 		if (requestFocus) {
-			newSelected.requestFocus();
+			newSelected.requestFocusInWindow();
 		}
+		scrollNodeToVisible(newSelected);
+		if(selection.size() == 1 && getSelected().equals(newSelected)){
+			return;
+		}
+		final NodeView[] oldSelecteds = selection.toArray();
+		selection.select(newSelected);
 		if (newSelected.getModel().getParentNode() != null) {
 			((NodeView) newSelected.getParent()).setPreferredChild(newSelected);
 		}
-		scrollNodeToVisible(newSelected);
 		newSelected.repaintSelected();
-		for (final Iterator e = oldSelecteds.iterator(); e.hasNext();) {
-			final NodeView oldSelected = (NodeView) e.next();
+		for (final NodeView oldSelected : oldSelecteds) {
 			if (oldSelected != null) {
 				oldSelected.repaintSelected();
 			}
@@ -1308,108 +1660,62 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 * previous selection. if extend is false, the past selection will be empty.
 	 * if yes, the selection will extended with this node and its children
 	 */
-	void selectBranch(final NodeView newlySelectedNodeView, final boolean extend) {
-		if (!extend) {
-			selectAsTheOnlyOneSelected(newlySelectedNodeView);
+	private void addBranchToSelection(final NodeView newlySelectedNodeView) {
+		if (newlySelectedNodeView.isContentVisible()) {
+			addSelected(newlySelectedNodeView, false);
 		}
-		else if (!isSelected(newlySelectedNodeView) && newlySelectedNodeView.isContentVisible()) {
-			toggleSelected(newlySelectedNodeView, false);
-		}
-		for (final ListIterator e = newlySelectedNodeView.getChildrenViews().listIterator(); e.hasNext();) {
-			final NodeView target = (NodeView) e.next();
-			selectBranch(target, true);
+		for (final NodeView target : newlySelectedNodeView.getChildrenViews()) {
+			addBranchToSelection(target);
 		}
 	}
 
-	boolean selectContinuous(final NodeView nodeView) {
-		/* fc, 25.1.2004: corrected due to completely inconsistent behaviour. */
-		NodeView oldSelected = null;
-		final NodeView newSelected = nodeView;
-		final Collection selList = cloneSelection();
-		final Iterator j = selList.iterator(/* selList.size() */);
-		while (j.hasNext()) {
-			final NodeView selectedNode = (NodeView) j.next();
-			if (selectedNode != newSelected && newSelected.isSiblingOf(selectedNode)) {
-				oldSelected = selectedNode;
-				break;
-			}
+	void selectContinuous(final NodeView newSelected) {
+		if(newSelected.isRoot()){
+			selection.add(newSelected);
+			scrollNodeToVisible(newSelected);
+			return;
 		}
-		if (oldSelected == null) {
-			if (!isSelected(newSelected) && newSelected.isContentVisible()) {
-				toggleSelected(newSelected, true);
-				return true;
-			}
-			return false;
-		}
-		final boolean oldPositionLeft = oldSelected.isLeft();
-		final boolean newPositionLeft = newSelected.isLeft();
-		/* find old starting point. */
-		ListIterator i = newSelected.getSiblingViews().listIterator();
-		while (i.hasNext()) {
-			final NodeView next = (NodeView) i.next();
-			if (next == oldSelected) {
-				break;
-			}
-		}
-		/*
-		 * Remove all selections for the siblings in the connected component
-		 * between old and new.
-		 */
-		final ListIterator i_backup = i;
-		while (i.hasNext()) {
-			final NodeView next = (NodeView) i.next();
-			if ((next.isLeft() == oldPositionLeft || next.isLeft() == newPositionLeft)) {
-				if (isSelected(next)) {
-					deselect(next);
+		final NodeView parentView = newSelected.getParentView();
+		final boolean isLeft = newSelected.isLeft();
+		final NodeModel parent = parentView.getModel();
+		final int newIndex = parent.getIndex(newSelected.getModel());
+		int indexGapAbove = Integer.MAX_VALUE;
+		int indexGapBelow = Integer.MIN_VALUE;
+		final LinkedList<NodeView> childrenViews = parentView.getChildrenViews();
+		for(NodeView sibling : childrenViews){
+			if(newSelected == sibling || sibling.isLeft() != isLeft || ! sibling.isSelected())
+				continue;
+			final int index2 = parent.getIndex(sibling.getModel());
+			final int indexGap = newIndex - index2;
+			if(indexGap > 0){
+				if(indexGap < indexGapAbove){
+					indexGapAbove = indexGap;
 				}
-				else {
-					break;
+			}
+			else if(indexGapAbove == Integer.MAX_VALUE){
+				if(indexGap > indexGapBelow){
+					indexGapBelow = indexGap;
 				}
 			}
 		}
-		/* other direction. */
-		i = i_backup;
-		if (i.hasPrevious()) {
-			i.previous(); /* this is old selected! */
-			while (i.hasPrevious()) {
-				final NodeView previous = (NodeView) i.previous();
-				if (previous.isLeft() == oldPositionLeft || previous.isLeft() == newPositionLeft) {
-					if (isSelected(previous)) {
-						deselect(previous);
-					}
-					else {
-						break;
-					}
-				}
+		if(indexGapAbove == Integer.MAX_VALUE && indexGapBelow == Integer.MIN_VALUE){
+			selection.add(newSelected);
+			scrollNodeToVisible(newSelected);
+			return;
+		}
+		NodeView lastSelected = newSelected;
+		for(NodeView sibling : childrenViews){
+			if(sibling.isLeft() != isLeft)
+				continue;
+			final int index2 = parent.getIndex(sibling.getModel());
+			final int indexGap = newIndex - index2;
+			if(indexGap >= 0 && indexGapAbove < Integer.MAX_VALUE && indexGap < indexGapAbove
+					|| indexGap <= 0 && indexGapAbove == Integer.MAX_VALUE && indexGapBelow > Integer.MIN_VALUE  && indexGap > indexGapBelow){
+				selection.add(sibling);
+				lastSelected = sibling;
 			}
 		}
-		/* reset iterator */
-		i = newSelected.getSiblingViews().listIterator();
-		/* find starting point. */
-		i = newSelected.getSiblingViews().listIterator();
-		while (i.hasNext()) {
-			final NodeView next = (NodeView) i.next();
-			if (next == newSelected || next == oldSelected) {
-				if (!isSelected(next) && next.isContentVisible()) {
-					toggleSelected(next, true);
-				}
-				break;
-			}
-		}
-		/* select all up to the end point. */
-		while (i.hasNext()) {
-			final NodeView next = (NodeView) i.next();
-			if ((next.isLeft() == oldPositionLeft || next.isLeft() == newPositionLeft) && !isSelected(next)
-			        && next.isContentVisible()) {
-				toggleSelected(next, true);
-			}
-			if (next == newSelected || next == oldSelected) {
-				break;
-			}
-		}
-		toggleSelected(oldSelected, true);
-		toggleSelected(oldSelected, true);
-		return true;
+		scrollNodeToVisible(lastSelected);
 	}
 
 	public void setMoveCursor(final boolean isHand) {
@@ -1424,6 +1730,10 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	}
 
 	private void setViewPositionAfterValidate() {
+		if(nodeToBeCentered != null){
+			centerNodeCounter = 5;
+			centerNodeLater(slowScroll);
+		}
 		if (anchorContentLocation.getX() == 0 && anchorContentLocation.getY() == 0) {
 			return;
 		}
@@ -1460,6 +1770,21 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		}
 	}
 
+	private void centerNodeLater(final boolean slowScroll) {
+	    EventQueue.invokeLater(new Runnable() {
+	    	public void run() {
+	    		if(centerNodeCounter == 0 && nodeToBeCentered != null){
+	    			centerNode(nodeToBeCentered, slowScroll);
+	    			return;
+	    		}
+	    		if(centerNodeCounter > 0){
+	    			centerNodeCounter--;
+	    			centerNodeLater(slowScroll);
+	    		}
+	    	}
+	    });
+    }
+
 	//	@Override
 	//    public void repaint(int x, int y, int width, int height) {
 	//		final JViewport vp = (JViewport) getParent();
@@ -1477,26 +1802,16 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	/**
 	 * Add the node to the selection if it is not yet there, remove it
 	 * otherwise.
-	 * @param requestFocus TODO
+	 * @param requestFocus
 	 */
-	private void toggleSelected(final NodeView nodeView, final boolean requestFocus) {
-		final NodeView newSelected = nodeView;
-		NodeView oldSelected = getSelected();
-		if (isSelected(newSelected)) {
-			if (selection.size() > 1) {
-				selection.remove(newSelected);
-				oldSelected = newSelected;
-			}
+	private void toggleSelected(final NodeView nodeView) {
+		if (isSelected(nodeView)) {
+			if(selection.size() > 1)
+				selection.deselect(nodeView);
 		}
 		else {
-			selection.add(newSelected);
-		}
-		if (requestFocus) {
-			getSelected().requestFocus();
-		}
-		getSelected().repaintSelected();
-		if (oldSelected != null) {
-			oldSelected.repaintSelected();
+			selection.add(nodeView);
+			scrollNodeToVisible(nodeView);
 		}
 	}
 
@@ -1505,28 +1820,37 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 			return;
 		}
 		selectedsValid = true;
-		final ArrayList selectedNodes = new ArrayList();
-		for (final Iterator it = getSelection().iterator(); it.hasNext();) {
-			final NodeView nodeView = (NodeView) it.next();
+		final NodeView selectedView = getSelected();
+		if(selectedView == null){
+			final NodeView root = getRoot();
+			selectAsTheOnlyOneSelected(root);
+			centerNode(root, false);
+			return;
+		}
+		final NodeModel selectedNode = selectedView.getModel();
+		final ArrayList<NodeView> selectedNodes = new ArrayList<NodeView>(getSelection().size());
+		for (final NodeView nodeView : getSelection()) {
 			if (nodeView != null) {
 				selectedNodes.add(nodeView);
 			}
 		}
 		selection.clear();
-		for (final ListIterator it = selectedNodes.listIterator(); it.hasNext();) {
-			final NodeView oldNodeView = ((NodeView) it.next());
-			if (oldNodeView.isContentVisible()) {
-				final NodeView newNodeView = getNodeView(oldNodeView.getModel());
-				if (newNodeView != null) {
-					selection.add(newNodeView);
-				}
+		for (final NodeView nodeView : selectedNodes) {
+			if (nodeView.isContentVisible()) {
+				selection.add(nodeView);
 			}
 		}
-		NodeView focussedNodeView = getSelected();
-		if (focussedNodeView == null) {
-			focussedNodeView = getRoot();
+		if (getSelected() != null) {
+			return;
+        }
+		for(NodeModel node = selectedNode.getParentNode(); node != null; node = node.getParentNode()){
+			final NodeView newNodeView = getNodeView(node);
+			if(newNodeView != null && newNodeView.isContentVisible() ){
+				selectAsTheOnlyOneSelected(newNodeView);
+				return;
+			}
 		}
-		focussedNodeView.requestFocus();
+		selectAsTheOnlyOneSelected(getRoot());
 	}
 
 	/*
@@ -1535,20 +1859,10 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 	 */
 	@Override
 	protected void validateTree() {
-		registerParentListener();
 		validateSelecteds();
+		getRoot().validateTree();
 		super.validateTree();
 		setViewPositionAfterValidate();
-	}
-
-	private void registerParentListener() {
-		if (parentListener != null) {
-			return;
-		}
-		parentListener = new ParentListener();
-		final Container parent = getParent();
-		parent.addContainerListener(parentListener);
-		SwingUtilities.getAncestorOfClass(JScrollPane.class, parent).addComponentListener(parentListener);
 	}
 
 	public void onPreNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,
@@ -1559,4 +1873,45 @@ public class MapView extends JPanel implements Printable, Autoscroll, IMapChange
 		final JViewport vp = (JViewport) getParent();
 		repaint(vp.getViewRect());
 	}
+
+	public void propertyChanged(String propertyName, String newValue, String oldValue) {
+		if(propertyName.equals(TextController.MARK_TRANSFORMED_TEXT))
+			UITools.repaintAll(getRoot());
+	}
+
+	public void selectVisibleAncestorOrSelf(NodeView preferred) {
+		while(! preferred.getModel().isVisible())
+			preferred = preferred.getParentView();
+		selectAsTheOnlyOneSelected(preferred);
+    }
+
+    public Font getDefaultNoteFont() {
+        return noteFont;
+    }
+
+    public Font getDetailFont() {
+        return detailFont;
+    }
+
+    public Color getDetailForeground() {
+        return detailForeground;
+    }
+
+    public Color getDetailBackground() {
+        return detailBackground;
+    }
+
+	private boolean isSelected() {
+	    return Controller.getCurrentController().getMapViewManager().getMapViewComponent() == MapView.this;
+    }
+
+	void selectIfSelectionIsEmpty(NodeView nodeView) {
+		if(selection.selectedNode == null)
+			selectAsTheOnlyOneSelected(nodeView);
+    }
+
+	private boolean isAncorPositionSet() {
+	    return anchorContentLocation.getX() != 0 || anchorContentLocation.getY() != 0;
+    }
+    
 }

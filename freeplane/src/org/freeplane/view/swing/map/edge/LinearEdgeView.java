@@ -20,6 +20,7 @@
 package org.freeplane.view.swing.map.edge;
 
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Stroke;
@@ -32,13 +33,9 @@ import org.freeplane.view.swing.map.link.CollisionDetector;
  * This class represents a single Edge of a MindMap.
  */
 public class LinearEdgeView extends EdgeView {
-	public LinearEdgeView(final NodeView source, final NodeView target) {
-		super(source, target);
-	}
-
-	public LinearEdgeView(final NodeView target) {
-		super(target);
-	}
+	public LinearEdgeView(NodeView source, NodeView target, Component paintedComponent) {
+	    super(source, target, paintedComponent);
+    }
 
 	@Override
 	protected void draw(final Graphics2D g) {
@@ -58,12 +55,15 @@ public class LinearEdgeView extends EdgeView {
 			}
 		}
 		else {
-			int dx = w / 3 + 1;
-			if (getTarget().isLeft()) {
-				dx = -dx;
-			}
-			final int xs[] = { start.x, start.x + dx, end.x - dx, end.x };
-			final int ys[] = { start.y, start.y, end.y, end.y };
+	        final Point startControlPoint = getControlPoint(getStartConnectorLocation());
+	        final int zoomedXCTRL = w + 1;
+	        final int xctrl = startControlPoint.x * zoomedXCTRL; 
+	        final int yctrl = startControlPoint.y * zoomedXCTRL; 
+	        final Point endControlPoint = getControlPoint(getEndConnectorLocation());
+	        final int childXctrl = endControlPoint.x * zoomedXCTRL; 
+	        final int childYctrl = endControlPoint.y * zoomedXCTRL; 
+			final int xs[] = { start.x, start.x + xctrl, end.x + childXctrl, end.x };
+			final int ys[] = { start.y, start.y + yctrl, end.y + childYctrl, end.y };
 			g.drawPolyline(xs, ys, 4);
 			if (isTargetEclipsed()) {
 				g.setColor(g.getBackground());

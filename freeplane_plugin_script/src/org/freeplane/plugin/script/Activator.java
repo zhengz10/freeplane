@@ -2,8 +2,8 @@ package org.freeplane.plugin.script;
 
 import java.util.Hashtable;
 
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.features.mindmapmode.MModeController;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.mode.mindmapmode.MModeController;
 import org.freeplane.main.osgi.IModeControllerExtensionProvider;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
@@ -18,10 +18,11 @@ public class Activator implements BundleActivator {
 		props.put("mode", new String[] { MModeController.MODENAME });
 		context.registerService(IModeControllerExtensionProvider.class.getName(),
 		    new IModeControllerExtensionProvider() {
-			    public void installExtension(final ModeController modeController) {
+			    public void installExtension(ModeController modeController) {
 				    new ScriptingRegistration(modeController);
 			    }
 		    }, props);
+		JSyntaxPaneProxy.init(context);
 	}
 
 	/*

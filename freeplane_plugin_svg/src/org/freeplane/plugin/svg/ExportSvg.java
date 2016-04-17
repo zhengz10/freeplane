@@ -20,42 +20,34 @@
  */
 package org.freeplane.plugin.svg;
 
-import java.awt.event.ActionEvent;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 
-import javax.swing.Action;
-
 import org.apache.batik.svggen.SVGGraphics2D;
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.ui.ActionLocationDescriptor;
 import org.freeplane.core.ui.components.UITools;
+import org.freeplane.features.export.mindmapmode.ExportController;
+import org.freeplane.features.map.MapModel;
+import org.freeplane.features.mode.Controller;
 import org.freeplane.view.swing.map.MapView;
 
-@ActionLocationDescriptor(locations = { "/menu_bar/file/export" })
 class ExportSvg extends ExportVectorGraphic {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
 
-	public ExportSvg(final Controller controller) {
-		super("ExportSvg", controller);
-	}
-
-	public void actionPerformed(final ActionEvent e) {
-		final File chosenFile = chooseFile("svg", (String) getValue(Action.NAME), null);
-		if (chosenFile == null) {
+	public void export(MapModel map, File chosenFile) {
+		if (!ExportController.getContoller().checkCurrentMap(map)){
 			return;
 		}
 		try {
-			final MapView view = (MapView) getController().getViewController().getMapView();
+			final MapView view = (MapView) Controller.getCurrentController().getViewController().getMapView();
 			if (view == null) {
 				return;
 			}
-			getController().getViewController().setWaitingCursor(true);
+			Controller.getCurrentController().getViewController().setWaitingCursor(true);
 			final SVGGraphics2D g2d = fillSVGGraphics2D(view);
 			final FileOutputStream bos = new FileOutputStream(chosenFile);
 			final BufferedOutputStream bufStream = new BufferedOutputStream(bos);
@@ -66,9 +58,12 @@ class ExportSvg extends ExportVectorGraphic {
 			bos.close();
 		}
 		catch (final Exception ex) {
-			org.freeplane.core.util.LogTool.warn(ex);
+			org.freeplane.core.util.LogUtils.warn(ex);
 			UITools.errorMessage(ex.getLocalizedMessage());
 		}
-		getController().getViewController().setWaitingCursor(false);
+		finally{
+			Controller.getCurrentController().getViewController().setWaitingCursor(false);
+		}
 	}
+
 }

@@ -22,20 +22,22 @@ package org.freeplane.view.swing.map.attribute;
 import java.awt.Color;
 import java.awt.EventQueue;
 
+import javax.swing.JComponent;
 import javax.swing.JScrollPane;
 import javax.swing.UIManager;
 import javax.swing.event.AncestorEvent;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableModel;
 
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.features.common.attribute.AttributeRegistry;
-import org.freeplane.features.common.attribute.AttributeTableLayoutModel;
-import org.freeplane.features.common.attribute.NodeAttributeTableModel;
+import org.freeplane.features.attribute.AttributeRegistry;
+import org.freeplane.features.attribute.AttributeTableLayoutModel;
+import org.freeplane.features.attribute.NodeAttributeTableModel;
+import org.freeplane.features.map.NodeModel;
 import org.freeplane.view.swing.map.MapView;
 import org.freeplane.view.swing.map.NodeView;
 
@@ -53,22 +55,30 @@ public class AttributeView implements ChangeListener, TableModelListener {
 	final private NodeView nodeView;
 	final private ReducedAttributeTableModelDecorator reducedAttributeTableModel;
 	private JTableHeader tableHeader;
+	private ListSelectionListener tableSelectionListener;
 
-	public AttributeView(final NodeView nodeView) {
+	public AttributeView(final NodeView nodeView, final boolean addToNodeView) {
 		super();
 		this.nodeView = nodeView;
-		reducedAttributeTableModel = new ReducedAttributeTableModelDecorator(this);
-		currentAttributeTableModel = reducedAttributeTableModel;
+		if(addToNodeView){
+			reducedAttributeTableModel = new ReducedAttributeTableModelDecorator(this);
+			currentAttributeTableModel = reducedAttributeTableModel;
+		}
+		else{
+			reducedAttributeTableModel = null;
+			currentAttributeTableModel = extendedAttributeTableModel = new ExtendedAttributeTableModelDecorator(this);
+			
+		}
 		setViewType(getAttributeRegistry().getAttributeViewType());
 		addListeners();
 	}
 
 	private void addListeners() {
 		getAttributeRegistry().addChangeListener(this);
-		addTableModelListeners();
+		addTableListeners();
 	}
 
-	private void addTableModelListeners() {
+	private void addTableListeners() {
 		if (!getMapView().getModeController().canEdit()) {
 			return;
 		}
@@ -79,6 +89,10 @@ public class AttributeView implements ChangeListener, TableModelListener {
 			getAttributes().getLayout().addColumnWidthChangeListener(attributeTable);
 			attributeTable.addMouseListener(AttributeView.tablePopupMenu);
 			tableHeader.addMouseListener(AttributeView.tablePopupMenu);
+			if (tableSelectionListener != null) {
+				attributeTable.getSelectionModel().addListSelectionListener(tableSelectionListener);
+				attributeTable.getColumnModel().getSelectionModel().addListSelectionListener(tableSelectionListener);
+			}
 		}
 		else {
 			getAttributes().addTableModelListener(this);
@@ -151,19 +165,28 @@ public class AttributeView implements ChangeListener, TableModelListener {
 		return attributeTable != null && AttributeView.tablePopupMenu != null
 		        && (AttributeView.tablePopupMenu.getTable() == attributeTable);
 	}
+	
+	static private int VIEWER_POSITION = 3; 
 
 	private void provideAttributeTable() {
 		if (attributeTable == null) {
+			getAttributes().removeTableModelListener(this);
 			attributeTable = new AttributeTable(this);
 			tableHeader = attributeTable.getTableHeader();
 			tableHeader.setBackground(AttributeView.HEADER_BACKGROUND);
-			addTableModelListeners();
+			addTableListeners();
 			attributeViewScrollPane = new AttributeViewScrollPane(attributeTable);
-			getNodeView().getContentPane().add(attributeViewScrollPane);
-			getAttributes().removeTableModelListener(this);
+			attributeViewScrollPane.setAlignmentX(AttributeViewScrollPane.LEFT_ALIGNMENT);
+			if(addToNodeView()){
+				getNodeView().addContent(attributeViewScrollPane, VIEWER_POSITION);
+			}
 			setViewType(getAttributeRegistry().getAttributeViewType());
 		}
 	}
+
+	boolean addToNodeView() {
+	    return reducedAttributeTableModel != null;
+    }
 
 	private void removeListeners() {
 		getAttributeRegistry().removeChangeListener(this);
@@ -185,7 +208,7 @@ public class AttributeView implements ChangeListener, TableModelListener {
 
 	private void setViewType(final String viewType) {
 		JTableHeader currentColumnHeaderView = null;
-		if (viewType == AttributeTableLayoutModel.SHOW_ALL) {
+		if (viewType == AttributeTableLayoutModel.SHOW_ALL || ! addToNodeView()) {
 			currentAttributeTableModel = getExtendedAttributeTableModel();
 			currentColumnHeaderView = tableHeader;
 		}
@@ -214,7 +237,7 @@ public class AttributeView implements ChangeListener, TableModelListener {
 	}
 
 	private void startEditingTable() {
-		attributeTable.requestFocus();
+		attributeTable.requestFocusInWindow();
 		if (currentAttributeTableModel.getRowCount() == 0) {
 			attributeTable.insertRow(0);
 		}
@@ -225,8 +248,11 @@ public class AttributeView implements ChangeListener, TableModelListener {
 
 	public void stateChanged(final ChangeEvent event) {
 		setViewType(getAttributeRegistry().getAttributeViewType());
-		reducedAttributeTableModel.stateChanged(null);
-		getNodeView().revalidate();
+		if(addToNodeView()){
+			reducedAttributeTableModel.stateChanged(null);
+		}
+		if(attributeTable != null)
+			attributeTable.revalidate();
 	}
 
 	public void stopEditing() {
@@ -237,7 +263,7 @@ public class AttributeView implements ChangeListener, TableModelListener {
 		if (registryAttributeViewType != getViewType()) {
 			setViewType(registryAttributeViewType);
 		}
-		getNodeView().requestFocus();
+		getNodeView().requestFocusInWindow();
 	}
 
 	public void syncronizeAttributeView() {
@@ -267,14 +293,39 @@ public class AttributeView implements ChangeListener, TableModelListener {
 	 */
 	public void viewRemoved() {
 		removeListeners();
-		if (reducedAttributeTableModel != null) {
-			reducedAttributeTableModel.viewRemoved();
+		if (addToNodeView()) {
+			reducedAttributeTableModel.viewRemoved(nodeView);
 		}
 		if (extendedAttributeTableModel != null) {
-			extendedAttributeTableModel.viewRemoved();
+			extendedAttributeTableModel.viewRemoved(nodeView);
 		}
 		if (attributeTable != null) {
-			attributeTable.viewRemoved();
+			attributeTable.viewRemoved(nodeView);
+			attributeTable = null;
 		}
 	}
+
+	JComponent getContainer() {
+		if(attributeViewScrollPane == null){
+			provideAttributeTable();
+		}
+	    return attributeViewScrollPane;
+    }
+
+	public void addRow() {
+		attributeTable.insertRow(attributeTable.getRowCount());
+    }
+	
+	public void setOptimalColumnWidths() {
+		attributeTable.setOptimalColumnWidths();
+	}
+
+	public AttributeTable getAttributeTable() {
+	    return attributeTable;
+    }
+
+	public void addTableSelectionListener(ListSelectionListener listSelectionListener) {
+		// we have to cache the listener to enable lazy construction of the AttributeTable
+		tableSelectionListener = listSelectionListener;
+    }
 }

@@ -25,12 +25,17 @@ import java.net.InetAddress;
 import java.security.Permission;
 import java.util.HashSet;
 
-import org.freeplane.core.resources.FpStringUtils;
+import org.freeplane.core.ui.components.UITools;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.filter.condition.ICondition;
+import org.freeplane.plugin.script.proxy.Proxy;
 
 /**
  * @author foltin
  */
 class ScriptingSecurityManager extends SecurityManager {
+	private static final String INTERNAL_API_PACKAGE_BASE = "org.freeplane";
+	private static final HashSet<String> whiteList = createWhiteList();
 	private static final int PERM_Accept = 0;
 	private static final int PERM_Connect = 1;
 	private static final int PERM_Delete = 7;
@@ -44,16 +49,37 @@ class ScriptingSecurityManager extends SecurityManager {
 	private static final int PERM_Read = 8;
 	private static final int PERM_SetFactory = 4;
 	private static final int PERM_Write = 9;
+	final private boolean mWithoutReadRestriction;
+	final private boolean mWithoutWriteRestriction;
 	final private boolean mWithoutExecRestriction;
-	final private boolean mWithoutFileRestriction;
 	final private boolean mWithoutNetworkRestriction;
 
-	public ScriptingSecurityManager(final boolean pWithoutFileRestriction, final boolean pWithoutNetworkRestriction,
-	                                final boolean pWithoutExecRestriction) {
-		mWithoutFileRestriction = pWithoutFileRestriction;
+	public ScriptingSecurityManager(final boolean pWithoutFileRestriction, boolean pWithoutWriteRestriction,
+	                                final boolean pWithoutNetworkRestriction, final boolean pWithoutExecRestriction) {
+		mWithoutReadRestriction = pWithoutFileRestriction;
+		mWithoutWriteRestriction = pWithoutWriteRestriction;
 		mWithoutNetworkRestriction = pWithoutNetworkRestriction;
 		mWithoutExecRestriction = pWithoutExecRestriction;
 	}
+
+	private static HashSet<String> createWhiteList() {
+	    final HashSet<String> result = new HashSet<String>();
+	    result.add(Proxy.class.getPackage().getName());
+	    result.add(TextUtils.class.getPackage().getName());
+	    // this one is under debate since UITools should be moved to the utils package
+	    result.add(UITools.class.getPackage().getName());
+	    // this one is necessary due to deprecated API methods: find(ICondition)
+	    result.add(ICondition.class.getPackage().getName());
+	    // the following are considered wrong
+//	    result.add(NodeModel.class.getPackage().getName());
+//	    result.add(NoteModel.class.getPackage().getName());
+//	    result.add(LinkController.class.getPackage().getName());
+//	    result.add(MLinkController.class.getPackage().getName());
+//	    result.add(MindIcon.class.getPackage().getName());
+//	    result.add(MindIconFactory.class.getPackage().getName());
+//	    result.add(MNoteController.class.getPackage().getName());
+		return result;
+    }
 
 	@Override
 	public void checkAccept(final String pHost, final int pPort) {
@@ -97,7 +123,7 @@ class ScriptingSecurityManager extends SecurityManager {
 
 	@Override
 	public void checkDelete(final String pFile) {
-		if (mWithoutFileRestriction) {
+		if (mWithoutReadRestriction) {
 			return;
 		}
 		throw getException(ScriptingSecurityManager.PERM_GROUP_FILE, ScriptingSecurityManager.PERM_Delete);
@@ -120,7 +146,7 @@ class ScriptingSecurityManager extends SecurityManager {
 		/*
 		 * This should permit system libraries to be loaded.
 		 */
-		final HashSet set = new HashSet();
+		final HashSet<String> set = new HashSet<String>();
 		set.add("awt");
 		set.add("net");
 		set.add("jpeg");
@@ -140,7 +166,7 @@ class ScriptingSecurityManager extends SecurityManager {
 	}
 
 	@Override
-	public void checkMemberAccess(final Class arg0, final int arg1) {
+	public void checkMemberAccess(final Class<?> arg0, final int arg1) {
 	}
 
 	@Override
@@ -160,7 +186,12 @@ class ScriptingSecurityManager extends SecurityManager {
 	}
 
 	@Override
-	public void checkPackageAccess(final String pPkg) {
+	public void checkPackageAccess(final String pkg) {
+		if (pkg.startsWith(INTERNAL_API_PACKAGE_BASE) && !whiteList.contains(pkg)) {
+			// temporaribly disabled:
+			// throw new SecurityException(TextUtils.format("plugins/ScriptingEngine.illegalAccessToInternalAPI", pkg));
+//			LogUtils.warn("access to internal package " + pkg);
+		}
 	}
 
 	@Override
@@ -189,7 +220,7 @@ class ScriptingSecurityManager extends SecurityManager {
 
 	@Override
 	public void checkRead(final FileDescriptor pFd) {
-		if (mWithoutFileRestriction) {
+		if (mWithoutReadRestriction) {
 			return;
 		}
 		throw getException(ScriptingSecurityManager.PERM_GROUP_FILE, ScriptingSecurityManager.PERM_Read);
@@ -197,15 +228,15 @@ class ScriptingSecurityManager extends SecurityManager {
 
 	@Override
 	public void checkRead(final String pFile) {
-		if (mWithoutFileRestriction) {
+		if (mWithoutReadRestriction) {
 			return;
 		}
-		throw getException(ScriptingSecurityManager.PERM_GROUP_FILE, ScriptingSecurityManager.PERM_Read);
+		throw getException(ScriptingSecurityManager.PERM_GROUP_FILE, ScriptingSecurityManager.PERM_Read, pFile);
 	}
 
 	@Override
 	public void checkRead(final String pFile, final Object pContext) {
-		if (mWithoutFileRestriction) {
+		if (mWithoutReadRestriction) {
 			return;
 		}
 		throw getException(ScriptingSecurityManager.PERM_GROUP_FILE, ScriptingSecurityManager.PERM_Read);
@@ -234,7 +265,7 @@ class ScriptingSecurityManager extends SecurityManager {
 
 	@Override
 	public void checkWrite(final FileDescriptor pFd) {
-		if (mWithoutFileRestriction) {
+		if (mWithoutWriteRestriction) {
 			return;
 		}
 		throw getException(ScriptingSecurityManager.PERM_GROUP_FILE, ScriptingSecurityManager.PERM_Write);
@@ -242,14 +273,18 @@ class ScriptingSecurityManager extends SecurityManager {
 
 	@Override
 	public void checkWrite(final String pFile) {
-		if (mWithoutFileRestriction) {
+		if (mWithoutWriteRestriction) {
 			return;
 		}
 		throw getException(ScriptingSecurityManager.PERM_GROUP_FILE, ScriptingSecurityManager.PERM_Write);
 	}
 
+	private SecurityException getException(final int pPermissionGroup, final int pPermission, String pFile) {
+		return new SecurityException(TextUtils.format("plugins/ScriptEditor.FORBIDDEN_ACTION", new Integer(
+		    pPermissionGroup), new Integer(pPermission), pFile));
+    }
+
 	private SecurityException getException(final int pPermissionGroup, final int pPermission) {
-		return new SecurityException(FpStringUtils.format("plugins/ScriptEditor.FORBIDDEN_ACTION", new Integer(
-		    pPermissionGroup), new Integer(pPermission)));
+		return getException(pPermissionGroup, pPermission, "");
 	}
 }

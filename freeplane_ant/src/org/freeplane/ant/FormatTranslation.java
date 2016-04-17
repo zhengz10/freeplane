@@ -144,7 +144,7 @@ public class FormatTranslation extends Task {
 				final String input = TaskUtils.readFile(inputFile);
 				final ArrayList<String> lines = new ArrayList<String>(2048);
 				boolean eolStyleMatches = TaskUtils.checkEolStyleAndReadLines(input, lines, lineSeparator);
-				final ArrayList<String> sortedLines = processLines(inputFile, new ArrayList<String>(lines));
+				final ArrayList<String> sortedLines = processLines(inputFile.getName(), new ArrayList<String>(lines));
 				final boolean contentChanged = !lines.equals(sortedLines);
 				final boolean formattingRequired = !eolStyleMatches || contentChanged;
 				if (formattingRequired) {
@@ -184,7 +184,7 @@ public class FormatTranslation extends Task {
 			throw new BuildException("cannot create output directory '" + outputDir + "'");
 	}
 
-	private ArrayList<String> processLines(File inputFile, ArrayList<String> lines) {
+	ArrayList<String> processLines(final String filename, ArrayList<String> lines) {
 		Collections.sort(lines, KEY_COMPARATOR);
 		ArrayList<String> result = new ArrayList<String>(lines.size());
 		String lastKey = null;
@@ -195,38 +195,54 @@ public class FormatTranslation extends Task {
 			final String[] keyValue = line.split("\\s*=\\s*", 2);
 			if (keyValue.length != 2 || keyValue[0].length() == 0) {
 				// broken line: no '=' sign or empty key (we had " = ======")
-				warn(inputFile.getName() + ": no key/val: " + line);
+				warn(filename + ": no key/val: " + line);
 				continue;
 			}
-			if (keyValue[1].matches("(\\[auto\\]|\\[translate me\\])?")) {
-				warn(inputFile.getName() + ": empty translation: " + line);
-			}
 			final String thisKey = keyValue[0];
-			final String thisValue = keyValue[1];
+			String thisValue = keyValue[1];
+			if (thisValue.matches("(\\[auto\\]|\\[translate me\\])?")) {
+				warn(filename + ": drop empty translation: " + line);
+				continue;
+			}
+			if (thisValue.indexOf("{1}") != -1 && keyValue[1].indexOf("{0}") == -1) {
+				warn(filename + ": errorneous placeholders usage: {1} used without {0}: " + line);
+			}
+			if (thisValue.matches(".*\\$\\d.*")) {
+				warn(filename + ": use '{0}' instead of '$1' as placeholder! (likewise for $2...): " + line);
+				thisValue = thisValue.replaceAll("\\$1", "{0}").replaceAll("\\$2", "{1}");
+			}
+			if (thisValue.matches(".*\\{\\d[^},]*")) {
+				warn(filename + ": mismatched braces in placeholder: '{' not closed by '}': " + line);
+			}
+			if (thisValue.matches(".*[^']'[^'].*\\{\\d\\}.*") || thisValue.matches(".*\\{\\d\\}.*[^']'[^'].*")) {
+				warn(filename + ": replaced single quotes in strings containing placeholders by two: "
+				        + "\"'{0}' n'a\" -> \"''{0}'' n''a\": " + line);
+				thisValue = thisValue.replaceAll("([^'])'([^'])", "$1''$2");
+			}
 			if (lastKey != null && thisKey.equals(lastKey)) {
 				if (quality(thisValue) < quality(lastValue)) {
-					log(inputFile.getName() + ": drop " + TaskUtils.toLine(lastKey, thisValue));
+					log(filename + ": drop " + TaskUtils.toLine(lastKey, thisValue));
 					continue;
 				}
 				else if (quality(thisValue) == quality(lastValue)) {
 					if (thisValue.equals(lastValue)) {
-						log(inputFile.getName() + ": drop duplicate " + TaskUtils.toLine(lastKey, thisValue));
+						log(filename + ": drop duplicate " + TaskUtils.toLine(lastKey, thisValue));
 					}
 					else if (quality(thisValue) == QUALITY_MANUALLY_TRANSLATED) {
-						warn(inputFile.getName() //
+						warn(filename //
 						        + ": drop one of two of equal quality (revisit!):keep: "
 						        + TaskUtils.toLine(lastKey, lastValue));
-						warn(inputFile.getName() //
+						warn(filename //
 						        + ": drop one of two of equal quality (revisit!):drop: "
 						        + TaskUtils.toLine(thisKey, thisValue));
 					}
 					else {
-						log(inputFile.getName() + ": drop " + TaskUtils.toLine(lastKey, thisValue));
+						log(filename + ": drop " + TaskUtils.toLine(lastKey, thisValue));
 					}
 					continue;
 				}
 				else {
-					log(inputFile.getName() + ": drop " + TaskUtils.toLine(lastKey, lastValue));
+					log(filename + ": drop " + TaskUtils.toLine(lastKey, lastValue));
 				}
 				lastValue = thisValue;
 			}

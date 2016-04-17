@@ -19,11 +19,9 @@
  */
 package org.freeplane.core.ui;
 
-import java.awt.Component;
 import java.awt.dnd.DragGestureListener;
 import java.awt.dnd.DropTargetListener;
 import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelListener;
 import java.util.Set;
 
@@ -33,11 +31,9 @@ import javax.swing.JPopupMenu;
 import org.freeplane.core.ui.components.FreeplaneMenuBar;
 
 public interface IUserInputListenerFactory {
-	public void addMouseWheelEventHandler(final IMouseWheelEventHandler handler);
+	void addMouseWheelEventHandler(final IMouseWheelEventHandler handler);
 
-	public boolean extendSelection(MouseEvent e);
-
-	Component getLeftToolBar();
+	void addToolBar(final String name, final int position, final JComponent toolBar);
 
 	IMouseListener getMapMouseListener();
 
@@ -49,7 +45,7 @@ public interface IUserInputListenerFactory {
 
 	MenuBuilder getMenuBuilder();
 
-	public Set getMouseWheelEventHandlers();
+	public Set<IMouseWheelEventHandler> getMouseWheelEventHandlers();
 
 	DragGestureListener getNodeDragListener();
 
@@ -57,17 +53,17 @@ public interface IUserInputListenerFactory {
 
 	KeyListener getNodeKeyListener();
 
-	IMouseListener getNodeMotionListener();
-
-	INodeMouseMotionListener getNodeMouseMotionListener();
+	IMouseListener getNodeMouseMotionListener();
 
 	JPopupMenu getNodePopupMenu();
 
 	JComponent getToolBar(String name);
 
-	Iterable<JComponent> getToolBars();
+	Iterable<JComponent> getToolBars(int position);
 
 	public void removeMouseWheelEventHandler(final IMouseWheelEventHandler handler);
 
 	void updateMapList();
+	
+	public void updateMenus(String menuStructureResource, Set<String> plugins);
 }

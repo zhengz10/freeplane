@@ -25,11 +25,14 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.features.common.addins.mapstyle.MapViewLayout;
-import org.freeplane.features.common.link.ArrowType;
-import org.freeplane.features.common.link.ConnectorModel;
-import org.freeplane.features.common.link.LinkController;
+import org.freeplane.core.util.ColorUtils;
+import org.freeplane.features.link.ArrowType;
+import org.freeplane.features.link.ConnectorModel;
+import org.freeplane.features.link.LinkController;
+import org.freeplane.features.link.ConnectorModel.Shape;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.styles.MapViewLayout;
+import org.freeplane.view.swing.map.MapView;
 import org.freeplane.view.swing.map.NodeView;
 import org.freeplane.view.swing.map.edge.EdgeView;
 import org.freeplane.view.swing.map.edge.EdgeViewFactory;
@@ -44,20 +47,23 @@ public class EdgeLinkView extends AConnectorView {
 	public EdgeLinkView(final ConnectorModel model, final ModeController modeController, final NodeView source,
 	                    final NodeView target) {
 		super(model, source, target);
-		if (source.getMap().getLayoutType() == MapViewLayout.OUTLINE) {
-			edgeView = new OutlineLinkView(source, target);
+		final MapView map = source.getMap();
+		if (map.getLayoutType() == MapViewLayout.OUTLINE) {
+			edgeView = new OutlineLinkView(source, target, map);
 		}
 		else{
-			edgeView = EdgeViewFactory.getInstance().getEdge(source, target);
+			edgeView = EdgeViewFactory.getInstance().getEdge(source, target, map);
 		}
 		Color color;
-		if (model.isEdgeLike()) {
+		if (Shape.EDGE_LIKE.equals(model.getShape())) {
 			color = edgeView.getColor().darker();
 		}
 		else {
-			final LinkController controller = LinkController.getController(modeController);
-			color = controller.getColor(model);
-			final int width = controller.getWidth(model);
+			final LinkController linkController = LinkController.getController(modeController);
+			color = linkController.getColor(connectorModel);
+			final int alpha = linkController.getAlpha(connectorModel);
+			color =  ColorUtils.createColor(color, alpha);
+			final int width = linkController.getWidth(model);
 			edgeView.setWidth(width);
 		}
 		edgeView.setColor(color);
@@ -86,21 +92,25 @@ public class EdgeLinkView extends AConnectorView {
 
 	public void paint(final Graphics graphics) {
 		edgeView.paint((Graphics2D) graphics);
-		if(connectorModel.isEdgeLike()){
+		if(Shape.EDGE_LIKE.equals(connectorModel.getShape())){
 			return;
 		}
 		if (isSourceVisible() && !connectorModel.getStartArrow().equals(ArrowType.NONE)) {
 			Point p1 = edgeView.getStart();
 			Point p2 = new Point(p1);
 			p2.translate(5, 0);
-			paintArrow(p1, p2, (Graphics2D)graphics, getZoom() * 7);
+			paintArrow(graphics, p2, p1);
 		}
 		if (isTargetVisible() && !connectorModel.getEndArrow().equals(ArrowType.NONE)) {
 			Point p1 = edgeView.getEnd();
 			Point p2 = new Point(p1);
 			p2.translate(5, 0);
-			paintArrow(p1, p2, (Graphics2D)graphics, getZoom() * 7);
+			paintArrow(graphics, p2, p1);
 		}
 		
 	}
+
+	private void paintArrow(final Graphics graphics, Point from, Point to) {
+	    paintArrow(from, to, (Graphics2D)graphics, getZoom() * 10);
+    }
 }

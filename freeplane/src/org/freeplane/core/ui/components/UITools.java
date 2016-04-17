@@ -19,46 +19,80 @@
  */
 package org.freeplane.core.ui.components;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.EventQueue;
+import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Insets;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.Toolkit;
+import java.awt.Window;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.net.URI;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.border.Border;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.event.AncestorEvent;
+import javax.swing.event.AncestorListener;
+import javax.swing.text.JTextComponent;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.frame.ViewController;
-import org.freeplane.core.model.NodeModel;
 import org.freeplane.core.resources.IFreeplanePropertyListener;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.resources.ResourceController;
-import org.freeplane.core.util.LogTool;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.ui.ViewController;
+import org.freeplane.features.url.UrlManager;
+import org.freeplane.main.application.FreeplaneSplashModern;
 
 /**
+ * Utilities for accessing the GUI, creating dialogs etc.: In scripts available as "global variable" <code>ui</code>.
+ * <p>
+ * In scripts this would be a simple way of opening a info popup:
+ * <pre>
+ * ui.informationMessage("Hello World!")
+ * ui.informationMessage(ui.frame, "Hello World!") // longer version, equivalent
+ * </pre>
+ * 
  * @author Dimitry Polivaev
- * 29.12.2008
+ * @since 29.12.2008
  */
 public class UITools {
+	@SuppressWarnings("serial")
+    public static final class InsertEolAction extends AbstractAction {
+        public void actionPerformed(ActionEvent e) {
+        	JTextComponent c = (JTextComponent) e.getSource();
+        	c.replaceSelection("\n");
+        }
+    }
+
 	public static final String MAIN_FREEPLANE_FRAME = "mainFreeplaneFrame";
 
 	public static void addEscapeActionToDialog(final JDialog dialog) {
 		class EscapeAction extends AbstractAction {
-			/**
-			 * 
-			 */
 			private static final long serialVersionUID = 1L;
 
 			public void actionPerformed(final ActionEvent e) {
@@ -80,9 +114,9 @@ public class UITools {
 		dialog.getRootPane().getActionMap().put(action.getValue(Action.NAME), action);
 	}
 
-	public static void convertPointFromAncestor(final Component source, final Point p, Component c) {
+	public static void convertPointFromAncestor(final Component ancestor, final Point p, Component c) {
 		int x, y;
-		while (c != source) {
+		while (c != ancestor && c != null) {
 			x = c.getX();
 			y = c.getY();
 			p.x -= x;
@@ -91,19 +125,25 @@ public class UITools {
 		};
 	}
 
-	public static void convertPointToAncestor(final Component source, final Point point, final Class ancestorClass) {
+	public static void convertPointToAncestor(final Component source, final Point point, final Class<?> ancestorClass) {
 		final Component destination = SwingUtilities.getAncestorOfClass(ancestorClass, source);
 		UITools.convertPointToAncestor(source, point, destination);
 	}
 
-	public static void convertPointToAncestor(Component c, final Point p, final Component destination) {
+	public static void convertRectangleToAncestor(final Component from, final Rectangle r, final Component destination) {
+		Point p = new Point(r.x, r.y);
+		UITools.convertPointToAncestor(from, p , destination);
+		r.x = p.x;
+		r.y = p.y;
+	}
+		
+	public static void convertPointToAncestor(final Component from, final Point p, final Component destination) {
 		int x, y;
-		while (c != destination) {
+		for (Component c = from; c != destination && c != null; c = c.getParent()) {
 			x = c.getX();
 			y = c.getY();
 			p.x += x;
 			p.y += y;
-			c = c.getParent();
 		};
 	}
 
@@ -113,9 +153,9 @@ public class UITools {
 			myMessage = message.toString();
 		}
 		else {
-			myMessage = ResourceBundles.getText("undefined_error");
+			myMessage = TextUtils.getText("undefined_error");
 		}
-		LogTool.warn(myMessage);
+		LogUtils.warn(myMessage);
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				JOptionPane.showMessageDialog(UITools.getFrame(), myMessage, "Freeplane", JOptionPane.ERROR_MESSAGE);
@@ -133,6 +173,7 @@ public class UITools {
 		return frames.length >= 1 ? frames[0] : null;
 	}
 
+	/** returns a KeyStroke if possible and null otherwise. */
 	public static KeyStroke getKeyStroke(final String keyStrokeDescription) {
 		if (keyStrokeDescription == null) {
 			return null;
@@ -145,6 +186,21 @@ public class UITools {
 		final String modifiedDescription = keyStrokeDescription.substring(0, lastSpacePos) + "typed "
 		        + keyStrokeDescription.substring(lastSpacePos);
 		return KeyStroke.getKeyStroke(modifiedDescription);
+	}
+
+	/** formats a KeyStroke in a ledgible way, e.g. Control+V. Null is converted to "".
+	 * Taken from MotifGraphicsUtils.paintMenuItem(). */
+	public static String keyStrokeToString(KeyStroke keyStroke) {
+		String acceleratorText = "";
+		if (keyStroke != null) {
+		    int modifiers = keyStroke.getModifiers();
+		    if (modifiers > 0) {
+			acceleratorText = KeyEvent.getKeyModifiersText(modifiers);
+			acceleratorText += "+";
+		    }
+		    acceleratorText += KeyEvent.getKeyText(keyStroke.getKeyCode());
+		}
+		return acceleratorText;
 	}
 
 	static public void informationMessage(final String message) {
@@ -164,31 +220,40 @@ public class UITools {
 	}
 
 	static public void setBounds(final Component frame, int win_x, int win_y, int win_width, int win_height) {
-		win_width = (win_width > 0) ? win_width : 640;
-		win_height = (win_height > 0) ? win_height : 440;
+		final Rectangle desktopBounds = getDesktopBounds(frame);
+		int screenWidth = desktopBounds.width;
+		if(win_width != -1)
+			win_width = Math.min(win_width, screenWidth );
+		else
+			win_width =  screenWidth * 4 / 5;
+		int screenHeight = desktopBounds.height;
+		if(win_height != -1)
+			win_height = Math.min(win_height, screenHeight);
+		else
+			win_height =  screenHeight * 4 / 5;
+		if(win_x != -1){
+			win_x = Math.min(screenWidth + desktopBounds.x - win_width, win_x);
+			win_x = Math.max(desktopBounds.x, win_x);
+		}
+		else
+			win_x = desktopBounds.x + (screenWidth - win_width) / 2;
+		if(win_y != -1){
+			win_y = Math.max(desktopBounds.y, win_y);
+			win_y = Math.min(screenHeight + desktopBounds.y - win_height, win_y);
+		}
+		else
+			win_y = desktopBounds.y + (screenHeight - win_height) / 2;
+		frame.setBounds(win_x, win_y, win_width, win_height);
+	}
+
+	public static Rectangle getDesktopBounds(Component frame) {
 		final Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
 		final Insets screenInsets = defaultToolkit.getScreenInsets(frame.getGraphicsConfiguration());
 		final Dimension screenSize = defaultToolkit.getScreenSize();
 		final int screenWidth = screenSize.width - screenInsets.left - screenInsets.right;
-		win_width = Math.min(win_width, screenWidth);
 		final int screenHeight = screenSize.height - screenInsets.top - screenInsets.bottom;
-		win_height = Math.min(win_height, screenHeight);
-		if (win_x < 0) {
-			win_x = screenInsets.left + (screenWidth - win_width) / 2;
-		}
-		else {
-			win_x = Math.max(screenInsets.left, win_x);
-			win_x = Math.min(screenWidth + screenInsets.left - win_width, win_x);
-		}
-		if (win_y < 0) {
-			win_y = screenInsets.top + (screenHeight - win_height) / 2;
-		}
-		else {
-			win_y = Math.max(screenInsets.top, win_y);
-			win_y = Math.min(screenHeight + screenInsets.top - win_height, win_y);
-		}
-		frame.setBounds(win_x, win_y, win_width, win_height);
-	}
+		return new Rectangle(screenInsets.left,  screenInsets.top, screenWidth, screenHeight);
+    }
 
 	public static void setDialogLocationRelativeTo(final JDialog dialog, final Component c) {
 		if (c == null || ! c.isShowing()) {
@@ -203,13 +268,11 @@ public class UITools {
 		final int ph = parent.getHeight();
 		final int dw = dialog.getWidth();
 		final int dh = dialog.getHeight();
-		final Toolkit defaultToolkit = Toolkit.getDefaultToolkit();
-		final Insets screenInsets = defaultToolkit.getScreenInsets(dialog.getGraphicsConfiguration());
-		final Dimension screenSize = defaultToolkit.getScreenSize();
-		final int minX = Math.max(parentLocation.x, screenInsets.left);
-		final int minY = Math.max(parentLocation.y, screenInsets.top);
-		final int maxX = Math.min(parentLocation.x + pw, screenSize.width - screenInsets.right);
-		final int maxY = Math.min(parentLocation.y + ph, screenSize.height - screenInsets.bottom);
+		final Rectangle desktopBounds = getDesktopBounds(c);
+		final int minX = Math.max(parentLocation.x, desktopBounds.x);
+		final int minY = Math.max(parentLocation.y, desktopBounds.y);
+		final int maxX = Math.min(parentLocation.x + pw, desktopBounds.x + desktopBounds.width);
+		final int maxY = Math.min(parentLocation.y + ph, desktopBounds.y + desktopBounds.height);
 		int dx, dy;
 		if (compLocation.x + cw < minX) {
 			dx = minX;
@@ -266,18 +329,19 @@ public class UITools {
 		dialog.setLocation(dx, dy);
 	}
 
-	public static void setDialogLocationRelativeTo(final JDialog dialog, final Controller controller,
+	public static void setDialogLocationRelativeTo(final JDialog dialog,
 	                                               final NodeModel node) {
 		if (node == null) {
 			return;
 		}
-		final ViewController viewController = controller.getViewController();
+		final ViewController viewController = Controller.getCurrentController().getViewController();
 		viewController.scrollNodeToVisible(node);
 		final Component c = viewController.getComponent(node);
 		UITools.setDialogLocationRelativeTo(dialog, c);
 	}
 
-	public static void setDialogLocationUnder(final JDialog dialog, final Controller controller, final NodeModel node) {
+	public static void setDialogLocationUnder(final JDialog dialog, final NodeModel node) {
+		final Controller controller = Controller.getCurrentController();
 		final ViewController viewController = controller.getViewController();
 		final JComponent c = (JComponent) viewController.getComponent(node);
 		final int x = 0;
@@ -286,31 +350,66 @@ public class UITools {
 		SwingUtilities.convertPointToScreen(location, c);
 		UITools.setBounds(dialog, location.x, location.y, dialog.getWidth(), dialog.getHeight());
 	}
-
-	public static int showConfirmDialog(final Controller controller, final NodeModel node, final Object message,
-	                                    final String title, final int optionType) {
+	
+	/**
+	 * Shows the error message  "attributes_adding_empty_attribute_error"
+	 */
+	public static void showAttributeEmptyStringErrorMessage() {
+		JOptionPane.showMessageDialog(null, TextUtils.getText("attributes_adding_empty_attribute_error"),
+		    TextUtils.getText("error"), JOptionPane.ERROR_MESSAGE);
+	}
+	
+	static public void showMessage(String message, int messageType) {
+		backOtherWindows();
+		JTextArea infoPane = new JTextArea();
+		infoPane.setEditable(false);
+		infoPane.setMargin(new Insets(5,5,5,5));  
+		infoPane.setLineWrap(true);
+		infoPane.setWrapStyleWord(true);
+		infoPane.setText(message);
+		infoPane.setColumns(60);
+		JScrollPane scrollPane = new JScrollPane(infoPane);
+		scrollPane.setPreferredSize(new Dimension(400, 200));
+		JOptionPane.showMessageDialog(getFrame(), scrollPane, "Freeplane", messageType);
+	}
+	public static int showConfirmDialog(final NodeModel node, final Object message, final String title,
+	                                    final int optionType, final int messageType) {
+		final Controller controller = Controller.getCurrentController();
 		final ViewController viewController = controller.getViewController();
-		viewController.scrollNodeToVisible(node);
-		final Component parentComponent = viewController.getComponent(node);
-		return JOptionPane.showConfirmDialog(parentComponent, message, title, optionType);
+		final Component parentComponent;
+		if (node == null) {
+			parentComponent = getFrame();
+		}
+		else {
+			viewController.scrollNodeToVisible(node);
+			parentComponent = viewController.getComponent(node);
+		}
+		return JOptionPane.showConfirmDialog(parentComponent, message, title, optionType, messageType);
 	}
 
-	public static String showInputDialog(final Controller controller, final NodeModel node, final String text,
-	                                     final String string) {
+	public static int showConfirmDialog( final NodeModel node, final Object message,
+	                                    final String title, final int optionType) {
+		return showConfirmDialog( node, message, title, optionType, JOptionPane.QUESTION_MESSAGE);
+	}
+
+	public static String showInputDialog( final NodeModel node, final String message,
+	                                     final String initialValue) {
 		if (node == null) {
 			return null;
 		}
+		final Controller controller = Controller.getCurrentController();
 		final ViewController viewController = controller.getViewController();
 		viewController.scrollNodeToVisible(node);
 		final Component parentComponent = viewController.getComponent(node);
-		return JOptionPane.showInputDialog(parentComponent, text, string);
+		return JOptionPane.showInputDialog(parentComponent, message, initialValue);
 	}
 
-	public static String showInputDialog(final Controller controller, final NodeModel node, final String text,
+	public static String showInputDialog( final NodeModel node, final String text,
 	                                     final String title, final int type) {
 		if (node == null) {
 			return null;
 		}
+		final Controller controller = Controller.getCurrentController();
 		final ViewController viewController = controller.getViewController();
 		viewController.scrollNodeToVisible(node);
 		final Component parentComponent = viewController.getComponent(node);
@@ -345,4 +444,177 @@ public class UITools {
 		final int green = color.getGreen();
 		return red > 0x80 && blue > 0x80 && green > 0x80 ? Color.BLACK : Color.WHITE;
 	}
+
+	public static final Dimension MAX_BUTTON_DIMENSION = new Dimension(1000, 1000);
+
+// FIXME: not used - can we remove it? -- Volker
+//	public static Controller getController(Component c) {
+//		if(c == null){
+//			return null;
+//		}
+//	    final JRootPane rootPane = SwingUtilities.getRootPane(c);
+//		if(rootPane == null){
+//			return null;
+//		}
+//	    Controller controller = (Controller) rootPane.getClientProperty(Controller.class);
+//	    if(controller != null){
+//	    	return controller;
+//	    }
+//	    return getController(JOptionPane.getFrameForComponent(rootPane));
+//    }
+
+	public static void focusOn(JComponent component) {
+		component.addAncestorListener(new AncestorListener() {
+			public void ancestorRemoved(AncestorEvent event) {
+			}
+			
+			public void ancestorMoved(AncestorEvent event) {
+			}
+			
+			public void ancestorAdded(AncestorEvent event) {
+				final JComponent component = event.getComponent();
+				EventQueue.invokeLater(new Runnable() {
+					public void run() {
+						component.requestFocus();					}
+				});
+				component.removeAncestorListener(this);
+			}
+		});
+    }
+
+	public static BasicStroke createStroke(int width, final int[] dash) {
+        final float[] fdash;
+    	if(dash  != null){
+    		fdash = new float[dash.length];
+    		int i = 0;
+    		for(float d : dash){
+    			fdash[i++] = d;
+    		}
+    	}
+    	else{
+    		fdash = null;
+    	}
+    	final BasicStroke stroke = new BasicStroke(width, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 1f, fdash, 0f);
+        return stroke;
+    }
+
+	public static void repaintAll(Container root) {
+		root.repaint();
+		for(int i = 0; i < root.getComponentCount(); i++){
+			final Component component = root.getComponent(i);
+			if(component instanceof Container){
+				repaintAll((Container) component);
+			}
+			else{
+				component.repaint();
+			}
+		}
+	}
+
+	public static JDialog createCancelDialog(final Component component, final String titel, final String text) {
+        final String[] options = { TextUtils.getText("cancel") };
+    	final JOptionPane infoPane = new JOptionPane(text, JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION, null,
+    	    options);
+    	JDialog dialog = infoPane.createDialog(component, titel);
+    	dialog.setModal(false);
+    	return dialog;
+    }
+
+	public static void addTitledBorder(final JComponent c, final String title, final float size) {
+        final TitledBorder titledBorder = BorderFactory.createTitledBorder(title);
+        final Font titleFont = UIManager.getFont("TitledBorder.font");
+        titledBorder.setTitleFont(titleFont.deriveFont(size));
+    	final Border btnBorder = c.getBorder();
+    	if(btnBorder != null){
+    	final CompoundBorder compoundBorder = BorderFactory.createCompoundBorder(titledBorder, btnBorder);
+    	c.setBorder(compoundBorder);
+    	}
+    	else{
+    		c.setBorder(titledBorder);
+    	}
+    }
+
+	public static void backOtherWindows() {
+	    Window owner = getFrame();
+		if(owner != null){
+        	final Window[] ownedWindows = owner.getOwnedWindows();
+        	for(Window w : ownedWindows){
+        		if(w.isVisible()){
+        			w.toBack();
+        		}
+        	}
+        }
+    }
+
+	public static JButton createHtmlLinkStyleButton(final URI uri, final String title) {
+        final JButton button = new JButton("<html><a href='" + uri + "'>" + title);
+    	button.setBorderPainted(false);
+    	button.setOpaque(false);
+    	button.setBackground(Color.lightGray);
+    	button.setFocusable(false);
+    	button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    	button.addActionListener(new ActionListener() {
+    		public void actionPerformed(ActionEvent e) {
+    			final ModeController modeController = Controller.getCurrentModeController();
+    			final UrlManager urlManager = (UrlManager) modeController.getExtension(UrlManager.class);
+    			urlManager.loadURL(uri);
+    		}
+    	});
+    	return button;
+	}
+
+	public static final int getComponentIndex(Component component) {
+		if (component != null && component.getParent() != null) {
+			Container c = component.getParent();
+			for (int i = 0; i < c.getComponentCount(); i++) {
+				if (c.getComponent(i) == component)
+					return i;
+			}
+		}
+
+		return -1;
+	}
+
+	public static final float FONT_SCALE_FACTOR;
+	static {
+		float factor = 1f; 
+		try {
+	        factor = UITools.getScreenResolution()  / 72f;
+        }
+        catch (Exception e) {
+        }
+		FONT_SCALE_FACTOR = factor;
+	}
+	
+	public static int getScreenResolution() {
+		final int systemScreenResolution = Toolkit.getDefaultToolkit().getScreenResolution();
+		if(ResourceController.getResourceController().getBooleanProperty("apply_system_screen_resolution")){
+			return systemScreenResolution;
+		}
+		else
+			return ResourceController.getResourceController().getIntProperty("user_defined_screen_resolution", systemScreenResolution);
+    }
+	
+	public static Font scale(Font font) {
+		return font.deriveFont(font.getSize2D()*FONT_SCALE_FACTOR);
+	}
+	public static Font invertScale(Font font) {
+		return font.deriveFont(font.getSize2D()/FONT_SCALE_FACTOR);
+	}
+
+	public static void showFrame() {
+		final Frame frame = UITools.getFrame();
+		final Window[] ownedWindows = frame.getOwnedWindows();
+		for (int i = 0; i < ownedWindows.length; i++) {
+			final Window window = ownedWindows[i];
+			if (window.getClass().equals(FreeplaneSplashModern.class) && window.isVisible()) {
+				window.setVisible(false);
+			}
+		}
+		if(frame != null && ! frame.isVisible()){
+			frame.setVisible(true);
+			frame.toFront();
+		}
+    }
+	
 }

@@ -19,14 +19,14 @@ package org.freeplane.view.swing.map;
 
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.util.Iterator;
 import java.util.Vector;
 
 import javax.swing.JComponent;
 
 import org.apache.commons.lang.StringEscapeUtils;
-import org.freeplane.core.modecontroller.ModeController;
-import org.freeplane.core.model.NodeModel;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.ModeController;
+import org.freeplane.features.text.TextController;
 
 /** */
 class ClickableImageCreator {
@@ -38,10 +38,9 @@ class ClickableImageCreator {
 		String title;
 	}
 
-	Vector area = new Vector();
+	Vector<AreaHolder> area = new Vector<AreaHolder>();
 	private Rectangle innerBounds;
 	final private MapView mapView;
-	final private ModeController modeController;
 	final private String regExpLinkReplacement;
 	final private NodeModel root;
 
@@ -61,7 +60,7 @@ class ClickableImageCreator {
 		else {
 			innerBounds = new Rectangle(0, 0, 100, 100);
 		}
-		this.modeController = modeController;
+//		this.modeController = modeController;
 		createArea();
 	}
 
@@ -69,14 +68,12 @@ class ClickableImageCreator {
 		createArea(root);
 	}
 
-	/**
-	 */
 	private void createArea(final NodeModel node) {
 		final NodeView nodeView = mapView.getNodeView(node);
 		if (nodeView != null) {
 			final AreaHolder holder = new AreaHolder();
-			holder.title = node.getShortText();
-			holder.alt = node.getShortText();
+			holder.title = TextController.getController().getShortText(node);
+			holder.alt = TextController.getController().getShortText(node);
 			holder.href = node.createID();
 			final Point contentXY = mapView.getNodeContentLocation(nodeView);
 			final JComponent content = nodeView.getContent();
@@ -85,8 +82,7 @@ class ClickableImageCreator {
 			holder.coordinates.width = content.getWidth();
 			holder.coordinates.height = content.getHeight();
 			area.add(holder);
-			for (final Iterator i = mapView.getModeController().getMapController().childrenUnfolded(node); i.hasNext();) {
-				final NodeModel child = (NodeModel) i.next();
+			for (final NodeModel child: mapView.getModeController().getMapController().childrenUnfolded(node)) {
 				createArea(child);
 			}
 		}
@@ -94,8 +90,7 @@ class ClickableImageCreator {
 
 	public String generateHtml() {
 		final StringBuilder htmlArea = new StringBuilder();
-		for (final Iterator i = area.iterator(); i.hasNext();) {
-			final AreaHolder holder = (AreaHolder) i.next();
+		for (final AreaHolder holder : area) {
 			htmlArea.append("<area shape=\"" + holder.shape + "\" href=\"#"
 			        + holder.href.replaceFirst("^(.*)$", regExpLinkReplacement) + "\" alt=\""
 			        + StringEscapeUtils.escapeHtml(holder.alt) + "\" title=\""

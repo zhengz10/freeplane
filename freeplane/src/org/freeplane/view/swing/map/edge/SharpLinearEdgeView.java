@@ -19,6 +19,7 @@
  */
 package org.freeplane.view.swing.map.edge;
 
+import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Polygon;
@@ -30,14 +31,10 @@ import org.freeplane.view.swing.map.link.CollisionDetector;
 /**
  * This class represents a sharp Edge of a MindMap.
  */
-public class SharpLinearEdgeView extends EdgeView {
-	public SharpLinearEdgeView(final NodeView source, final NodeView target) {
-		super(source, target);
-	}
-
-	public SharpLinearEdgeView(final NodeView target) {
-		super(target);
-	}
+public class SharpLinearEdgeView extends SharpEdgeView {
+	public SharpLinearEdgeView(NodeView source, NodeView target, Component paintedComponent) {
+	    super(source, target, paintedComponent);
+    }
 
 	@Override
 	public Stroke getStroke() {
@@ -49,9 +46,10 @@ public class SharpLinearEdgeView extends EdgeView {
 		g.setColor(getColor());
 		g.setPaint(getColor());
 		g.setStroke(getStroke());
-		final int w = getMap().getZoomed(getWidth() / 2 + 1);
-		final int xs[] = { start.x, end.x, start.x };
-		final int ys[] = { start.y + w, end.y, start.y - w };
+        final int deltaX = getDeltaX();
+        final int deltaY = getDeltaY();
+		final int xs[] = { start.x + deltaX, end.x, start.x - deltaX};
+		final int ys[] = { start.y + deltaY, end.y, start.y - deltaY };
 		g.fillPolygon(xs, ys, 3);
 	}
 

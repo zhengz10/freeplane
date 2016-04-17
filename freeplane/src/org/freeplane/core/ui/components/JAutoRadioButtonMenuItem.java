@@ -43,11 +43,16 @@ public class JAutoRadioButtonMenuItem extends JRadioButtonMenuItem implements Pr
 	private PropertyChangeListener defaultPropertyChanegListener;
 
 	public JAutoRadioButtonMenuItem(final IFreeplaneAction a) {
-		super(a);
-		if (a.isSelected()) {
-			setSelected(true);
-		}
+		super();
+		setModel(new ActionToggleButtonModel(a));
+		setAction(a);
 	}
+	
+	@Override
+    protected void configurePropertiesFromAction(Action a) {
+	    super.configurePropertiesFromAction(a);
+	    setSelected(((IFreeplaneAction)a).isSelected());
+    }
 
 	@Override
 	protected PropertyChangeListener createActionPropertyChangeListener(final Action a) {

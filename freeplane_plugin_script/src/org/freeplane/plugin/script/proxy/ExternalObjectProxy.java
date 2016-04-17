@@ -6,24 +6,30 @@ package org.freeplane.plugin.script.proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.core.util.LogTool;
-import org.freeplane.features.mindmapmode.MModeController;
-import org.freeplane.view.swing.addins.filepreview.ExternalResource;
-import org.freeplane.view.swing.addins.filepreview.ViewerController;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.plugin.script.ScriptContext;
+import org.freeplane.view.swing.features.filepreview.ExternalResource;
+import org.freeplane.view.swing.features.filepreview.ViewerController;
 
 class ExternalObjectProxy extends AbstractProxy<NodeModel> implements Proxy.ExternalObject {
-	ExternalObjectProxy(final NodeModel delegate, final MModeController modeController) {
-		super(delegate, modeController);
+	ExternalObjectProxy(final NodeModel delegate, final ScriptContext scriptContext) {
+		super(delegate, scriptContext);
 	}
 
 	private ExternalResource getExternalObjectModel() {
 		return (ExternalResource) getDelegate().getExtension(ExternalResource.class);
 	}
-
-	public String getURI() {
+	
+	public String getUri() {
 		final ExternalResource externalObject = getExternalObjectModel();
-		return externalObject.getUri().toString();
+		final URI uri = externalObject == null ? null : externalObject.getUri();
+		return uri == null ? null : uri.toString();
+	}
+	
+	@Deprecated
+	public String getURI() {
+		return getUri();
 	}
 
 	private ViewerController getViewerController() {
@@ -32,26 +38,41 @@ class ExternalObjectProxy extends AbstractProxy<NodeModel> implements Proxy.Exte
 
 	public float getZoom() {
 		final ExternalResource externalObject = getExternalObjectModel();
-		return externalObject.getZoom();
+		return externalObject == null ? 1f : externalObject.getZoom();
 	}
 
-	public void setURI(final String uri) {
+	public void setUri(final String uri) {
+		ExternalResource externalObject = getExternalObjectModel();
 		try {
-			ExternalResource externalObject = getExternalObjectModel();
 			if (externalObject != null) {
+				if (uri == null) {
+					// remove object
+					getViewerController().undoableToggleHook(getDelegate(), null);
+					return;
+				}
+				getViewerController().undoableToggleHook(getDelegate(), externalObject);
+				externalObject = new ExternalResource(new URI(uri));
 				getViewerController().undoableToggleHook(getDelegate(), externalObject);
 			}
-			externalObject = new ExternalResource();
-			externalObject.setUri(new URI(uri));
-			getViewerController().undoableToggleHook(getDelegate(), externalObject);
 		}
 		catch (final URISyntaxException e) {
-			LogTool.warn(e);
+			LogUtils.warn(e);
 		}
+	}
+	
+	@Deprecated
+	public void setURI(final String uri) {
+		setUri(uri);
 	}
 
 	public void setZoom(final float zoom) {
 		final ExternalResource externalObject = getExternalObjectModel();
-		getViewerController().setZoom(getModeController(), getDelegate().getMap(), externalObject, zoom);
+		if (externalObject != null)
+			getViewerController().setZoom(getModeController(), getDelegate().getMap(), externalObject, zoom);
 	}
+
+    /** make <code>if (node.externalObject) println "has an externalObject"</code> work. */
+    public boolean asBoolean() {
+        return getExternalObjectModel() != null;
+    }
 }

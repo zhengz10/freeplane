@@ -26,23 +26,20 @@ import java.net.URL;
 import javax.help.HelpBroker;
 import javax.help.HelpSet;
 
-import org.freeplane.core.controller.Controller;
 import org.freeplane.core.ui.AFreeplaneAction;
-import org.freeplane.core.ui.ActionLocationDescriptor;
-import org.freeplane.core.util.LogTool;
+import org.freeplane.core.util.LogUtils;
 
 /**
  * @author foltin
  */
-@ActionLocationDescriptor(locations = { "/menu_bar/help/doc" })
 class FreeplaneHelpStarter extends AFreeplaneAction {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
 
-	public FreeplaneHelpStarter(final Controller controller) {
-		super("FreeplaneHelpStarter", controller);
+	public FreeplaneHelpStarter() {
+		super("FreeplaneHelpStarter");
 	}
 
 	/**
@@ -60,7 +57,7 @@ class FreeplaneHelpStarter extends AFreeplaneAction {
 			hb.setViewDisplayed(true);
 		}
 		catch (final Exception ee) {
-			LogTool.severe("HelpSet " + helpHS + " not found", ee);
+			LogUtils.severe("HelpSet " + helpHS + " not found", ee);
 			return;
 		}
 	}

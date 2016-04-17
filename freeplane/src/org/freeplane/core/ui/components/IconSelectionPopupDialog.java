@@ -42,9 +42,9 @@ import javax.swing.KeyStroke;
 import javax.swing.WindowConstants;
 import javax.swing.border.BevelBorder;
 
-import org.freeplane.core.icon.IIconInformation;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.resources.ResourceController;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.icon.IIconInformation;
 
 public class IconSelectionPopupDialog extends JDialog implements KeyListener, MouseListener {
 	static class Position {
@@ -91,7 +91,7 @@ public class IconSelectionPopupDialog extends JDialog implements KeyListener, Mo
 	private int yDimension;
 
 	public IconSelectionPopupDialog(final Frame frame, final List<? extends IIconInformation> icons) {
-		super(frame, ResourceBundles.getText("select_icon"));
+		super(frame, TextUtils.getText("select_icon"));
 		getContentPane().setLayout(new BorderLayout());
 		this.icons = icons;
 		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
@@ -341,8 +341,7 @@ public class IconSelectionPopupDialog extends JDialog implements KeyListener, Mo
 		highlight(position);
 		final int index = calculateIndex(position);
 		final IIconInformation iconInformation = icons.get(index);
-		final String keyStroke = ResourceController.getResourceController().getAdjustableProperty(
-		    iconInformation.getShortcutKey());
+		final String keyStroke = ResourceController.getResourceController().getProperty(iconInformation.getShortcutKey());
 		if (keyStroke != null) {
 			descriptionLabel.setText(iconInformation.getDescription() + ", " + keyStroke);
 		}

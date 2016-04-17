@@ -24,18 +24,29 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Set;
 import java.util.jar.Manifest;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.modecontroller.ModeController;
+import org.freeplane.core.resources.ResourceController;
+import org.freeplane.core.util.Compat;
+import org.freeplane.core.util.FileUtils;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.features.filter.FilterController;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.ModeController;
 import org.freeplane.main.application.FreeplaneStarter;
+import org.freeplane.main.application.SingleInstanceManager;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceReference;
+import org.osgi.service.url.URLConstants;
+import org.osgi.service.url.URLStreamHandlerService;
 
 /**
  * @author Dimitry Polivaev
@@ -78,19 +89,30 @@ class ActivatorImpl implements BundleActivator {
 	private void loadPlugins(final BundleContext context) {
 		final String resourceBaseDir = FreeplaneStarter.getResourceBaseDir();
 		final File baseDir = new File(resourceBaseDir).getAbsoluteFile().getParentFile();
-		loadPlugins(context, new File(baseDir, "plugins"));
-		final String freeplaneUserDirectory = FreeplaneStarter.getFreeplaneUserDirectory();
-		loadPlugins(context, new File(freeplaneUserDirectory));
+		List<Bundle> loadedPlugins = new LinkedList<Bundle>();
+		loadPlugins(context, new File(baseDir, "plugins"), loadedPlugins);
+		final String freeplaneUserDirectory = Compat.getFreeplaneUserDirectory();
+		loadPlugins(context, new File(freeplaneUserDirectory), loadedPlugins);
+		for(Bundle plugin:loadedPlugins){
+			try{
+				plugin.start();
+				System.out.println("Started: " + plugin.getLocation() + " (id#" + plugin.getBundleId() + ")");
+			}
+			catch(Exception e){
+				e.printStackTrace();
+			}
+		}
 	}
 
-	private void loadPlugins(final BundleContext context, final File file) {
+	private void loadPlugins(final BundleContext context, final File file, List<Bundle> loadedPlugins) {
 		if (!file.exists() || !file.isDirectory()) {
 			return;
 		}
 		final File manifest = new File(file, "META-INF/MANIFEST.MF");
 		if (manifest.exists()) {
+			InputStream manifestContent = null;
 			try {
-				final InputStream manifestContent = new FileInputStream(manifest);
+				manifestContent = new FileInputStream(manifest);
 				final Manifest bundleManifest = new Manifest(manifestContent);
 				final String name = bundleManifest.getMainAttributes().getValue("Bundle-SymbolicName");
 				if (name == null) {
@@ -104,22 +126,28 @@ class ActivatorImpl implements BundleActivator {
 						return;
 					}
 				}
-				final Bundle bundle = context.installBundle("reference:file:" + file.getAbsolutePath());
-				bundle.start();
+				final String location = "reference:file:" + file.getAbsolutePath();
+				final Bundle bundle = context.installBundle(location);
+				System.out.println("Installed: " + location + " (id#" + bundle.getBundleId() + ")");
+				loadedPlugins.add(bundle);
 			}
 			catch (final Exception e) {
 				e.printStackTrace();
+			}
+			finally {
+				FileUtils.silentlyClose(manifestContent);
 			}
 			return;
 		}
 		final File[] childFiles = file.listFiles();
 		for (int i = 0; i < childFiles.length; i++) {
 			final File child = childFiles[i];
-			loadPlugins(context, child);
+			loadPlugins(context, child, loadedPlugins);
 		}
 	}
 
 	private void startFramework(final BundleContext context) {
+        registerClasspathUrlHandler(context);
 		if (null == System.getProperty("org.freeplane.core.dir.lib", null)) {
 			final File root = new File(FreeplaneStarter.getResourceBaseDir()).getAbsoluteFile().getParentFile();
 			try {
@@ -133,9 +161,20 @@ class ActivatorImpl implements BundleActivator {
 			catch (final MalformedURLException e) {
 			}
 		}
+		// initialize ApplicationController - SingleInstanceManager needs the configuration
 		starter = new FreeplaneStarter();
+		final SingleInstanceManager singleInstanceManager = new SingleInstanceManager(starter);
+		singleInstanceManager.start(getCallParameters());
+		if (singleInstanceManager.isSlave()) {
+			LogUtils.info("opened files in master - exiting now");
+			System.exit(0);
+		}
+		else if (singleInstanceManager.isMasterPresent()) {
+			starter.setDontLoadLastMaps();
+		}
 		loadPlugins(context);
 		final Controller controller = starter.createController();
+		starter.createModeControllers(controller);
 		try {
 			final ServiceReference[] controllerProviders = context.getServiceReferences(
 			    IControllerExtensionProvider.class.getName(), null);
@@ -159,6 +198,7 @@ class ActivatorImpl implements BundleActivator {
 				    IModeControllerExtensionProvider.class.getName(), "(mode=" + modeName + ")");
 				if (modeControllerProviders != null) {
 					final ModeController modeController = controller.getModeController(modeName);
+					Controller.getCurrentController().selectModeForBuild(modeController);
 					for (int i = 0; i < modeControllerProviders.length; i++) {
 						final ServiceReference modeControllerProvider = modeControllerProviders[i];
 						final IModeControllerExtensionProvider service = (IModeControllerExtensionProvider) context
@@ -187,10 +227,23 @@ class ActivatorImpl implements BundleActivator {
 		}
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
+				final Bundle[] bundles = context.getBundles();
+				final HashSet<String> plugins = new HashSet<String>();
+				for(Bundle bundle:bundles){
+					plugins.add(bundle.getSymbolicName());
+				}
+				FilterController.getController(controller).loadDefaultConditions();
+				starter.buildMenus(controller, plugins);
 				starter.createFrame(getCallParameters());
 			}
 		});
 	}
+
+    private void registerClasspathUrlHandler(final BundleContext context) {
+        Hashtable<String, String[]> properties = new Hashtable<String, String[]>();
+        properties.put(URLConstants.URL_HANDLER_PROTOCOL, new String[] { ResourceController.FREEPLANE_RESOURCE_URL_PROTOCOL });
+        context.registerService(URLStreamHandlerService.class.getName(), new ResourcesUrlHandler(), properties);
+    }
 
 	public void stop(final BundleContext context) throws Exception {
 		starter.stop();

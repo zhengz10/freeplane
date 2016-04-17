@@ -24,19 +24,19 @@ import java.awt.event.ActionListener;
 
 import javax.swing.SwingUtilities;
 
-import org.freeplane.core.controller.Controller;
+import org.freeplane.features.mode.Controller;
 
 class MapsMenuActionListener implements ActionListener {
-	final private Controller controller;
+// // 	final private Controller controller;
 
 	public MapsMenuActionListener(final Controller controller) {
-		this.controller = controller;
+//		this.controller = controller;
 	}
 
 	public void actionPerformed(final ActionEvent e) {
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
-				controller.getMapViewManager().changeToMapView(e.getActionCommand());
+				Controller.getCurrentController().getMapViewManager().changeToMapView(e.getActionCommand());
 			}
 		});
 	}

@@ -20,27 +20,29 @@
 package org.freeplane.core.ui;
 
 import java.awt.event.ActionEvent;
-
+import java.util.Collection;
 import javax.swing.ImageIcon;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.model.NodeModel;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.mode.Controller;
 
 /**
  * @author Dimitry Polivaev
  */
 public abstract class AMultipleNodeAction extends AFreeplaneAction {
-	public AMultipleNodeAction(final String key, final Controller controller) {
-		super(key, controller);
+	private static final long serialVersionUID = 1L;
+
+	public AMultipleNodeAction(final String key) {
+		super(key);
 	}
 
-	public AMultipleNodeAction(final String key, final Controller controller, final String name,
-	                           final ImageIcon imageIcon) {
-		super(key, controller, name, imageIcon);
+	public AMultipleNodeAction(final String key, final String name, final ImageIcon imageIcon) {
+		super(key, name, imageIcon);
 	}
 
 	public void actionPerformed(final ActionEvent e) {
-		for (final NodeModel selected : getModeController().getMapController().getSelectedNodes()) {
+		final Collection<NodeModel> selectedNodes = Controller.getCurrentModeController().getMapController().getSelectedNodes();
+        for (final NodeModel selected : selectedNodes.toArray(new NodeModel[]{})) {
 			actionPerformed(e, selected);
 		}
 	}

@@ -19,13 +19,6 @@
  */
 package org.freeplane.view.swing.map;
 
-import java.awt.Dimension;
-import java.awt.Point;
-
-import javax.swing.JComponent;
-
-import org.freeplane.core.ui.components.UITools;
-
 /**
  * @author Dimitry Polivaev
  */
@@ -39,44 +32,11 @@ public class LeftNodeViewLayout extends NodeViewLayoutAdapter {
 		return LeftNodeViewLayout.instance;
 	}
 
-	public Point getMainViewInPoint(final NodeView view) {
-		final MainView mainView = view.getMainView();
-		return mainView.getRightPoint();
-	}
-
-	public Point getMainViewOutPoint(final NodeView view, final NodeView targetView, final Point destinationPoint) {
-		final MainView mainView = view.getMainView();
-		return mainView.getLeftPoint();
-	}
-
 	@Override
 	protected void layout() {
-		final int contentHeight = getChildContentHeight(true);
-		int childVerticalShift = getChildVerticalShift(true);
-		final int childHorizontalShift = getChildHorizontalShift();
-		final int x = Math.max(getSpaceAround(), -childHorizontalShift);
-		if (getView().isContentVisible()) {
-			getContent().setVisible(true);
-			final Dimension contentPreferredSize = getContent().getPreferredSize();
-			childVerticalShift += (contentPreferredSize.height - contentHeight) / 2;
-			final int y = Math.max(getSpaceAround(), -childVerticalShift);
-			getContent().setBounds(x, y, contentPreferredSize.width, contentPreferredSize.height);
-		}
-		else {
-			getContent().setVisible(false);
-			final int y = Math.max(getSpaceAround(), -childVerticalShift);
-			getContent().setBounds(x, y, 0, contentHeight);
-		}
-		placeLeftChildren(childVerticalShift);
+		final LayoutData layoutData = new LayoutData(getChildCount());
+		calcLayout(true, layoutData);
+		placeChildren(layoutData);
 	}
 
-	public void layoutNodeMotionListenerView(final NodeMotionListenerView view) {
-		final NodeView movedView = view.getMovedView();
-		final JComponent content = movedView.getContent();
-		location.x = content.getWidth();
-		location.y = 0;
-		UITools.convertPointToAncestor(content, location, view.getParent());
-		view.setLocation(location);
-		view.setSize(LISTENER_VIEW_WIDTH, content.getHeight());
-	}
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
     <!--
-	MINDMAPEXPORTFILTER mwiki Mediawiki
+	MINDMAPEXPORTFILTER mwiki %xslt_export.mediawiki
         (c) by Stephen Fitch, 2005 
         (c) by Dimitry Polivaev, 2010 
         This file is licensed under the GPL.
@@ -43,7 +43,9 @@
 			</xsl:choose>
 			<xsl:text>&#xA;</xsl:text>
     	</xsl:if>
-		<xsl:apply-templates select="richcontent"/>
+		<xsl:apply-templates select="richcontent[@TYPE='NODE']"/>
+		<xsl:apply-templates select="richcontent[@TYPE='DETAILS']"/>
+		<xsl:apply-templates select="richcontent[@TYPE='NOTE']"/>
 		<xsl:apply-templates select="node"/>
     </xsl:template>
     
@@ -51,6 +53,9 @@
      </xsl:template>
     
 	<xsl:template match="richcontent">
+		<xsl:if test="@TYPE='DETAILS'">
+			<xsl:text>&#xA;DETAILS: </xsl:text>
+		</xsl:if>
 		<xsl:if test="@TYPE='NOTE'">
 			<xsl:text>&#xA;NOTE: </xsl:text>
 		</xsl:if>

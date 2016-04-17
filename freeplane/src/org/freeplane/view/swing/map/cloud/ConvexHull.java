@@ -23,11 +23,10 @@ import java.awt.Point;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
-import java.util.ListIterator;
 import java.util.Vector;
 
 class ConvexHull {
-	protected class thetaComparator implements Comparator {
+	protected class thetaComparator implements Comparator<Object> {
 		Point p0;
 
 		public thetaComparator(final Point p0) {
@@ -86,14 +85,9 @@ class ConvexHull {
 		}
 	}
 
-	public Vector/* <newPoint> */calculateHull(final LinkedList coordinates) {
-		final Vector q = new Vector();
-		final ListIterator coordinates_it = coordinates.listIterator();
-		while (coordinates_it.hasNext()) {
-			q.add(coordinates_it.next());
-		}
-		final Vector res = doGraham(q);
-		return res;
+	public Vector<Point>/* <newPoint> */calculateHull(final LinkedList<Point> coordinates) {
+		// use a copy of coordinates since it will get modified in doGraham()
+		return doGraham(new Vector<Point>(coordinates));
 	}
 
 	protected int ccw(final Point p0, final Point p1, final Point p2) {
@@ -118,9 +112,9 @@ class ConvexHull {
 		return 1;
 	}
 
-	Vector doGraham(final Vector p) {
+	Vector<Point> doGraham(final Vector<Point> p) {
 		int i;
-		int min, M;
+		int min, m;
 		Point t;
 		min = 0;
 		for (i = 1; i < p.size(); ++i) {
@@ -133,24 +127,24 @@ class ConvexHull {
 				min = i;
 			}
 		}
-		t = (Point) p.get(0);
+		t = p.get(0);
 		p.set(0, p.get(min));
 		p.set(min, t);
 		final thetaComparator comp = new thetaComparator((Point) p.get(0));
 		Collections.sort(p, comp);
 		p.add(0, new Point((Point) p.get(p.size() - 1)));
-		M = 3;
+		m = 3;
 		for (i = 4; i < p.size(); ++i) {
-			while (ccw((Point) p.get(M), (Point) p.get(M - 1), (Point) p.get(i)) >= 0) {
-				M--;
+			while (m > 0 && ccw((Point) p.get(m), (Point) p.get(m - 1), (Point) p.get(i)) >= 0) {
+				m--;
 			}
-			M++;
-			t = (Point) p.get(M);
-			p.set(M, p.get(i));
+			m++;
+			t = (Point) p.get(m);
+			p.set(m, p.get(i));
 			p.set(i, t);
 		}
 		p.remove(0);
-		p.setSize(M);
+		p.setSize(m);
 		return p;
 	}
 }

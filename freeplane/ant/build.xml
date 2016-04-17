@@ -13,7 +13,7 @@
 	<property file="ant/ant.properties" />
 	<property name="freeplaneant.jar" value="${workspace}/freeplane_ant/dist/freeplaneant.jar" />
 	<property name="google.translator.jar" value="${workspace}/freeplane_framework/ant/lib/google-api-translate-java-0.92.jar" />
-	<property name="external.jars" value="${commons-lang.jar}:${forms.jar}:${SimplyHTML.jar}:${jortho.jar}" />
+	<property name="external.jars" value="${commons-lang.jar}:${commons-io.jar}:${imgscalr.jar}:${forms.jar}:${SimplyHTML.jar}:${jortho.jar}" />
 	<property name="build" value="${root}/build" />
 	<property name="dist" value="${root}/dist" />
     <property name="dist.resources" value="${dist}/resources" />
@@ -32,7 +32,12 @@
 	<taskdef name="format-translation" classname="org.freeplane.ant.FormatTranslation" classpath="${freeplaneant.jar}" onerror="report" />
 	<taskdef name="check-translation" classname="org.freeplane.ant.FormatTranslationCheck" classpath="${freeplaneant.jar}" onerror="report" />
 
-	<target name="prepare_jortho">
+	<target name="prepare_freeplaneant">
+		<ant antfile="${workspace}/freeplane_ant/build.xml" target="jar"
+			dir="${workspace}/freeplane_ant"  inheritAll="false" />
+	</target>
+	
+	<target name="prepare_jortho" depends="prepare_freeplaneant">
 		<ant antfile="${workspace}/JOrtho_0.4_freeplane/build.xml" target="jar"
 			 dir="${workspace}/JOrtho_0.4_freeplane" inheritAll="false"/>
 		<copy
@@ -40,13 +45,21 @@
 			tofile="lib/jortho.jar"
 			/>
 	</target>
-	
-	<target name="prepare_freeplaneant">
-		<ant antfile="${workspace}/freeplane_ant/build.xml" target="jar"
-			dir="${workspace}/freeplane_ant"  inheritAll="false" />
+
+	<target name="localelist">
+		<!-- updates translations/locales.txt -->
+		<fileset id="resourcebundles" dir="${root}">
+			<include name="resources/translations/*.properties" />
+			<include name="viewer-resources/translations/*.properties" />
+		</fileset>
+		<pathconvert pathsep="${line.separator}" property="locales" refid="resourcebundles">
+			<mapper type="regexp" from=".*Resources_(.*)\.properties" to="\1"/>
+		</pathconvert>
+		<mkdir dir="${build}/translations" />
+		<echo file="${build}/translations/locales.txt">${locales}</echo>
 	</target>
 	
-	<target name="build" depends="prepare_jortho, prepare_freeplaneant">
+	<target name="build" depends="prepare_jortho,localelist">
 		<antcall target="check-translation" />
 		<mkdir dir="${build}" />
 		<javac srcdir="${src}" destdir="${build}" classpath="${classpath}" debug="${debug}" 
@@ -88,6 +101,7 @@
 				<exclude name="**/filemode/**" />
 				<exclude name="**/ortho/**" />
 				<exclude name="**/core/resources/ui/**" />
+				<exclude name="translations/**" />
 			</fileset>
 			<fileset dir="${viewer-resources}" />
 		</jar>
@@ -98,6 +112,7 @@
 				<include name="**/ortho/**" />
 				<include name="**/filemode/**" />
 				<include name="**/core/resources/ui/**" />
+				<include name="translations/**" />
 				<exclude name="**/*.jar" />
 			</fileset>
 			<fileset dir="${resources}" />
@@ -105,7 +120,7 @@
 	</target>
 	
 	<target name="buildmac" if="isMacOs">
-		<ant antfile="ant/build.xml" target="build" dir="${workspace}/freeplane_mac" inheritall="false" />
+		<ant antfile="ant/build.xml" target="dist" dir="${workspace}/freeplane_mac" inheritall="false" />
 	</target>	
 
 	<target name="osgi_jar" depends="jar, osgi_build">
@@ -161,7 +176,7 @@
 			<arg value="-DartifactId=forms"/>
 			<arg value="-Dversion=1.0.5"/>
 			<arg value="-Dpackaging=jar"/>
-			<arg value="-Dfile=lib/forms-1.0.5.jar"/>
+			<arg value="-Dfile=lib/forms-1.2.1.jar"/>
 		</exec>
 	</target>
 
@@ -175,7 +190,7 @@
 			</fileset>
 		</copy>
 		<mkdir dir="${dist.osgi.dir}/META-INF" />
-		<copyfile dest="${dist.osgi.dir}/META-INF/MANIFEST.MF" src="${osgimanifest}"/>
+		<copy tofile="${dist.osgi.dir}/META-INF/MANIFEST.MF" file="${osgimanifest}"/>
 	</target>
 
 	<target name="osgi_dist_as_jar" depends="osgi_dist">

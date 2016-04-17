@@ -3,39 +3,68 @@
  */
 package org.freeplane.plugin.script.proxy;
 
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Vector;
 
-import org.freeplane.core.icon.IconController;
-import org.freeplane.core.icon.MindIcon;
-import org.freeplane.core.icon.factory.IconStoreFactory;
-import org.freeplane.core.model.NodeModel;
-import org.freeplane.features.mindmapmode.MModeController;
-import org.freeplane.features.mindmapmode.icon.MIconController;
+import org.freeplane.features.icon.IconController;
+import org.freeplane.features.icon.MindIcon;
+import org.freeplane.features.icon.factory.IconStoreFactory;
+import org.freeplane.features.icon.mindmapmode.MIconController;
+import org.freeplane.features.map.NodeModel;
+import org.freeplane.plugin.script.ScriptContext;
 
 class IconsProxy extends AbstractProxy<NodeModel> implements Proxy.Icons {
-	IconsProxy(final NodeModel delegate, final MModeController modeController) {
-		super(delegate, modeController);
+	IconsProxy(final NodeModel delegate, final ScriptContext scriptContext) {
+		super(delegate, scriptContext);
 	}
 
-	public void addIcon(final String name) {
+	public void add(final String name) {
 		getIconController().addIcon(getDelegate(), IconStoreFactory.create().getMindIcon(name));
+	}
+
+	@Deprecated
+	public void addIcon(final String name) {
+		add(name);
 	}
 
 	private int findIcon(final String iconID) {
 		final List<MindIcon> icons = getDelegate().getIcons();
-		final int i = 0;
-		for (final MindIcon icon : icons) {
-			if (icon.getName().equals(iconID)) {
+		for (int i = 0; i < icons.size(); i++) {
+			if (icons.get(i).getName().equals(iconID)) {
 				return i;
 			}
 		}
 		return -1;
 	}
 
-	MIconController getIconController() {
-		return (MIconController) IconController.getController(getModeController());
+	private MIconController getIconController() {
+		return (MIconController) IconController.getController();
+	}
+
+	public String getAt(int index) {
+		final List<MindIcon> icons = getDelegate().getIcons();
+		return icons.size() <= index ? null : icons.get(index).getName();
+	}
+
+	public String getFirst() {
+		final List<MindIcon> icons = getDelegate().getIcons();
+		return icons.isEmpty() ? null : icons.get(0).getName();
+	}
+
+	public boolean contains(String name) {
+		final List<MindIcon> icons = getDelegate().getIcons();
+		for (final MindIcon icon : icons) {
+			if (icon.getName().equals(name))
+				return true;
+		}
+		return false;
+	}
+
+	public int size() {
+		final List<MindIcon> icons = getDelegate().getIcons();
+		return icons.size();
 	}
 
 	public List<String> getIcons() {
@@ -44,14 +73,35 @@ class IconsProxy extends AbstractProxy<NodeModel> implements Proxy.Icons {
 		if (size == 0) {
 			return Collections.emptyList();
 		}
-		final List<String> list = new Vector<String>(size);
+		final ArrayList<String> list = new ArrayList<String>(size);
 		for (final MindIcon icon : icons) {
 			list.add(icon.getName());
 		}
-		return list;
+		return Collections.unmodifiableList(list);
 	}
 
-	public boolean removeIcon(final String iconID) {
+	public List<URL> getUrls() {
+	    final List<MindIcon> icons = getDelegate().getIcons();
+	    final int size = icons.size();
+	    if (size == 0) {
+	        return Collections.emptyList();
+	    }
+	    final ArrayList<URL> list = new ArrayList<URL>(size);
+	    for (final MindIcon icon : icons) {
+	        list.add(icon.getUrl());
+	    }
+	    return Collections.unmodifiableList(list);
+	}
+
+	public boolean remove(final int index) {
+		if (index >= size()) {
+			return false;
+		}
+		getIconController().removeIcon(getDelegate(), index);
+		return true;
+	}
+	
+	public boolean remove(final String iconID) {
 		final int index = findIcon(iconID);
 		if (index == -1) {
 			return false;
@@ -59,4 +109,14 @@ class IconsProxy extends AbstractProxy<NodeModel> implements Proxy.Icons {
 		getIconController().removeIcon(getDelegate(), index);
 		return true;
 	}
+
+	@Deprecated
+	public boolean removeIcon(final String iconID) {
+		return remove(iconID);
+	}
+
+    /** make <code>if (node.icons) println "has some icon"</code> work. */
+    public boolean asBoolean() {
+        return size() > 0;
+    }
 }

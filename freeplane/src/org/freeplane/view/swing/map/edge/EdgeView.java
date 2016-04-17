@@ -21,14 +21,14 @@ package org.freeplane.view.swing.map.edge;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Stroke;
 
-import org.freeplane.core.model.NodeModel;
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.features.common.edge.EdgeController;
-import org.freeplane.features.common.edge.EdgeModel;
+import org.freeplane.view.swing.map.MainView;
+import org.freeplane.view.swing.map.MainView.ConnectorLocation;
 import org.freeplane.view.swing.map.MapView;
 import org.freeplane.view.swing.map.NodeView;
 
@@ -50,8 +50,17 @@ public abstract class EdgeView {
 
 	private final NodeView source;
 	protected Point start, end;
+	
+	public void setStart(Point start) {
+    	this.start = start;
+    }
+
 	public Point getStart() {
     	return start;
+    }
+
+	public void setEnd(Point end) {
+    	this.end = end;
     }
 
 	public Point getEnd() {
@@ -61,16 +70,70 @@ public abstract class EdgeView {
 	private final NodeView target;
 	private Color color;
 	private Integer width;
+    private ConnectorLocation startConnectorLocation;
+    private ConnectorLocation endConnectorLocation;
 
 	protected void createStart() {
-		start = source.getMainViewOutPoint(getTarget(), end);
-		UITools.convertPointToAncestor(source.getMainView(), start, source);
+        final MainView mainView = source.getMainView();
+        final MainView targetMainView = target.getMainView();
+        
+        final Point relativeLocation = source.getRelativeLocation(target);
+        relativeLocation.x += targetMainView.getWidth()/2;
+        relativeLocation.y += targetMainView.getHeight()/2;
+        start = mainView.getConnectorPoint(relativeLocation);
+        startConnectorLocation = mainView.getConnectorLocation(relativeLocation);
+                
+        relativeLocation.x -= targetMainView.getWidth()/2;
+        relativeLocation.y -= targetMainView.getHeight()/2;
+        relativeLocation.x = - relativeLocation.x + mainView.getWidth()/2;
+        relativeLocation.y = - relativeLocation.y + mainView.getHeight()/2;
+		end = target.getMainView().getConnectorPoint(relativeLocation);
+		endConnectorLocation = targetMainView.getConnectorLocation(relativeLocation);
 	}
+
+	protected ConnectorLocation getStartConnectorLocation() {
+        return startConnectorLocation;
+    }
+
+    protected ConnectorLocation getEndConnectorLocation() {
+        return endConnectorLocation;
+    }
+
+    protected Point getControlPoint(ConnectorLocation startConnectorLocation){
+        final int xctrl; 
+        final int yctrl; 
+        if(ConnectorLocation.LEFT.equals(startConnectorLocation)){
+            xctrl= - 1;
+            yctrl = 0;
+        }
+        else if(ConnectorLocation.RIGHT.equals(startConnectorLocation)){
+            xctrl= 1;
+            yctrl = 0;
+        }
+        else if(ConnectorLocation.TOP.equals(startConnectorLocation)){
+            xctrl= 0;
+            yctrl = - 1;
+        }
+        else if(ConnectorLocation.LEFT.equals(startConnectorLocation)){
+            xctrl= 0;
+            yctrl = 1;
+        }
+        else {
+            xctrl = 0;
+            yctrl = 0;
+        }
+        return new Point(xctrl, yctrl);
+    }
+
+    protected void align(Point start, Point end) {
+		if(1 == Math.abs(start.y - end.y)){
+			end.y = start.y; 
+		}
+    }
 
 	public Color getColor() {
 		if (color == null) {
-			final NodeModel model = target.getModel();
-			color = EdgeController.getController(target.getMap().getModeController()).getColor(model);
+			color = target.getEdgeColor();
 		}
 		return color;
 	}
@@ -92,7 +155,10 @@ public abstract class EdgeView {
 
 	protected Stroke getStroke() {
 		final int width = getWidth();
-		if (width == EdgeModel.WIDTH_THIN) {
+		if (width < 0) {
+			return EdgeView.DEF_STROKE;
+		}
+		if (width == 0) {
 			return EdgeView.DEF_STROKE;
 		}
 		return new BasicStroke(width * getMap().getZoom(), BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER);
@@ -109,8 +175,7 @@ public abstract class EdgeView {
 		if (width != null) {
 			return width;
 		}
-		final NodeModel model = target.getModel();
-		final int width = EdgeController.getController(target.getMap().getModeController()).getWidth(model);
+		final int width = target.getEdgeWidth();
 		return width;
 	}
 
@@ -124,28 +189,21 @@ public abstract class EdgeView {
 
 	abstract protected void draw(Graphics2D g);
 
-	public EdgeView(final NodeView target) {
-		source = target.getVisibleParentView();
-		this.target = target;
-		end = getTarget().getMainViewInPoint();
-		UITools.convertPointToAncestor(target.getMainView(), end, source);
-		createStart();
-	}
-
 	public void paint(final Graphics2D g) {
 		final Stroke stroke = g.getStroke();
+		final Color color = g.getColor();
 		draw(g);
 		g.setStroke(stroke);
+		g.setColor(color);
 	}
 
-	public EdgeView(final NodeView source, final NodeView target) {
+	public EdgeView(final NodeView source, final NodeView target, final Component paintedComponent) {
 		this.source = source;
 		this.target = target;
-		end = getTarget().getMainViewInPoint();
-		final MapView map = getMap();
-		UITools.convertPointToAncestor(target.getMainView(), end, map);
 		createStart();
-		UITools.convertPointToAncestor(source, start, map);
+        UITools.convertPointToAncestor(target.getMainView(), end, paintedComponent);
+		UITools.convertPointToAncestor(source.getMainView(), start, paintedComponent);
+        align(start, end);
 	}
 
 	abstract public boolean detectCollision(Point p);

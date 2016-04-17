@@ -1,3 +1,7 @@
+*.diff
+*.OTHER
+*.BASE
+*.THIS
 ./*/bin
 ./*/build
 ./*/dist
@@ -6,11 +10,16 @@ backups
 .backup
 ./.metadata
 ./freeplane/lib/jortho.jar
-./freeplane_framework/windows-launcher/Objects
-./freeplane_framework/windows-launcher/*.layout
-./freeplane_framework/windows-launcher/Makefile.win
+./freeplane_framework/windows-icons/Objects
+./freeplane_framework/windows-icons/*.layout
+./freeplane_framework/windows-icons/Makefile.win
+./freeplane_framework/launcher_build
+./freeplane/lib/forms-1_2_1.zip
 ./freeplane_framework/build4mac
 ./freeplane_framework/ant/lib/freeplaneant.jar
 ./freeplane_ant/test/log
 ./freeplane_ant/test/sorted
 ./freeplane_ant/test/freeplane_plugin_*
+./freeplane_plugin_script/build-nodehighlighter
+./freeplane_plugin_script/lib/jsyntaxpane/nodehighlighter.jar
+./freeplane_framework/temp

@@ -29,7 +29,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Vector;
-import java.util.logging.Logger;
 
 import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.io.IAttributeWriter;
@@ -39,6 +38,7 @@ import org.freeplane.core.io.IExtensionElementWriter;
 import org.freeplane.core.io.ITreeWriter;
 import org.freeplane.core.io.ListHashTable;
 import org.freeplane.core.io.WriteManager;
+import org.freeplane.core.util.LogUtils;
 import org.freeplane.n3.nanoxml.XMLElement;
 
 public class TreeXmlWriter implements ITreeWriter {
@@ -63,7 +63,7 @@ public class TreeXmlWriter implements ITreeWriter {
 		if (col == null) {
 			return null;
 		}
-		final Vector l = new Vector();
+		final Vector<String> l = new Vector<String>();
 		l.add(Integer.toString(col.x));
 		l.add(Integer.toString(col.y));
 		return TreeXmlWriter.listToString(l);
@@ -74,6 +74,10 @@ public class TreeXmlWriter implements ITreeWriter {
 	final private WriteManager writeManager;
 	private XMLElement xmlElement;
 	final private XMLWriter xmlwriter;
+
+	public void flush() {
+	    xmlwriter.flush();
+    }
 
 	public TreeXmlWriter(final WriteManager writeManager, final Writer writer) {
 		super();
@@ -95,7 +99,7 @@ public class TreeXmlWriter implements ITreeWriter {
 			throw new RuntimeException("elementStarted");
 		}
 		if (null != xmlElement.getAttribute(key, null)) {
-			Logger.global.warning("attribute \"" + key + "\" already exist with value \"" + value);
+			LogUtils.warn("attribute \"" + key + "\" already exist with value \"" + value);
 			return;
 		}
 		xmlElement.setAttribute(key, value);
@@ -112,33 +116,35 @@ public class TreeXmlWriter implements ITreeWriter {
 		addElement(userObject, element);
 	}
 
-	public void addElement(final Object userObject, final XMLElement element) throws IOException {
+	@SuppressWarnings("unchecked")
+    public void addElement(final Object userObject, final XMLElement element) throws IOException {
+		final boolean isString = userObject instanceof String;
 		if (elementStarted == false && xmlElement != null) {
-			xmlwriter.write(xmlElement, true, 0, true, false);
+			xmlwriter.write(xmlElement, ! isString, 0, true, false);
 		}
 		final String name = element.getName();
 		xmlElement = element;
 		elementStarted = false;
 		{
-			final Iterator iterator = getAttributeWriters().iterator(name);
+			final Iterator<IAttributeWriter> iterator = getAttributeWriters().iterator(name);
 			while (iterator.hasNext()) {
-				final IAttributeWriter as = (IAttributeWriter) iterator.next();
+				final IAttributeWriter as = iterator.next();
 				as.writeAttributes(this, userObject, name);
 			}
-			if (userObject instanceof List) {
+			if (userObject instanceof List<?>) {
 				addExtensionAttributes(userObject, (List<IExtension>) userObject);
 			}
 		}
-		if (userObject != null && userObject.getClass().equals(String.class)) {
-			addElementContent(userObject.toString());
+		if (isString) {
+			addElementContent((String)userObject);
 		}
 		else {
-			final Iterator iterator = getNodeWriters().iterator(name);
+			final Iterator<IElementWriter> iterator = getNodeWriters().iterator(name);
 			while (iterator.hasNext()) {
-				final IElementWriter nw = (IElementWriter) iterator.next();
+				final IElementWriter nw = iterator.next();
 				nw.writeContent(this, userObject, name);
 			}
-			if (userObject instanceof List) {
+			if (userObject instanceof List<?>) {
 				addExtensionNodes(userObject, (List<IExtension>) userObject);
 			}
 		}
@@ -186,16 +192,21 @@ public class TreeXmlWriter implements ITreeWriter {
 		}
 	}
 
-	private ListHashTable getAttributeWriters() {
+	private ListHashTable<String, IAttributeWriter> getAttributeWriters() {
 		return writeManager.getAttributeWriters();
 	}
 
 	public Object getHint(final Object key) {
-		return hints.get(key);
+		final Object object = hints.get(key);
+		return object == null ? Boolean.FALSE : object;
 	}
 
-	private ListHashTable getNodeWriters() {
+	private ListHashTable<String, IElementWriter> getNodeWriters() {
 		return writeManager.getElementWriters();
+	}
+
+	public void setHint(final Object key) {
+		hints.put(key, Boolean.TRUE);
 	}
 
 	public void setHint(final Object key, final Object value) {

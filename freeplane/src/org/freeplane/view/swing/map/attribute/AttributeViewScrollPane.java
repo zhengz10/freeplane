@@ -39,8 +39,7 @@ class AttributeViewScrollPane extends JScrollPane {
 
 	@Override
 	public Dimension getMaximumSize() {
-		validate();
-		return super.getPreferredSize();
+		return getPreferredSize();
 	}
 
 	@Override
@@ -51,6 +50,13 @@ class AttributeViewScrollPane extends JScrollPane {
 
 	@Override
 	public boolean isVisible() {
-		return getViewport().getView().isVisible();
+		final Component view = getViewport().getView();
+		return super.isVisible() && view != null && view.isVisible();
 	}
+
+	@Override
+    public boolean isValidateRoot() {
+	    return false;
+    }
+	
 }

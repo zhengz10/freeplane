@@ -1,5 +1,228 @@
-﻿===============================
-1.1.2
+===============================
+1.2.19
+===============================
+copy user icons from freeplane 1.1.x on the first start
+build test dist version for PortableApps.com
+do not draw text on spash if the splash comes from a file
+
+===============================
+1.2.18
+===============================
+Java 5 compatibility fixes
+Release
+===============================
+1.2.17
+===============================
+Bug fixes
+===============================
+1.2.16 rc
+===============================
+Bug fixes
+Support for free nodes in the scripting API
+Support for debugging of external groovy script files
+
+===============================
+1.2.15 beta
+===============================
+Approximative search in rich text editor
+Add and remove reminders via scripting api
+Rich text editor: add "Paste plain text" context menu item and "default paste mode" preference option
+
+===============================
+1.2.14 beta
+===============================
+Fix calculation of all font sizes
+Properties "Apply system screen resolution default" and "User defined screen resolution (dpi)"
+Various fixes for formatting of attributes
+Scripting: treat URIs special to allow clickable attribute values
+Presentation mode (see menu View and preferences->Appearance->default colors)
+Unfold children one-by-one by shift + SPACE, Navigate -> Show next child or shift + click inside folding circle
+Creating of links between nodes and maps using link anchor actions
+
+===============================
+1.2.13 beta
+===============================
+Search enhancements: Approximate search feature, control search via key presses, busy cursor, some fixes
+Fix editable Comboboxes for some L&Fs
+New UI for folding 
+Formatting option to display hyper links as HTML 
+Insert free nodes on double click + folding
+Options for editing on double click and folding on click inside a node
+Drop images if control is pressed and links to files otherwise
+Hyperlink in text as node text style option
+Performance and memory optimizations for scaling of external bitmap images 
+
+===============================
+1.2.12 beta
+===============================
+All documentation maps displayed in MindMapMode
+Online documentation map accessible
+Action "Open map from URL" for accessing maps from the internet
+Action "Restore from local history" for easy access of backuped or autosaved maps
+Settings "Display attribute icon" and "display note icon" saved with each map separately
+Files ending on addon.mm are recognized as add-on packages
+Icon support for add-ons
+Action "Highlight all matching nodes"
+Fixes for date and number input parsing
+Node can be split from the in-line editor pressing alt+S .
+Nodes containing child nodes can be joined, their child nodes are moved as well.
+New node property "always unfolded node"
+New properties for standard attribute key and attribute values widths
+New node format "Text" for disabling formulas and format for selected nodes
+Rename automatic level styles to Title and Heading X
+Automatic recognition of URLs in attributes
+Command line arguments allow batch execution of menu items
+Remind later feature
+Pan the map with Ctrl+Shift+Cursor up/down/left/right
+Inline editor and detail editor start on Ctrl + mouse click (META  on Mac OS) instead of double click
+Control (META on Mac OS) should be held for creating free nodes
+
+===============================
+1.2.11 beta
+===============================
+First beta
+===============================
+1.2.10 alpha
+===============================
+Minimal node width and maximal node width as node / style property
+Add-on support
+===============================
+1.2.9 alpha
+===============================
+Better support for hyperlinks in editor dialog 
+Links can be accessed from inline editor and tooltips
+Free positioned nodes
+Paste of images from clipboard
+===============================
+1.2.8 alpha
+===============================
+Scripting API has improved support for formats
+Scripting API allows to implement filters in Groovy
+Conditional styles for single nodes and for styles (!!)
+Notes can be edited on styles and assigned to related nodes
+Reminder based filter conditions
+Script based filter conditions
+Scripts in reminders
+Scripting support math with nodes: node.text = "2"; assert 3 * node * 2 == 12
+Code completion in formula editor
+Performance optimizations for printing
+Filter flag "Unfold hidden nodes" removed
+Filter flag "apply to visible nodes" no more automatically set / unset
+Obsolete documentation key maps and menu references removed 
+
+===============================
+1.2.7 alpha
+===============================
+New splash and icons
+Multiple bug fixes
+Enable Details for Styles
+Copy style attributes and details if is the first user action performed on an new node assigns a style
+Improved design of attributes in node tooltips
+
+===============================
+1.2.6 alpha
+===============================
+Auto formatting of numbers
+Formatting of attributes
+Improved connector editor
+Configurable parsing of dates and numbers
+filter conditions "Attribute contains", "Attribute matches" and "Icon exists"
+Reorganized user menu
+Font and colors of node details is controlled by style "Details"
+Font of notes is controlled by style "Notes"
+In-line editor for new details available, edit details in separate dialog is possible as another action
+Always run "assign new short cut" for unassigned F-keys
+Goto Node with ID Action
+
+===============================
+1.2.5 alpha
+===============================
+New features:
+New menu structure
+Summary nodes
+Multiline connector labels
+Individual connector label font family and font size
+"Add connector" action creates also connectors to self
+Preferences->Behavior->In-line node editor->Layout map during editing
+  disable for better performance 
+
+===============================
+1.2.4 alpha
+===============================
+New features:
+Display content type icon in status line, attribute editors and find/filter editor
+Use META key for multiple selects on mac
+External object slideshow-function + extended progress display
+Progress up, Progress down, Extended progress 10% and Extended progress 25% in icon menu
+<freeplane-user-dir>/resources added to resources search path
+
+===============================
+1.2.3 alpha
+===============================
+New features:
+Date comparison for nodes and attributes
+Attributes in node styles
+Insert "external images" on drag and drop to a node
+Date format selection in calendar and attribute panel
+New style options format/template and node numbering
+Hyperlinks in attributes
+Inline editor for Node Details (on single click)
+Links to nodes in attributes. Shortened content of the linked nodes is displayed.
+Date and time selection in Filter / Search
+Enable printing from rich text editor
+===============================
+1.2.2 alpha
+===============================
+New features:
+Different shapes, line types, width and transparency for connectors
+Resize-able style, calendar and attribute panel
+Syntax coloring for latex
+Time in date filters
+
+===============================
+1.2.1 alpha
+===============================
+New features:
+Node styles replace style patterns (like in text processors)
+Conditional node styles: node formatting depends on its content and position
+Hyperlinks for menu items
+Keyboard shortcut documentation: Map and HTML table generation added for the documentation map
+Check for newer auto save files on opening of a map
+343] Single instance mode: open files in existing program instance instead of opening a new one
+Node level dependent filters
+Improvements in search and replace functions
+Different shapes for clouds
+Node details
+Shortened node view
+Formula plugin ("spreadsheet plugin")
+Extended scripting API
+Single backup directory
+Improved node tool tips with copy and scroll bar
+Script and formula editor JSyntaxPane from http://code.google.com/p/jsyntaxpane/
+When Formula Editor is visible, double click on node inserts node ID, single click folds/unfolds.
+Inline editor supports some HTML formatting, use pop-up menu->format or hot keys
+Automatic Edge Color 
+"Grid" for moving of nodes (Preferences->Behaviour->Grid gap size)
+Copy and paste attributes between nodes
+Named filter conditions
+
+===============================
+1.1.3, 2010-12-06
+===============================
+Bug fixes:
+732]: Saving to any networkshare takes extremely long time
+749]: highlighted text does not appear highlighted anymore
+add dutch translation to spell checker
+Dutch docs and translation
+translations  for  it, zh_TW
+multiple bug fixes in spell checker
+bug fix: freeplane did not start if unsupported language code was set in properties
+770]: Find and Replace... runs into infinite loop on certain HTML nodes
+Fix layout for long textes in BNodeNoteViewer: use JEditorPane instead of JLabel
+Bug fix in remove format action of simply html
+
+===============================
+1.1.2, 2010-08-22
 ===============================
 Bug fixes in applet browser
 Catch exceptions thrown from hook writers
@@ -7,25 +230,25 @@ Catch exceptions thrown from hook writers
 722]: Image http url putted in open file dialog for inserting an image hangs freeplane 
 
 ===============================
-1.1.1
+1.1.1, 2010-07-17
 ===============================
 New version of latex component included
 
 ===============================
-1.1.0
+1.1.0, 2010-06-26
 ===============================
 Bug fixes:
 662]: Printing all works wrongly after printing defined page(s) (workaround for windows java bug)
 665]: After a contextual "Copy" the "Paste" command creates a new node
 
 ===============================
-1.0.45 rc
+1.0.45 rc, 2010-06-06
 ===============================
 New features:
 Display filled folding mark if there are some descendant folded nodes  with visible descendants are hidden by a filter 
 
 ===============================
-1.0.44 rc
+1.0.44 rc, 2010-05-23
 ===============================
 Bug fixes:
 ignore gragging of connectors in outline view
@@ -41,7 +264,7 @@ attribute table worked wrong if Assign Attributes dialog was used when the table
 646]: Command "New encrypted map" should always be available in Freeplane
 
 ===============================
-1.0.43 rc
+1.0.43 rc, 2010-05-09
 ===============================
 New features:
 Documentation map reworked

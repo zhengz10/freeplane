@@ -26,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-// TODO rladstaetter 15.02.2009 replace with Map<K,List<V>>
-@Deprecated
 public class ListHashTable<K, V> {
 	/**
 	 * @author Dimitry Polivaev

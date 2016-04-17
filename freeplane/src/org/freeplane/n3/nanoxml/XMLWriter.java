@@ -127,18 +127,18 @@ public class XMLWriter {
 		if (xml.getName() == null) {
 			if (xml.getContent() != null) {
 				if (prettyPrint) {
-					this.writeEncoded(xml.getContent().trim());
+					this.writeEncodedContent(xml.getContent().trim());
 					writer.println();
 				}
 				else {
-					this.writeEncoded(xml.getContent());
+					this.writeEncodedContent(xml.getContent());
 				}
 			}
 		}
 		else {
 			writer.print('<');
 			writer.print(xml.getFullName());
-			final Vector nsprefixes = new Vector();
+			final Vector<String> nsprefixes = new Vector<String>();
 			if (xml.getNamespace() != null) {
 				if (xml.getName().equals(xml.getFullName())) {
 					writer.print(" xmlns=\"" + xml.getNamespace() + '"');
@@ -151,9 +151,9 @@ public class XMLWriter {
 					writer.print("=\"" + xml.getNamespace() + "\"");
 				}
 			}
-			Enumeration enumeration = xml.enumerateAttributeNames();
-			while (enumeration.hasMoreElements()) {
-				final String key = (String) enumeration.nextElement();
+			Enumeration<String> enumAttributeNames = xml.enumerateAttributeNames();
+			while (enumAttributeNames.hasMoreElements()) {
+				final String key = enumAttributeNames.nextElement();
 				final int index = key.indexOf(':');
 				if (index >= 0) {
 					final String namespace = xml.getAttributeNamespace(key);
@@ -167,9 +167,9 @@ public class XMLWriter {
 					}
 				}
 			}
-			enumeration = xml.enumerateAttributeNames();
-			while (enumeration.hasMoreElements()) {
-				final String key = (String) enumeration.nextElement();
+			enumAttributeNames = xml.enumerateAttributeNames();
+			while (enumAttributeNames.hasMoreElements()) {
+				final String key = enumAttributeNames.nextElement();
 				final String value = xml.getAttribute(key, null);
 				writer.print(" " + key + "=\"");
 				this.writeEncoded(value);
@@ -177,7 +177,7 @@ public class XMLWriter {
 			}
 			if ((xml.getContent() != null) && (xml.getContent().length() > 0)) {
 				writer.print('>');
-				this.writeEncoded(xml.getContent());
+				this.writeEncodedContent(xml.getContent());
 				writer.print("</" + xml.getFullName() + '>');
 				if (prettyPrint) {
 					writer.println();
@@ -188,9 +188,9 @@ public class XMLWriter {
 				if (prettyPrint) {
 					writer.println();
 				}
-				enumeration = xml.enumerateChildren();
-				while (enumeration.hasMoreElements()) {
-					final XMLElement child = (XMLElement) enumeration.nextElement();
+				Enumeration<XMLElement> children = xml.enumerateChildren();
+				while (children.hasMoreElements()) {
+					final XMLElement child = children.nextElement();
 					this.write(child, prettyPrint, indent + 4, collapseEmptyElements);
 				}
 				if (prettyPrint) {
@@ -213,13 +213,17 @@ public class XMLWriter {
 		writer.flush();
 	}
 
+	public void addRawContent(final String comment) {
+		writer.write(comment);
+    }
+
 	/**
 	 * Writes a string encoding reserved characters.
 	 * 
 	 * @param str
 	 *            the string to write.
 	 */
-	private void writeEncoded(final String str) {
+	protected void writeEncoded(final String str) {
 		for (int i = 0; i < str.length(); i++) {
 			final char c = str.charAt(i);
 			switch (c) {
@@ -253,4 +257,18 @@ public class XMLWriter {
 			}
 		}
 	}
+
+	/**
+	 * Writes a string as encoded content string.
+	 * 
+	 * @param str
+	 *            the string to write.
+	 */
+	protected void writeEncodedContent(final String str) {
+		writeEncoded(str);
+	}
+
+	public PrintWriter getWriter() {
+	    return writer;
+    }
 }

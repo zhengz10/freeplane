@@ -20,44 +20,41 @@
 package org.freeplane.main.applet;
 
 import java.awt.BorderLayout;
-import java.awt.Container;
-import java.awt.Cursor;
 import java.awt.EventQueue;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 
-import javax.swing.JApplet;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.JSplitPane;
+import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
 
-import org.freeplane.core.controller.Controller;
-import org.freeplane.core.controller.FreeplaneVersion;
-import org.freeplane.core.frame.IMapViewManager;
-import org.freeplane.core.frame.ViewController;
-import org.freeplane.core.modecontroller.IMapSelection;
-import org.freeplane.core.resources.ResourceBundles;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.components.FreeplaneMenuBar;
 import org.freeplane.core.ui.components.UITools;
-import org.freeplane.core.util.LogTool;
-import org.freeplane.features.browsemode.BModeController;
+import org.freeplane.core.util.FreeplaneVersion;
+import org.freeplane.core.util.LogUtils;
+import org.freeplane.core.util.TextUtils;
+import org.freeplane.features.map.IMapSelection;
+import org.freeplane.features.mode.Controller;
+import org.freeplane.features.mode.browsemode.BModeController;
+import org.freeplane.features.ui.IMapViewManager;
+import org.freeplane.features.ui.ViewController;
 
 /**
  * @author Dimitry Polivaev
  */
 class AppletViewController extends ViewController {
-	final private JApplet applet;
+	final private FreeplaneApplet applet;
 	private JComponent mComponentInSplitPane;
-	private JPanel southPanel;
+	private JComponent mapContentBox;
 
-	public AppletViewController(final Controller controller, final JApplet applet,
+	public AppletViewController( final FreeplaneApplet applet, Controller controller,
 	                            final IMapViewManager mapViewController) {
-		super(controller, mapViewController);
+		super(controller, mapViewController, "");
 		this.applet = applet;
 	}
 
@@ -66,8 +63,8 @@ class AppletViewController extends ViewController {
 	 * @see freeplane.controller.views.ViewController#getContentPane()
 	 */
 	@Override
-	public Container getContentPane() {
-		return applet.getContentPane();
+	public RootPaneContainer getRootPaneContainer() {
+		return applet;
 	}
 
 	@Override
@@ -88,21 +85,12 @@ class AppletViewController extends ViewController {
 		throw new IllegalArgumentException("The applet has no frames");
 	}
 
-	/*
-	 * (non-Javadoc)
-	 * @see freeplane.main.FreeplaneMain#getSouthPanel()
-	 */
-	public JPanel getSouthPanel() {
-		return southPanel;
-	}
-
 	@Override
-	public void init() {
-		getContentPane().add(getScrollPane(), BorderLayout.CENTER);
-		southPanel = new JPanel(new BorderLayout());
-		southPanel.add(getStatusBar(), BorderLayout.SOUTH);
-		getContentPane().add(southPanel, BorderLayout.SOUTH);
-		super.init();
+	public void init(Controller controller) {
+		mapContentBox = new JPanel(new BorderLayout());
+		mapContentBox.add(getScrollPane(), BorderLayout.CENTER);
+		getContentPane().add(mapContentBox, BorderLayout.CENTER);
+		super.init(controller);
 		SwingUtilities.updateComponentTreeUI(applet);
 		if (!EventQueue.isDispatchThread()) {
 			try {
@@ -112,10 +100,10 @@ class AppletViewController extends ViewController {
 				});
 			}
 			catch (final InterruptedException e) {
-				LogTool.severe(e);
+				LogUtils.severe(e);
 			}
 			catch (final InvocationTargetException e) {
-				LogTool.severe(e);
+				LogUtils.severe(e);
 			}
 		}
 		getController().selectMode(BModeController.MODENAME);
@@ -123,11 +111,12 @@ class AppletViewController extends ViewController {
 		if (initialMapName != null && initialMapName.startsWith(".")) {
 			/* new handling for relative urls. fc, 29.10.2003. */
 			try {
-				final URL documentBaseUrl = new URL(applet.getDocumentBase(), initialMapName);
-				initialMapName = documentBaseUrl.toString();
+				URI uri = applet.getDocumentBase().toURI().resolve(new URI(null, null, initialMapName, null));
+				URL documentBase = new URL(uri.getScheme(), uri.getHost(), uri.getPath());
+				initialMapName = documentBase.toString();
 			}
-			catch (final java.net.MalformedURLException e) {
-				UITools.errorMessage(ResourceBundles.getText("url_load_error") + " " + initialMapName);
+			catch (final Exception e) {
+				UITools.errorMessage(TextUtils.format("map_load_error", initialMapName));
 				System.err.println(e);
 				return;
 			}
@@ -139,21 +128,20 @@ class AppletViewController extends ViewController {
 				getController().getModeController().getMapController().newMap(mapUrl);
 			}
 			catch (final Exception e) {
-				LogTool.severe(e);
+				LogUtils.severe(e);
 			}
 		}
 	}
 
 	@Override
-	public JSplitPane insertComponentIntoSplitPane(final JComponent pMindMapComponent) {
+	public void insertComponentIntoSplitPane(final JComponent pMindMapComponent) {
 		if (mComponentInSplitPane == pMindMapComponent) {
-			return null;
+			return;
 		}
 		removeSplitPane();
 		mComponentInSplitPane = pMindMapComponent;
-		southPanel.add(pMindMapComponent, BorderLayout.CENTER);
-		southPanel.revalidate();
-		return null;
+		mapContentBox.add(pMindMapComponent, BorderLayout.SOUTH);
+		mapContentBox.revalidate();
 	}
 
 	@Override
@@ -166,7 +154,7 @@ class AppletViewController extends ViewController {
 		try {
 			final String scheme = location.getScheme();
 			final String host = location.getHost();
-			final String path = location.getPath();
+			final String path = location.isOpaque() ? location.getSchemeSpecificPart() : location.getPath();
 			final int port = location.getPort();
 			final String query = location.getQuery();
 			final String fragment = location.getFragment();
@@ -195,8 +183,8 @@ class AppletViewController extends ViewController {
 	@Override
 	public void removeSplitPane() {
 		if (mComponentInSplitPane != null) {
-			southPanel.remove(mComponentInSplitPane);
-			southPanel.revalidate();
+			mapContentBox.remove(mComponentInSplitPane);
+			mapContentBox.revalidate();
 			mComponentInSplitPane = null;
 		}
 	}
@@ -212,14 +200,7 @@ class AppletViewController extends ViewController {
 
 	@Override
 	public void setWaitingCursor(final boolean waiting) {
-		if (waiting) {
-			applet.getRootPane().getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
-			applet.getRootPane().getGlassPane().setVisible(true);
-		}
-		else {
-			applet.getRootPane().getGlassPane().setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
-			applet.getRootPane().getGlassPane().setVisible(false);
-		}
+		applet.setWaitingCursor(waiting);
 	}
 
 	public void start() {
@@ -233,7 +214,7 @@ class AppletViewController extends ViewController {
 			}
 		}
 		catch (final Exception e) {
-			LogTool.severe(e);
+			LogUtils.severe(e);
 		}
 	}
 }
