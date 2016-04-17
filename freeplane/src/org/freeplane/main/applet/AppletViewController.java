@@ -20,7 +20,6 @@
 package org.freeplane.main.applet;
 
 import java.awt.BorderLayout;
-import java.awt.Component;
 import java.awt.EventQueue;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
@@ -30,7 +29,6 @@ import java.net.URL;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.RootPaneContainer;
 import javax.swing.SwingUtilities;
 
@@ -43,25 +41,21 @@ import org.freeplane.core.util.TextUtils;
 import org.freeplane.features.map.IMapSelection;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.browsemode.BModeController;
-import org.freeplane.features.ui.FrameController;
-import org.freeplane.features.ui.IMapViewChangeListener;
 import org.freeplane.features.ui.IMapViewManager;
-import org.freeplane.view.swing.map.MapViewScrollPane;
+import org.freeplane.features.ui.ViewController;
 
 /**
  * @author Dimitry Polivaev
  */
-class AppletViewController extends FrameController implements IMapViewChangeListener {
+class AppletViewController extends ViewController {
 	final private FreeplaneApplet applet;
 	private JComponent mComponentInSplitPane;
 	private JComponent mapContentBox;
-	private JScrollPane scrollPane;
 
 	public AppletViewController( final FreeplaneApplet applet, Controller controller,
 	                            final IMapViewManager mapViewController) {
 		super(controller, mapViewController, "");
 		this.applet = applet;
-		mapViewController.addMapViewChangeListener(this);
 	}
 
 	/*
@@ -94,8 +88,7 @@ class AppletViewController extends FrameController implements IMapViewChangeList
 	@Override
 	public void init(Controller controller) {
 		mapContentBox = new JPanel(new BorderLayout());
-		scrollPane = new MapViewScrollPane();
-		mapContentBox.add(scrollPane, BorderLayout.CENTER);
+		mapContentBox.add(getScrollPane(), BorderLayout.CENTER);
 		getContentPane().add(mapContentBox, BorderLayout.CENTER);
 		super.init(controller);
 		SwingUtilities.updateComponentTreeUI(applet);
@@ -202,7 +195,7 @@ class AppletViewController extends FrameController implements IMapViewChangeList
 	}
 
 	@Override
-	public void setTitle(final String frameTitle) {
+	public void setTitle(final String title) {
 	}
 
 	@Override
@@ -224,18 +217,4 @@ class AppletViewController extends FrameController implements IMapViewChangeList
 			LogUtils.severe(e);
 		}
 	}
-
-	public void afterViewChange(Component oldView, Component newView) {
-		if(scrollPane != null)
-			scrollPane.setViewportView(newView);
-    }
-
-	public void afterViewClose(Component oldView) {
-    }
-
-	public void afterViewCreated(Component mapView) {
-    }
-
-	public void beforeViewChange(Component oldView, Component newView) {
-    }
 }

@@ -24,12 +24,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Properties;
 
 import javax.swing.JLabel;
 
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.components.UITools;
+import org.freeplane.core.util.FileUtils;
 import org.freeplane.core.util.LogUtils;
 import org.freeplane.features.edge.EdgeModel;
 import org.freeplane.features.map.MapModel;
@@ -49,18 +51,9 @@ import org.freeplane.features.url.mindmapmode.MFileManager;
  * Nov 1, 2010
  */
 public class UserPropertiesUpdater {
-
-
-	private static final String ORG_FREEPLANE_OLD_USERFPDIR = "org.freeplane.old_userfpdir";
-
 	void importOldProperties(){
 		final File userPreferencesFile = ApplicationResourceController.getUserPreferencesFile();
 		if(userPreferencesFile.exists()){
-			return;
-		}
-		copyUserFilesFromPreviousVersionTo(userPreferencesFile.getParentFile());
-		if(userPreferencesFile.exists()){
-			removeOpenedMaps(userPreferencesFile);
 			return;
 		}
 		final File oldUserPreferencesFile =new File(System.getProperty("user.home"), ".freeplane/auto.properties");
@@ -71,82 +64,27 @@ public class UserPropertiesUpdater {
 		importOldIcons();
 	}
 
-	private void copyUserFilesFromPreviousVersionTo(File targetDirectory) {
-		final File parentDirectory = targetDirectory.getParentFile();
-		final String previousDirName = "1.2.x";
-		final File sourceDirectory;
-		String old_userfpdir = System.getProperty(ORG_FREEPLANE_OLD_USERFPDIR);
-		if (isDefined(old_userfpdir))
-			sourceDirectory = new File(old_userfpdir, previousDirName);
-		else
-			sourceDirectory = new File(parentDirectory, previousDirName);
-		if (sourceDirectory.exists() && !sourceDirectory.getAbsolutePath().equals(targetDirectory.getAbsolutePath())) {
-			try {
-				parentDirectory.mkdirs();
-				org.apache.commons.io.FileUtils.copyDirectory(sourceDirectory, targetDirectory);
-			}
-			catch (IOException e) {
-			}
-			return;
-		}
-    }
-
-	private boolean isDefined(String old_userfpdir) {
-	    return old_userfpdir != null;
-    }
-
 	private void importOldPreferences(final File userPreferencesFile,
 			final File oldUserPreferencesFile) {
+		Properties userProp = new Properties();
+		FileInputStream inputStream = null;
 		try {
-			Properties userProp = loadProperties(userPreferencesFile);
+	        inputStream = new FileInputStream(oldUserPreferencesFile);
+			userProp.load(inputStream);
 	        userProp.remove("lastOpened_1.0.20");
 	        userProp.remove("openedNow_1.0.20");
 	        userProp.remove("browse_url_storage");
 	        fixFontSize(userProp, "defaultfontsize");
 	        fixFontSize(userProp, "label_font_size");
-	        saveProperties(userProp, userPreferencesFile);
+	        userProp.store(new FileOutputStream(userPreferencesFile), null);
         }
         catch (IOException e) {
         }
+		finally {
+			FileUtils.silentlyClose(inputStream);
+		}
 	}
-
-	private void removeOpenedMaps(File userPreferencesFile) {
-		try {
-			Properties userProp = loadProperties(userPreferencesFile);
-	        userProp.remove("lastOpened_1.0.20");
-	        userProp.remove("openedNow_1.0.20");
-	        userProp.remove("browse_url_storage");
-	        userProp.remove("single_backup_directory_path");
-	        saveProperties(userProp, userPreferencesFile);
-        }
-        catch (IOException e) {
-        }
-    }
-
-	Properties loadProperties(File userPreferencesFile) throws IOException {
-	    FileInputStream inputStream = null;
-	    Properties userProp = new Properties();
-	    try{
-	    inputStream = new FileInputStream(userPreferencesFile);
-	    userProp.load(inputStream);
-	    }
-	    finally {
-	    	org.freeplane.core.util.FileUtils.silentlyClose(inputStream);
-	    }
-	    return userProp;
-    }
-
-	void saveProperties(Properties userProp, File userPreferencesFile) throws IOException {
-	    FileOutputStream outputStream = null;
-	    try{
-	    	outputStream = new FileOutputStream(userPreferencesFile);
-	    	userProp.store(outputStream, null);
-	    }
-	    finally {
-	    	org.freeplane.core.util.FileUtils.silentlyClose(outputStream);
-	    }
-    }
-
+	
 	private void fixFontSize(Properties userProp, String name) {
 	    final Object defaultFontSizeObj = userProp.remove(name);
 	    if(defaultFontSizeObj == null)
@@ -159,10 +97,10 @@ public class UserPropertiesUpdater {
         catch (NumberFormatException e) {
         }
     }
-
+	
 	void importOldDefaultStyle() {
 		final ModeController modeController = Controller.getCurrentController().getModeController(MModeController.MODENAME);
-		MFileManager fm = MFileManager.getController(modeController);
+		MFileManager fm = (MFileManager) MFileManager.getController(modeController);
 		final String standardTemplateName = fm.getStandardTemplateName();
 		final File userDefault;
 		final File absolute = new File(standardTemplateName);
@@ -204,7 +142,7 @@ public class UserPropertiesUpdater {
         }
         catch (IOException e) {
         }
-
+        
 
 	}
    private void updateDefaultStyle(final NodeStyleController nodeStyleController, MapModel defaultStyleMap) {
@@ -224,11 +162,11 @@ public class UserPropertiesUpdater {
 		nodeStyleModel.setShape(nodeStyleController.getShape(styleNode));
 
 		styleNode.addExtension(nodeStyleModel);
-
+		
 		final NodeSizeModel nodeSizeModel = new NodeSizeModel();
 		nodeSizeModel.setMaxNodeWidth(nodeStyleController.getMaxWidth(styleNode));
 		nodeSizeModel.setMinNodeWidth(nodeStyleController.getMinWidth(styleNode));
-
+		
 		final EdgeModel standardEdgeModel = EdgeModel.getModel(styleNode);
 		if(standardEdgeModel != null){
 			final EdgeModel edgeModel = new EdgeModel();

@@ -21,7 +21,6 @@ package org.freeplane.core.resources;
 
 import java.io.BufferedInputStream;
 import java.io.InputStream;
-import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
@@ -91,7 +90,7 @@ public abstract class ResourceController {
 		resources.loadAnotherLanguage();
 	}
 
-	public void firePropertyChanged(final String property, final String value, final String oldValue) {
+	protected void firePropertyChanged(final String property, final String value, final String oldValue) {
 		if (oldValue == null || !oldValue.equals(value)) {
 			setProperty(property, value);
 			for (final IFreeplanePropertyListener listener : getPropertyChangeListeners()) {
@@ -184,15 +183,6 @@ public abstract class ResourceController {
 
 	public URL getResource(final String name) {
 		return getClass().getResource(name);
-	}
-
-	public InputStream getResourceStream(final String resFileName) throws IOException {
-		final URL resUrl = getResource(resFileName);
-		if (resUrl == null) {
-			LogUtils.severe("Can't find " + resFileName + " as resource.");
-			throw new IllegalArgumentException("Can't find " + resFileName + " as resource.");
-		}
-		return new BufferedInputStream(resUrl.openStream());
 	}
 
 	public String getResourceBaseDir() {

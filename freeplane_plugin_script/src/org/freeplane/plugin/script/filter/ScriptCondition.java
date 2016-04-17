@@ -1,5 +1,7 @@
 package org.freeplane.plugin.script.filter;
 
+import groovy.lang.Script;
+
 import java.awt.Dimension;
 import java.awt.KeyboardFocusManager;
 import java.io.ByteArrayOutputStream;
@@ -16,56 +18,46 @@ import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.n3.nanoxml.XMLElement;
 import org.freeplane.plugin.script.ExecuteScriptException;
-import org.freeplane.plugin.script.GroovyScript;
-import org.freeplane.plugin.script.IScript;
+import org.freeplane.plugin.script.ScriptingEngine;
 import org.freeplane.plugin.script.ScriptingPermissions;
 
 public class ScriptCondition extends ASelectableCondition {
 	private static final String SCRIPT_FILTER_DESCRIPTION_RESOURCE = "plugins/script_filter";
 	private static final String SCRIPT_FILTER_ERROR_RESOURCE = "plugins/script_filter_error";
-	private static final String SCRIPT_FILTER_EXECUTE_ERROR_RESOURCE = "plugins/script_filter_execute_error";
 	static final String NAME = "script_condition";
-	static final String TAG_NAME = "script";
-	static final String ATTRIB_NAME = "SCRIPT"; // for backward compatibility
-	final private IScript script;
+	static final String SCRIPT = "SCRIPT";
+	final private String script;
+	private Script compiledScript = null;
+	private boolean canNotCompileScript = false;
 	private boolean errorReported = false;
 
 	static ASelectableCondition load(final XMLElement element) {
-	    final XMLElement child = element.getFirstChildNamed(TAG_NAME);
-	    if (child != null) {
-		return new ScriptCondition(child.getContent());
-	    } else {
-		// read attribute for backward compatibility
-		return new ScriptCondition(element.getAttribute(ATTRIB_NAME, null));
-	    }
+		return new ScriptCondition(element.getAttribute(SCRIPT, null));
 	}
-
-	@Override
-    public void fillXML(final XMLElement element) {
-		final XMLElement child = new XMLElement(TAG_NAME);
-		super.fillXML(element);
-		child.setContent(script.getScript().toString());
-		element.addChild(child);
-	}
-
-	@Override
-    protected String getName() {
-	    return NAME;
-    }
 
 	public ScriptCondition(final String script) {
 		super();
-		final ScriptingPermissions formulaPermissions = ScriptingPermissions.getFormulaPermissions();
-		this.script = new GroovyScript(script, formulaPermissions);
+		this.script = script;
 	}
 
-	@Override
-    public boolean checkNode(final NodeModel node) {
+	public boolean checkNode(final NodeModel node) {
+		if(canNotCompileScript)
+			return false;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final PrintStream printStream = new PrintStream(out);
+		final ScriptingPermissions formulaPermissions = ScriptingPermissions.getFormulaPermissions();
+		if(compiledScript == null) {
+			try {
+				compiledScript = ScriptingEngine.compileScriptCheckExceptions(script, ScriptingEngine.IGNORING_SCRIPT_ERROR_HANDLER, printStream, formulaPermissions);
+            }
+            catch (Exception e) {
+            	canNotCompileScript = true;
+            	return false;
+             }
+		}
 		final Object result;
         try {
-			result = script.setOutStream(printStream).execute(node);
+			result = ScriptingEngine.executeScript(node, script, compiledScript, printStream, formulaPermissions);
 			if(result instanceof Boolean)
 				return (Boolean) result;
 			if(result instanceof Number)
@@ -78,8 +70,8 @@ public class ScriptCondition extends ASelectableCondition {
         }
         catch (ExecuteScriptException e) {
         	printStream.close();
-			final String info = TextUtils.format(SCRIPT_FILTER_EXECUTE_ERROR_RESOURCE, createDescription(),
-			    node.toString(), e.getMessage());
+			final String info = TextUtils.format(SCRIPT_FILTER_ERROR_RESOURCE, createDescription(),
+			    node.toString(), out.toString());
 			setErrorStatus(info);
         }
         return false;
@@ -97,9 +89,9 @@ public class ScriptCondition extends ASelectableCondition {
 
 	@Override
 	protected String createDescription() {
-		return TextUtils.format(SCRIPT_FILTER_DESCRIPTION_RESOURCE, script.getScript());
+		return TextUtils.format(SCRIPT_FILTER_DESCRIPTION_RESOURCE, script);
 	}
-
+	
 	@Override
 	protected JComponent createRendererComponent() {
 	    final JComponent renderer = super.createRendererComponent();
@@ -107,11 +99,20 @@ public class ScriptCondition extends ASelectableCondition {
 	    if(preferredSize.width > 200) {
 	        renderer.setPreferredSize(new Dimension(200, preferredSize.height));
         }
-		String scriptText = (String) script.getScript();
-		if (preferredSize.width > 200 || scriptText.contains("\n")) {
-			renderer.setToolTipText(HtmlUtils.plainToHTML(scriptText));
+	    if(preferredSize.width > 200 || script.contains("\n")) {
+	    	renderer.setToolTipText(HtmlUtils.plainToHTML(script));
 	    }
 		return renderer;
     }
 
+
+	public void fillXML(final XMLElement child) {
+		super.fillXML(child);
+		child.setAttribute(SCRIPT, script);
+	}
+
+	@Override
+    protected String getName() {
+	    return NAME;
+    }
 }

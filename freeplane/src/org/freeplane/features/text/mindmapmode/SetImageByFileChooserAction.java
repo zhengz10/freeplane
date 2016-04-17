@@ -37,6 +37,6 @@ class SetImageByFileChooserAction extends AFreeplaneAction {
 
 	public void actionPerformed(final ActionEvent e) {
 		((MTextController) TextController.getController()).setImageByFileChooser();
-		Controller.getCurrentController().getMapViewManager().obtainFocusForSelected();
+		Controller.getCurrentController().getViewController().obtainFocusForSelected();
 	}
 }

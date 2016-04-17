@@ -6,6 +6,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -56,7 +57,7 @@ public class SingleInstanceManager {
 		if (port == null)
 			return false;
 		try {
-			Socket clientSocket = new Socket("localhost", port);
+			Socket clientSocket = new Socket(InetAddress.getLocalHost(), port);
 			clientSocket.close();
 			LogUtils.info("master is present.");
 			return true;
@@ -87,7 +88,7 @@ public class SingleInstanceManager {
 		if (port == null)
 			throw new IllegalArgumentException("port may not be null");
 		try {
-			Socket clientSocket = new Socket("localhost", port);
+			Socket clientSocket = new Socket(InetAddress.getLocalHost(), port);
 			OutputStream out = clientSocket.getOutputStream();
 			ObjectOutputStream oos = new ObjectOutputStream(out);
 			oos.writeObject(filesToLoad);
@@ -109,7 +110,7 @@ public class SingleInstanceManager {
 	private boolean startAsMaster(String[] filesToLoad) {
 		try {
 			// port number 0: use any free socket
-			final ServerSocket socket = new ServerSocket(0, 10);
+			final ServerSocket socket = new ServerSocket(0, 10, InetAddress.getLocalHost());
 			port = socket.getLocalPort();
 			LogUtils.info("Listening for application instances on socket " + port);
 			createLockFile();

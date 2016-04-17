@@ -21,7 +21,6 @@ import java.awt.event.ActionEvent;
 
 import org.freeplane.core.ui.AFreeplaneAction;
 import org.freeplane.core.ui.EnabledAction;
-import org.freeplane.features.encrypt.SwingPasswordStrategy;
 import org.freeplane.features.map.EncryptionModel;
 import org.freeplane.features.map.MapController;
 import org.freeplane.features.map.NodeModel;
@@ -30,6 +29,9 @@ import org.freeplane.features.mode.ModeController;
 
 @EnabledAction(checkOnNodeChange=true)
 public class RemoveEncryption extends AFreeplaneAction{
+	/**
+	 * 
+	 */
 	private static final long serialVersionUID = 1L;
 	final private MEncryptionController encryptionController;
 
@@ -40,7 +42,7 @@ public class RemoveEncryption extends AFreeplaneAction{
 
 	public void actionPerformed(final ActionEvent e) {
 		final NodeModel node = Controller.getCurrentModeController().getMapController().getSelectedNode();
-		encryptionController.removeEncryption(node, new SwingPasswordStrategy());
+		encryptionController.removeEncryption(node);
 	}
 
 	private boolean canBeEnabled() {

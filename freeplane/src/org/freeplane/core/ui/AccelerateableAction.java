@@ -22,6 +22,7 @@ package org.freeplane.core.ui;
 import java.awt.Component;
 import java.awt.Event;
 import java.awt.Frame;
+import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -34,6 +35,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.KeyStroke;
+import javax.swing.text.JTextComponent;
 import javax.swing.tree.DefaultMutableTreeNode;
 
 import org.freeplane.core.resources.ResourceController;
@@ -138,12 +140,12 @@ public class AccelerateableAction implements IFreeplaneAction {
 			return;
 		}
         acceleratorForNextClickedAction = accelerator;
-        String title = TextUtils.getText("SetAccelerator.dialogTitle");
-        String text = TextUtils.getText(SET_ACCELERATOR_ON_NEXT_CLICK_ACTION);
+		final String titel = TextUtils.getText("SetAcceleratorOnNextClickAction.text");
+		String text = TextUtils.getText(SET_ACCELERATOR_ON_NEXT_CLICK_ACTION);
 		if(accelerator != null)
-			text = TextUtils.format("SetAccelerator.keystrokeDetected", toString(accelerator)) + "\n" + text;
+		    text = text + " " + toString(accelerator);
 		final Frame frame = Controller.getCurrentController().getViewController().getFrame();
-		setAcceleratorOnNextClickActionDialog = UITools.createCancelDialog(frame, title, text);
+		setAcceleratorOnNextClickActionDialog = UITools.createCancelDialog(frame, titel, text);
 		setAcceleratorOnNextClickActionDialog.addComponentListener(new ComponentAdapter() {
 			@Override
 			public void componentHidden(final ComponentEvent e) {

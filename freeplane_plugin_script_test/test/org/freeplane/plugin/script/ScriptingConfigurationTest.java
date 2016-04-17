@@ -22,19 +22,12 @@ package org.freeplane.plugin.script;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import org.freeplane.main.headlessmode.FreeplaneHeadlessStarter;
 import org.freeplane.plugin.script.ExecuteScriptAction.ExecutionMode;
 import org.freeplane.plugin.script.ScriptingConfiguration.ScriptMetaData;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class ScriptingConfigurationTest {
 	private String scriptName = "TestScript";
-
-    @BeforeClass
-    public static void initStatics() {
-        new FreeplaneHeadlessStarter().createController();
-    }
 
 	@Test
 	public void testAnalyseScriptContent1() {
@@ -48,6 +41,10 @@ public class ScriptingConfigurationTest {
 		ScriptMetaData metaData = new ScriptingConfiguration().analyseScriptContent(content, scriptName);
 		assertEquals("expected only modes set in the script", 2, metaData.getExecutionModes().size());
 		assertTrue("ON_SELECTED_NODE was set", metaData.getExecutionModes().contains(ExecutionMode.ON_SELECTED_NODE));
+		final String scriptsParentLocation = ScriptingConfiguration.getScriptsParentLocations()[0];
+		assertEquals("menu location for ON_SELECTED_NODE should be default",
+		    ScriptingConfiguration.getScriptsLocation(scriptsParentLocation) + "/" + scriptName,
+		    metaData.getMenuLocation(ExecutionMode.ON_SELECTED_NODE));
 		assertTrue("ON_SELECTED_NODE_RECURSIVELY was set",
 		    metaData.getExecutionModes().contains(ExecutionMode.ON_SELECTED_NODE_RECURSIVELY));
 		assertEquals("menu location for ON_SELECTED_NODE_RECURSIVELY was set explicitely", "/menu_bar/help",
@@ -64,6 +61,7 @@ public class ScriptingConfigurationTest {
 		        + ",\n \tON_SelECTED_NODE_RECURSIVELY = \"/menu_bar/help[Test_Script]\" } )" //
 		        + "\n def test() {}\n";
 		ScriptMetaData metaData = new ScriptingConfiguration().analyseScriptContent(content, scriptName);
+		final String scriptsParentLocation = ScriptingConfiguration.getScriptsParentLocations()[0];
 		assertEquals("expected only modes set in the script", 2, metaData.getExecutionModes().size());
 		assertTrue("ON_SELECTED_NODE was set", metaData.getExecutionModes().contains(ExecutionMode.ON_SELECTED_NODE));
 		assertEquals("wrong menu location", "/menu_bar/help",

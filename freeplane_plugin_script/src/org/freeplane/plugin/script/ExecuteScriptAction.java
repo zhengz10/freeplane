@@ -51,6 +51,7 @@ public class ExecuteScriptAction extends AFreeplaneAction {
 	private final File script;
 	private final ExecutionMode mode;
 	private ScriptingPermissions permissions;
+	private boolean allowedDuringEditing = false;
 
 	public ExecuteScriptAction(final String scriptName, final String menuItemName, final String script,
 	                           final ExecutionMode mode, final boolean cacheContent, ScriptingPermissions permissions) {
@@ -89,15 +90,7 @@ public class ExecuteScriptAction extends AFreeplaneAction {
 					}
                 }
 				catch (ExecuteScriptException ex) {
-					final String cause;
-					// The ExecuteScriptException should have a cause. Print
-					// that, it is what we want to know.
-					if (ex.getCause() != null) {
-						cause = ex.getCause().toString();
-					} else {
-						cause = ex.toString();
-					};
-					LogUtils.warn("error executing script " + script + " - giving up\n" + cause);
+				    LogUtils.warn("error executing script " + script + " - giving up", ex);
 				    modeController.delayedRollback();
 					ScriptingEngine.showScriptExceptionErrorMessage(ex);
                 	return;
@@ -109,4 +102,10 @@ public class ExecuteScriptAction extends AFreeplaneAction {
 			Controller.getCurrentController().getViewController().setWaitingCursor(false);
 		}
 	}
+
+	public void setAllowedDuringEditing(boolean allowedDuringEditing) {
+    	this.allowedDuringEditing = allowedDuringEditing;
+    }
+	
+	
 }

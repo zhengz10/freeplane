@@ -351,7 +351,7 @@ public class MNoteController extends NoteController {
 	void setFocusToMap() {
 		final Controller controller = Controller.getCurrentModeController().getController();
 		final NodeModel node = controller.getSelection().getSelected();
-		controller.getMapViewManager().getComponent(node).requestFocusInWindow();
+		controller.getViewController().getComponent(node).requestFocusInWindow();
 	}
 
 	public void shutdownController() {

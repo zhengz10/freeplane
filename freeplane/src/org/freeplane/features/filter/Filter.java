@@ -43,12 +43,12 @@ public class Filter {
 	final private ICondition condition;
 	final private int options;
 
-	public Filter(final ICondition condition, final boolean areAncestorsShown,
+	public Filter(final ICondition condition, final boolean areAnchestorsShown,
 	              final boolean areDescendantsShown, final boolean applyToVisibleNodesOnly) {
 		super();
 		this.condition = condition;
 		int options = FilterInfo.FILTER_INITIAL_VALUE | FilterInfo.FILTER_SHOW_MATCHED;
-		if (areAncestorsShown) {
+		if (areAnchestorsShown) {
 			options += FilterInfo.FILTER_SHOW_ANCESTOR;
 		}
 		options += FilterInfo.FILTER_SHOW_ECLIPSED;

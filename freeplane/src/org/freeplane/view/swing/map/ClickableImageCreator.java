@@ -53,7 +53,7 @@ class ClickableImageCreator {
 		super();
 		this.root = root;
 		this.regExpLinkReplacement = regExpLinkReplacement;
-		mapView = ((MapView) modeController.getController().getMapViewManager().getMapViewComponent());
+		mapView = ((MapView) modeController.getController().getViewController().getMapView());
 		if (mapView != null) {
 			innerBounds = mapView.getInnerBounds();
 		}

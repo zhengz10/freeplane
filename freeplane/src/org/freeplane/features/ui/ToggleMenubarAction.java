@@ -26,6 +26,7 @@ import org.freeplane.core.ui.SelectableAction;
 
 @SelectableAction(checkOnPopup = true)
 class ToggleMenubarAction extends AFreeplaneAction {
+	static final String NAME = "toggleMenubar";
 	/**
 	 * 
 	 */

@@ -19,7 +19,6 @@
  */
 package org.freeplane.features.help;
 
-import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -64,7 +63,7 @@ class AboutAction extends AFreeplaneAction {
 		addUri(box, "license_url", TextUtils.getText("license"));
 		addMessage(box, TextUtils.getText("license_text"));
 		
-		JOptionPane.showMessageDialog(UITools.getFrame(), box, TextUtils
+		JOptionPane.showMessageDialog(Controller.getCurrentController().getViewController().getViewport(), box, TextUtils
 		    .getText("AboutAction.text"), JOptionPane.INFORMATION_MESSAGE);
 	}
 

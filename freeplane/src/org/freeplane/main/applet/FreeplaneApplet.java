@@ -56,7 +56,7 @@ import org.freeplane.features.styles.LogicalStyleFilterController;
 import org.freeplane.features.styles.MapViewLayout;
 import org.freeplane.features.text.TextController;
 import org.freeplane.features.time.TimeController;
-import org.freeplane.features.ui.FrameController;
+import org.freeplane.features.ui.ViewController;
 import org.freeplane.main.browsemode.BModeControllerFactory;
 import org.freeplane.view.swing.features.nodehistory.NodeHistory;
 import org.freeplane.view.swing.map.MapViewController;
@@ -131,8 +131,7 @@ public class FreeplaneApplet extends JApplet {
 			Controller.setCurrentController(controller);
 			final Container contentPane = getContentPane();
 			contentPane.setLayout(new BorderLayout());
-			MapViewController mapViewController = new MapViewController(controller);
-			appletViewController = new AppletViewController(this, controller, mapViewController);
+			appletViewController = new AppletViewController(this, controller, new MapViewController());
 			controller.addAction(new ViewLayoutTypeAction(MapViewLayout.OUTLINE));
 			FilterController.install();
 			PrintController.install();
@@ -191,7 +190,7 @@ public class FreeplaneApplet extends JApplet {
 		String lookAndFeel = "";
 		appletResourceController.setPropertyByParameter(this, "lookandfeel");
 		lookAndFeel = appletResourceController.getProperty("lookandfeel");
-		FrameController.setLookAndFeel(lookAndFeel);
+		ViewController.setLookAndFeel(lookAndFeel);
 	}
 
 	@Override

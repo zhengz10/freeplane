@@ -43,7 +43,7 @@ class ExportSvg extends ExportVectorGraphic {
 			return;
 		}
 		try {
-			final MapView view = (MapView) Controller.getCurrentController().getMapViewManager().getMapViewComponent();
+			final MapView view = (MapView) Controller.getCurrentController().getViewController().getMapView();
 			if (view == null) {
 				return;
 			}

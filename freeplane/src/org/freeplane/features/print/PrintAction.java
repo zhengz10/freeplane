@@ -48,7 +48,7 @@ class PrintAction extends AbstractPrintAction {
 	public void actionPerformed(final ActionEvent e) {
 		final PrintController printController = getPrintController();
 		try {
-			printController.print((Printable) Controller.getCurrentController().getMapViewManager().getMapViewComponent(), isDlg);
+			printController.print((Printable) Controller.getCurrentController().getViewController().getMapView(), isDlg);
 		}
 		catch (final Exception ex) {
 			LogUtils.severe(ex);

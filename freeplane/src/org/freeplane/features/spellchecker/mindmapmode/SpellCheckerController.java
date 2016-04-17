@@ -92,9 +92,9 @@ public class SpellCheckerController implements IExtension {
 		}
 		spellCheckerInitialized = true;
 		final ResourceController resourceController = ResourceController.getResourceController();
-		final File orthoDir = new File(resourceController.getResourceBaseDir(), "ortho");
+		final File orthoDir = new File(resourceController.getResourceBaseDir() + File.separatorChar + "ortho");
 		registerDictionaries(orthoDir);
-		final File userOrthoDir = new File(resourceController.getFreeplaneUserDirectory(), "ortho");
+		final File userOrthoDir = new File(resourceController.getFreeplaneUserDirectory() + File.separatorChar + "ortho");
 		registerDictionaries(userOrthoDir);
 		if (!spellCheckerEnabled) {
 			return;
@@ -152,7 +152,7 @@ public class SpellCheckerController implements IExtension {
 			availableLocales.append(",");
 		}
 		try {
-			SpellChecker.registerDictionaries(orthoDir.toURI().toURL(), availableLocales.toString(), null, ".ortho");
+			SpellChecker.registerDictionaries(orthoDir.toURL(), availableLocales.toString(), null, ".ortho");
 			spellCheckerEnabled = true;
 		}
 		catch (final MalformedURLException e) {

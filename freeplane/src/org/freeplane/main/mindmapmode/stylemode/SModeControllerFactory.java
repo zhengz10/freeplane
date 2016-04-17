@@ -99,7 +99,7 @@ public class SModeControllerFactory {
 	Controller createController(final JDialog dialog) {
 		final Controller controller = new Controller(ResourceController.getResourceController());
 		Controller.setCurrentController(controller);
-		final MapViewController mapViewController = new MMapViewController(controller);
+		final MapViewController mapViewController = new MMapViewController();
 		final DialogController viewController = new DialogController(controller, mapViewController, dialog);
 		controller.setViewController(viewController);
 		FilterController.install();
@@ -124,7 +124,7 @@ public class SModeControllerFactory {
 		EdgeController.install(new MEdgeController(modeController));
 		CloudController.install(new MCloudController(modeController));
 		NoteController.install(new MNoteController(modeController));
-		LinkController.install(new MLinkController(modeController));
+		LinkController.install(new MLinkController());
 		MFileManager.install(new MFileManager());
 		MMapIO.install(modeController);
 		final MLogicalStyleController logicalStyleController = new MLogicalStyleController(modeController);

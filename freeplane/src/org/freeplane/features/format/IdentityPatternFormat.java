@@ -2,13 +2,9 @@ package org.freeplane.features.format;
 
 import org.freeplane.core.util.TextUtils;
 
-public class IdentityPatternFormat extends PatternFormat {
-	public IdentityPatternFormat(String pattern) {
-		super(pattern, TYPE_IDENTITY);
-	}
-	
-	IdentityPatternFormat() {
-		this(IDENTITY_PATTERN);
+class IdentityPatternFormat extends PatternFormat {
+	public IdentityPatternFormat() {
+		super(IDENTITY_PATTERN, TYPE_IDENTITY);
 	}
 
 	@Override
@@ -25,6 +21,6 @@ public class IdentityPatternFormat extends PatternFormat {
 
     @Override
     public String toString() {
-        return TextUtils.getText(getPattern());
+        return TextUtils.getText(IDENTITY_PATTERN);
     }
 }

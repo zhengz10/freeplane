@@ -57,11 +57,11 @@ import org.freeplane.features.map.MapModel;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 import org.freeplane.features.ui.IMapViewManager;
+import org.freeplane.features.ui.ViewController;
 import org.freeplane.view.swing.map.MapView;
 
 public class UserInputListenerFactory implements IUserInputListenerFactory {
 	public static final String NODE_POPUP = "/node_popup";
-	private static final String MENU_MM2XML = "/xslt/mm2menu.xsl";
 // // 	final private Controller controller;
 	private IMouseListener mapMouseListener;
 	private MouseWheelListener mapMouseWheelListener;
@@ -78,10 +78,8 @@ public class UserInputListenerFactory implements IUserInputListenerFactory {
 	private JPopupMenu nodePopupMenu;
 	private final Map<String, JComponent> toolBars;
 	private final List<JComponent>[] toolbarLists;
-	private final MenuXmlCreator  menuXmlCreator;
 
 	public UserInputListenerFactory(final ModeController modeController) {
-		menuXmlCreator = new MenuXmlCreator(MENU_MM2XML);
 		Controller controller = Controller.getCurrentController();
 		mapsMenuActionListener = new MapsMenuActionListener(controller);
 		menuBuilder = new MenuBuilder(modeController);
@@ -258,12 +256,9 @@ public class UserInputListenerFactory implements IUserInputListenerFactory {
 	public void updateMapList() {
 		updateModeMenu();
 		updateMapList("main_menu_mindmaps");
-		updateMapList("popup_menu_mindmaps");
 	}
 
 	private void updateMapList(final String mapsMenuPosition) {
-		if(! menuBuilder.contains(mapsMenuPosition))
-			return;
 		menuBuilder.removeChildElements(mapsMenuPosition);
 		final IMapViewManager mapViewManager = Controller.getCurrentController().getMapViewManager();
 		final List<? extends Component> mapViewVector = mapViewManager.getMapViewVector();
@@ -299,7 +294,7 @@ public class UserInputListenerFactory implements IUserInputListenerFactory {
 		menuBuilder.addPopupMenu(getNodePopupMenu(), UserInputListenerFactory.NODE_POPUP);
 		menuBuilder.addToolbar((JToolBar) getToolBar("/main_toolbar"), "/main_toolbar");
 		mapsPopupMenu.setName(TextUtils.getText("mindmaps"));
-		final URL menuStructure = menuXmlCreator.menuResource(menuStructureResource);
+		final URL menuStructure = ResourceController.getResourceController().getResource(menuStructureResource);
 		if (menuStructure != null) {
 			final boolean isUserDefined = menuStructure.getProtocol().equalsIgnoreCase("file");
 			try{
@@ -316,7 +311,7 @@ public class UserInputListenerFactory implements IUserInputListenerFactory {
 				throw e;
 			}
 		}
-		final IMapViewManager viewController = Controller.getCurrentController().getMapViewManager();
+		final ViewController viewController = Controller.getCurrentController().getViewController();
 		viewController.updateMenus(menuBuilder);
 	}
 

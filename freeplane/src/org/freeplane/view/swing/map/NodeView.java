@@ -34,6 +34,7 @@ import java.awt.dnd.DragGestureListener;
 import java.awt.dnd.DragSource;
 import java.awt.dnd.DropTarget;
 import java.awt.dnd.DropTargetListener;
+import java.awt.event.FocusAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowFocusListener;
 import java.util.LinkedList;
@@ -41,7 +42,6 @@ import java.util.ListIterator;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
-
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.IUserInputListenerFactory;
 import org.freeplane.core.ui.components.UITools;
@@ -53,15 +53,15 @@ import org.freeplane.features.edge.EdgeController;
 import org.freeplane.features.edge.EdgeStyle;
 import org.freeplane.features.filter.FilterController;
 import org.freeplane.features.icon.HierarchicalIcons;
-import org.freeplane.features.map.FreeNode;
 import org.freeplane.features.map.HideChildSubtree;
 import org.freeplane.features.map.HistoryInformationModel;
 import org.freeplane.features.map.INodeView;
 import org.freeplane.features.map.MapChangeEvent;
 import org.freeplane.features.map.NodeChangeEvent;
 import org.freeplane.features.map.NodeModel;
-import org.freeplane.features.map.NodeModel.NodeChangeType;
+import org.freeplane.features.map.FreeNode;
 import org.freeplane.features.map.SummaryNode;
+import org.freeplane.features.map.NodeModel.NodeChangeType;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 import org.freeplane.features.nodelocation.LocationModel;
@@ -117,12 +117,12 @@ public class NodeView extends JComponent implements INodeView {
 	private Integer edgeWidth = 1;
 	private Color edgeColor = Color.BLACK;
 	private Color modelBackgroundColor;
-
+	
 	private int topOverlap;
 	private int bottomOverlap;
-
+	
 	public static final int DETAIL_VIEWER_POSITION = 2;
-
+	
 	protected NodeView(final NodeModel model, final MapView map, final Container parent) {
 		setFocusCycleRoot(true);
 		this.model = model;
@@ -449,11 +449,11 @@ public class NodeView extends JComponent implements INodeView {
     }
 
     public Point getRelativeLocation(NodeView target) {
-        Component component;
-        int targetX = 0;
+        Component component;  
+        int targetX = 0; 
         int targetY = 0;
-        for(component = target.getMainView();
-            !(this.equals(component) || component.getClass().equals(MapView.class));
+        for(component = target.getMainView(); 
+            !(this.equals(component) || component.getClass().equals(MapView.class)); 
             component = component.getParent()){
             targetX += component.getX();
             targetY += component.getY();
@@ -501,7 +501,7 @@ public class NodeView extends JComponent implements INodeView {
 		}
 		final int index = v.indexOf(this);
 		for (int i = index + 1; i < v.size(); i++) {
-			final NodeView nextView = v.get(i);
+			final NodeView nextView = (NodeView) v.get(i);
 			if (nextView.isContentVisible()) {
 				return nextView;
 			}
@@ -629,7 +629,7 @@ public class NodeView extends JComponent implements INodeView {
 		}
 		final int index = v.indexOf(this);
 		for (int i = index - 1; i >= 0; i--) {
-			final NodeView nextView = v.get(i);
+			final NodeView nextView = (NodeView) v.get(i);
 			if (nextView.isContentVisible()) {
 				return nextView;
 			}
@@ -744,7 +744,7 @@ public class NodeView extends JComponent implements INodeView {
 		for (NodeModel child : getMap().getModeController().getMapController().childrenFolded(getModel())) {
 			if(child.containsExtension(HideChildSubtree.class))
 				return;
-			if(getComponentCount() <= index
+			if(getComponentCount() <= index 
 					|| ! (getComponent(index) instanceof NodeView))
 				addChildView(child, index++);
 		}
@@ -753,7 +753,7 @@ public class NodeView extends JComponent implements INodeView {
 	/**
 	 * Create views for the newNode and all his descendants, set their isLeft
 	 * attribute according to this view.
-	 * @param index2
+	 * @param index2 
 	 */
 	void addChildView(final NodeModel newNode, int index) {
 			NodeViewFactory.getInstance().newNodeView(newNode, getMap(), this, index);
@@ -839,7 +839,7 @@ public class NodeView extends JComponent implements INodeView {
 		if (property.equals(ShortenedTextModel.SHORTENER)) {
 			NodeViewFactory.getInstance().updateNoteViewer(this);
 		}
-
+		
 		if (property.equals(HistoryInformationModel.class)) {
 			return;
 		}
@@ -942,7 +942,7 @@ public class NodeView extends JComponent implements INodeView {
 			final Object renderingHint = g2.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
 			switch (paintingMode) {
 				case CLOUDS:
-					modeController.getController().getMapViewManager().setEdgesRenderingHint(g2);
+					modeController.getController().getViewController().setEdgesRenderingHint(g2);
 					final boolean isRoot = isRoot();
 					if (isRoot) {
 						paintCloud(g);
@@ -953,7 +953,7 @@ public class NodeView extends JComponent implements INodeView {
 			switch (paintingMode) {
 				case NODES:
 					g2.setStroke(BubbleMainView.DEF_STROKE);
-					modeController.getController().getMapViewManager().setEdgesRenderingHint(g2);
+					modeController.getController().getViewController().setEdgesRenderingHint(g2);
                     paintEdges(g2, this);
 					g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, renderingHint);
 			}
@@ -1002,7 +1002,7 @@ public class NodeView extends JComponent implements INodeView {
             g.translate(-p.x, -p.y);
         }
     }
-
+    
     private void paintEdges(final Graphics2D g, NodeView source) {
     	SummaryEdgePainter summaryEdgePainter = new SummaryEdgePainter(this, isRoot() ? true : isLeft());
     	SummaryEdgePainter rightSummaryEdgePainter =  isRoot() ? new SummaryEdgePainter(this, false) : null;
@@ -1052,7 +1052,7 @@ public class NodeView extends JComponent implements INodeView {
         	}
         }
     }
-
+    
 
 	int getSpaceAround() {
 		return getZoomed(NodeView.SPACE_AROUND);
@@ -1064,15 +1064,15 @@ public class NodeView extends JComponent implements INodeView {
 
 	private void paintDecoration(final Graphics2D g) {
 		final PaintingMode paintingMode = map.getPaintingMode();
-		if(! (getMainView() != null &&
-				( paintingMode.equals(PaintingMode.NODES) && !isSelected() || paintingMode.equals(PaintingMode.SELECTED_NODES) && isSelected())
+		if(! (getMainView() != null && 
+				( paintingMode.equals(PaintingMode.NODES) && !isSelected() || paintingMode.equals(PaintingMode.SELECTED_NODES) && isSelected()) 
 				&& isContentVisible()))
 			return;
-		final Graphics2D g2 = g;
+		final Graphics2D g2 = (Graphics2D) g;
 		final ModeController modeController = map.getModeController();
 		final Object renderingHint = g2.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
 		g2.setStroke(BubbleMainView.DEF_STROKE);
-		modeController.getController().getMapViewManager().setEdgesRenderingHint(g2);
+		modeController.getController().getViewController().setEdgesRenderingHint(g2);
 		final Point origin = new Point();
 		UITools.convertPointToAncestor(mainView, origin, this);
 		g.translate(origin.x, origin.y);
@@ -1115,8 +1115,7 @@ public class NodeView extends JComponent implements INodeView {
 
 	protected void removeFromMap() {
 		setFocusCycleRoot(false);
-		Container parent = getParent();
-		parent.remove(this);
+		getParent().remove(this);
 	}
 
 	private void repaintEdge(final NodeView target) {
@@ -1130,14 +1129,14 @@ public class NodeView extends JComponent implements INodeView {
         relativeLocation.y += targetMainView.getHeight()/2;
         final Point inPoint = mainView.getConnectorPoint(relativeLocation);
         UITools.convertPointToAncestor(targetMainView, inPoint, this);
-
+                
         relativeLocation.x -= targetMainView.getWidth()/2;
         relativeLocation.y -= targetMainView.getHeight()/2;
         relativeLocation.x = - relativeLocation.x + mainView.getWidth()/2;
         relativeLocation.y = - relativeLocation.y + mainView.getHeight()/2;
 		final Point outPoint = targetMainView.getConnectorPoint(relativeLocation);
 		UITools.convertPointToAncestor(getMainView(), outPoint, this);
-
+		
 		final int x = Math.min(inPoint.x, outPoint.x);
 		final int y = Math.min(inPoint.y, outPoint.y);
 		final int w = Math.abs(inPoint.x - outPoint.x);
@@ -1173,12 +1172,9 @@ public class NodeView extends JComponent implements INodeView {
 		if (mainView == null) {
 			return false;
 		}
-		if (mainView.requestFocusInWindow()) {
-			getMap().scrollNodeToVisible(this);
-			Controller.getCurrentController().getViewController().addObjectTypeInfo(getModel().getUserObject());
-			return true;
-		}
-		return false;
+		getMap().scrollNodeToVisible(this);
+		Controller.getCurrentController().getViewController().addObjectTypeInfo(getModel().getUserObject());
+		return mainView.requestFocusInWindow();
 	}
 
 	@Override
@@ -1349,7 +1345,7 @@ public class NodeView extends JComponent implements INodeView {
 			return parentView.getEdgeColor();
 		return Color.GRAY;
     }
-
+	
 	private void updateCloud() {
 		final CloudModel cloudModel = CloudController.getController(getMap().getModeController()).getCloud(model);
 		putClientProperty(CloudModel.class, cloudModel);
@@ -1396,7 +1392,7 @@ public class NodeView extends JComponent implements INodeView {
 			oldShape = mainView.getShape();
 		else
 			oldShape = null;
-		if (mainView != null){
+		if (mainView != null){ 
 			if(oldShape.equals(newShape))
 				return;
 			if(model.isRoot()) {

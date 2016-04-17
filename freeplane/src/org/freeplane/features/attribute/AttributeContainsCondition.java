@@ -85,9 +85,13 @@ public class AttributeContainsCondition extends ASelectableCondition {
             }
             final Object originalContent = attributes.getValueAt(i, 1);
             String text = textController.getTransformedTextNoThrow(originalContent, node, null);
-            if (stringMatchingStrategy.matches(comparedValue, text, true, matchCase)) {
-				return true;
-			}
+//            if(!matchCase)
+//                text = text.toLowerCase();
+            
+            return stringMatchingStrategy.matches(comparedValue, text, true, matchCase);
+            
+//            if(text.contains(comparedValue))
+//                return true;
 		}
 		return false;
 	}

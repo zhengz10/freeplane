@@ -228,17 +228,13 @@ public class Convertible extends GroovyObjectSupport /*implements Comparable<Obj
 	//   assert new Comparable(2) == "2"
 	// instead of just calling equals, which is correctly defined
 	public int compareTo(Object string) {
-		if (string == null)
-		    return text == null ? 0 : 1;
-		else if (string.getClass() == String.class)
+		if (string.getClass() == String.class)
 			return text.compareTo((String) string);
 		else
 			return 1;
 	}
 	
 	public int compareTo(Convertible convertible) {
-	    if (convertible == null || convertible.getText() == null)
-	        return text == null ? 0 : 1;
 		return text.compareTo(convertible.getText());
 	}
 
@@ -277,16 +273,6 @@ public class Convertible extends GroovyObjectSupport /*implements Comparable<Obj
 
 	@Override
     public void setProperty(String property, Object newValue) {
-		throw new NotImplementedException("Convertibles are immutable; property to be changed: " + property);
+		throw new NotImplementedException("Convertibles are immutable");
     }
-
-	/** parses the text (case insensitive) as boolean via {@link Boolean#parseBoolean(String)}. */
-	public boolean getBool() {
-	    return Boolean.parseBoolean(text);
-	}
-
-	/** For implicit conversion to boolean: true if the text is not empty. */
-	public boolean asBoolean() {
-	    return text != null && text.length() > 0;
-	}
 }

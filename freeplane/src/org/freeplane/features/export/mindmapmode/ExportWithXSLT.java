@@ -64,7 +64,7 @@ import org.freeplane.features.url.UrlManager;
  * @author foltin To change the template for this generated type comment go to
  *         Window&gt;Preferences&gt;Java&gt;Code Generation&gt;Code and Comments
  */
-public class ExportWithXSLT implements IExportEngine {
+public class ExportWithXSLT extends AExportEngine {
 
 	private static final Pattern propertyReferenceEpression = Pattern.compile("\\$\\{[^}]+\\}");
 
@@ -142,17 +142,14 @@ public class ExportWithXSLT implements IExportEngine {
 		return success;
 	}
 
-	private int getImageResolutionDPI() {
-	    return ResourceController.getResourceController().getIntProperty("exported_image_resolution_dpi", 300);
-    }
 	/**
 	 * @param map
 	 */
 	private boolean createImageFromMap(MapModel map, final String directoryName) {
-		if (Controller.getCurrentController().getMapViewManager().getMapViewComponent() == null) {
+		if (Controller.getCurrentController().getViewController().getMapView() == null) {
 			return false;
 		}
-		final RenderedImage image = new ImageCreator(getImageResolutionDPI()).createBufferedImage(map);
+		final RenderedImage image = createBufferedImage(map);
 		if(image == null){
 			return false;
 		}

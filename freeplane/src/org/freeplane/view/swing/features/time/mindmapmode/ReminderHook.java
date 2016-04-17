@@ -23,14 +23,12 @@ import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.text.MessageFormat;
 import java.util.Date;
-
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
-
 import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.ui.AFreeplaneAction;
 import org.freeplane.core.ui.EnabledAction;
@@ -57,9 +55,6 @@ import org.freeplane.features.mode.PersistentNodeHook;
 import org.freeplane.features.script.IScriptStarter;
 import org.freeplane.n3.nanoxml.XMLElement;
 import org.freeplane.view.swing.features.time.mindmapmode.TimeManagement.JTimePanel;
-import org.freeplane.view.swing.features.time.mindmapmode.nodelist.AllMapsNodeListAction;
-import org.freeplane.view.swing.features.time.mindmapmode.nodelist.NodeList;
-import org.freeplane.view.swing.features.time.mindmapmode.nodelist.NodeListAction;
 import org.freeplane.view.swing.map.attribute.AttributePanelManager;
 
 /**

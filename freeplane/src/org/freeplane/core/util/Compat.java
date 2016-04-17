@@ -17,12 +17,11 @@ import org.freeplane.features.mode.Controller;
 
 /**
  * Provides methods and constants which are dependend on the underlying java version
- *
+ * 
  * @author robert.ladstaetter
  */
 public class Compat {
-	public static final String PROPERTY_FREEPLANE_USERDIR = "org.freeplane.userfpdir";
-    public static final String JAVA_VERSION = System.getProperty("java.version");
+	public static final String JAVA_VERSION = System.getProperty("java.version");
 	public static final String VERSION_1_6_0 = "1.6.0";
 
 	private static enum OS {
@@ -34,7 +33,7 @@ public class Compat {
 	        "com", "vbs", "bat", "lnk", "cmd" }));
 
 	public static boolean isWindowsExecutable(final URI link) {
-		if (link == null
+		if (link == null 
 				|| !"file".equalsIgnoreCase(link.getScheme())) {
 			return false;
 		}
@@ -140,12 +139,12 @@ public class Compat {
 		for (final String mode : modes) {
 			final MenuBuilder builder = controller.getModeController(mode).getUserInputListenerFactory()
 			    .getMenuBuilder();
-			final String[] keys = {
-					"MB_ToggleMenubarAction",
-					"MP_ToggleMenubarAction",
+			final String[] keys = { 
+					"MB_ToggleMenubarAction", 
+					"MP_ToggleMenubarAction", 
 					"MB_QuitAction",
-			        "MB_PropertyAction",
-			        "MB_AboutAction"
+			        "MB_PropertyAction", 
+			        "MB_AboutAction" 
 			};
 			for (final String key : keys) {
 				if (builder.contains(key)) {
@@ -154,20 +153,17 @@ public class Compat {
 			}
 		}
 	}
-	final private static String CURRENT_VERSION_DIR= File.separatorChar + "1.3.x";
-
-	/** the directory *including* the version directory. */
+	final private static String PREVIEW_DIR=File.separatorChar + "1.2.x";
+	
 	public static String getFreeplaneUserDirectory() {
-		String userFpDir = System.getProperty(PROPERTY_FREEPLANE_USERDIR);
+		String userFpDir = System.getProperty("org.freeplane.userfpdir");
 		if(userFpDir == null){
-			userFpDir = getDefaultFreeplaneUserDirectory();
+			userFpDir = System.getProperty("user.home")+ File.separator + ".freeplane";
 		}
-		return userFpDir + CURRENT_VERSION_DIR;
+		if(PREVIEW_DIR != null)
+			return userFpDir + PREVIEW_DIR;
+		return userFpDir;
 	}
-
-	private static String getDefaultFreeplaneUserDirectory() {
-        return System.getProperty("user.home")+ File.separator + ".freeplane";
-    }
 
 	static public String smbUri2unc(final URI uri) {
 		String uriString;
@@ -184,8 +180,8 @@ public class Compat {
     }
 
 	private static int getModifiers(final MouseEvent e) {
-	    return e.getModifiersEx() &
-        		(InputEvent.CTRL_DOWN_MASK
+	    return e.getModifiersEx() & 
+        		(InputEvent.CTRL_DOWN_MASK 
         				| InputEvent.META_DOWN_MASK
         				| InputEvent.SHIFT_DOWN_MASK
         				| InputEvent.ALT_DOWN_MASK
@@ -199,11 +195,11 @@ public class Compat {
 	public static boolean isCtrlShiftEvent(MouseEvent e) {
 		return isExtendedCtrlEvent(e, InputEvent.SHIFT_DOWN_MASK);
     }
-
+	
 	public static boolean isCtrlAltEvent(MouseEvent e) {
 		return isExtendedCtrlEvent(e, InputEvent.ALT_DOWN_MASK);
     }
-
+	
 	static private boolean isExtendedCtrlEvent(final MouseEvent e, int otherModifiers) {
         final int modifiers = getModifiers(e);
 		if (isMacOsX())

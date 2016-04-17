@@ -167,9 +167,7 @@ class ContentReader extends Reader {
 			return charsRead;
 		}
 		catch (final XMLParseException e) {
-			// must throw IOException, add cause to allow
-			// detecting the real cause
-			throw new IOException(e.getMessage(), e);
+			throw new IOException(e.getMessage());
 		}
 	}
 }

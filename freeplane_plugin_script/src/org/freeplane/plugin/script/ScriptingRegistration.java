@@ -41,7 +41,6 @@ import org.apache.commons.lang.StringUtils;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.resources.components.IValidator;
 import org.freeplane.core.ui.IMenuContributor;
-import org.freeplane.core.ui.IUserInputListenerFactory;
 import org.freeplane.core.ui.MenuBuilder;
 import org.freeplane.core.util.FileUtils;
 import org.freeplane.core.util.LogUtils;
@@ -64,6 +63,7 @@ import org.freeplane.plugin.script.ExecuteScriptAction.ExecutionMode;
 import org.freeplane.plugin.script.ScriptEditorPanel.IScriptModel;
 import org.freeplane.plugin.script.ScriptEditorPanel.ScriptHolder;
 import org.freeplane.plugin.script.ScriptingConfiguration.ScriptMetaData;
+import org.freeplane.plugin.script.ScriptingEngine.IErrorHandler;
 import org.freeplane.plugin.script.addons.ManageAddOnsAction;
 import org.freeplane.plugin.script.addons.ManageAddOnsDialog;
 import org.freeplane.plugin.script.addons.ScriptAddOnProperties;
@@ -96,7 +96,7 @@ class ScriptingRegistration {
 			}
 		}
 
-		public Object executeScript(final int pIndex, final PrintStream pOutStream, final IFreeplaneScriptErrorHandler pErrorHandler) {
+		public Object executeScript(final int pIndex, final PrintStream pOutStream, final IErrorHandler pErrorHandler) {
 			final ModeController modeController = Controller.getCurrentModeController();
 			// the script is completely in the hand of the user -> no security issues.
 			final ScriptingPermissions restrictedPermissions = ScriptingPermissions.getPermissiveScriptingPermissions();
@@ -148,7 +148,7 @@ class ScriptingRegistration {
 				    .getProperty(ScriptingPermissions.RESOURCES_EXECUTE_SCRIPTS_WITHOUT_READ_RESTRICTION);
 				final String writeAccessString = properties
 				.getProperty(ScriptingPermissions.RESOURCES_EXECUTE_SCRIPTS_WITHOUT_WRITE_RESTRICTION);
-				final String classpath = properties.getProperty(ScriptResources.RESOURCES_SCRIPT_CLASSPATH);
+				final String classpath = properties.getProperty(ScriptingEngine.RESOURCES_SCRIPT_CLASSPATH);
 				final boolean readAccess = readAccessString != null && Boolean.parseBoolean(readAccessString);
 				final boolean writeAccess = writeAccessString != null && Boolean.parseBoolean(writeAccessString);
 				final boolean classpathIsSet = classpath != null && classpath.length() > 0;
@@ -191,35 +191,32 @@ class ScriptingRegistration {
 			}
 		});
 		registerScriptAddOns();
-		if(! modeController.getController().getViewController().isHeadless()){
-			final IUserInputListenerFactory userInputListenerFactory = modeController.getUserInputListenerFactory();
-			addPropertiesToOptionPanel();
-			final MenuBuilder menuBuilder = userInputListenerFactory.getMenuBuilder();
-			modeController.addAction(new ScriptEditor());
-			modeController.addAction(new ExecuteScriptForAllNodes());
-			modeController.addAction(new ExecuteScriptForSelectionAction());
-			final ManageAddOnsAction manageAddOnsAction = new ManageAddOnsAction();
-			modeController.addAction(manageAddOnsAction);
-			modeController.addExtension(AddOnInstaller.class, new AddOnInstaller() {
-				public void install(final URL url) {
-					final ManageAddOnsDialog dialog = manageAddOnsAction.getDialog();
-					dialog.install(url);
-				}
-			});
-			final ScriptingConfiguration configuration = new ScriptingConfiguration();
-			ScriptCompiler.compileScriptsOnPath(ScriptResources.getClasspath());
-			modeController.addMenuContributor(new IMenuContributor() {
-				public void updateMenus(ModeController modeController, MenuBuilder builder) {
-					registerScripts(menuBuilder, configuration);
-				}
-			});
-			createUserScriptsDirectory();
-		}
-		FilterController.getCurrentFilterController().getConditionFactory().addConditionController(10, 
-			new ScriptConditionController());
+		addPropertiesToOptionPanel();
+		final MenuBuilder menuBuilder = modeController.getUserInputListenerFactory().getMenuBuilder();
+		modeController.addAction(new ScriptEditor());
+		modeController.addAction(new ExecuteScriptForAllNodes());
+		modeController.addAction(new ExecuteScriptForSelectionAction());
+		final ManageAddOnsAction manageAddOnsAction = new ManageAddOnsAction();
+		modeController.addAction(manageAddOnsAction);
+		modeController.addExtension(AddOnInstaller.class, new AddOnInstaller() {
+			public void install(final URL url) {
+				final ManageAddOnsDialog dialog = manageAddOnsAction.getDialog();
+				dialog.install(url);
+            }
+		});
+		final ScriptingConfiguration configuration = new ScriptingConfiguration();
+		ScriptingEngine.setClasspath(configuration.getClasspath());
+		modeController.addMenuContributor(new IMenuContributor() {
+			public void updateMenus(ModeController modeController, MenuBuilder builder) {
+				registerScripts(menuBuilder, configuration);
+			}
+		});
+		createUserScriptsDirectory();
+		FilterController.getCurrentFilterController().getConditionFactory().addConditionController(10,
+		    new ScriptConditionController());
 	}
 
-    private void registerScriptAddOns() {
+	private void registerScriptAddOns() {
 		File[] addonXmlFiles = AddOnsController.getController().getAddOnsDir().listFiles(new FilenameFilter() {
 			public boolean accept(File dir, String name) {
 				return name.endsWith(".script.xml");
@@ -246,14 +243,14 @@ class ScriptingRegistration {
 	}
 
 	private void createUserScriptsDirectory() {
-		final File scriptDir = ScriptResources.getUserScriptDir();
+		final File scriptDir = ScriptingEngine.getUserScriptDir();
 		if (!scriptDir.exists()) {
 			LogUtils.info("creating user scripts directory " + scriptDir);
 			scriptDir.mkdirs();
 		}
 	}
 
-    private void registerScripts(final MenuBuilder menuBuilder, ScriptingConfiguration configuration) {
+	private void registerScripts(final MenuBuilder menuBuilder, ScriptingConfiguration configuration) {
 		final HashSet<String> registeredLocations = new HashSet<String>();
 		for (final String scriptsParentLocation : ScriptingConfiguration.getScriptsParentLocations()) {
 			final String scriptsLocation = ScriptingConfiguration.getScriptsLocation(scriptsParentLocation);

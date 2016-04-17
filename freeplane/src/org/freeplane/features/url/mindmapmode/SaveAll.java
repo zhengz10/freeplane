@@ -49,7 +49,7 @@ public class SaveAll extends AFreeplaneAction {
 
 	public void actionPerformed(final ActionEvent e) {
 		final Controller controller = Controller.getCurrentController();
-		final Component initialMapView = controller.getMapViewManager().getMapViewComponent();
+		final Component initialMapView = controller.getViewController().getMapView();
 		final Map<String, MapModel> mapViews = getMapViews();
 		final Iterator<Entry<String, MapModel>> iterator = mapViews.entrySet().iterator();
 		while (iterator.hasNext()) {
