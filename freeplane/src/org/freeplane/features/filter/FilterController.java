@@ -52,8 +52,6 @@ import javax.swing.event.ListDataListener;
 import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.resources.ResourceController;
 import org.freeplane.core.ui.AFreeplaneAction;
-import org.freeplane.core.ui.IMenuContributor;
-import org.freeplane.core.ui.MenuBuilder;
 import org.freeplane.core.ui.SelectableAction;
 import org.freeplane.core.ui.components.FreeplaneToolBar;
 import org.freeplane.core.ui.components.JAutoToggleButton;
@@ -73,7 +71,6 @@ import org.freeplane.features.map.MapModel;
 import org.freeplane.features.map.MapNavigationUtils;
 import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.mode.Controller;
-import org.freeplane.features.mode.ModeController;
 import org.freeplane.features.ui.ToggleToolbarAction;
 import org.freeplane.features.ui.ViewController;
 import org.freeplane.n3.nanoxml.IXMLParser;
@@ -112,7 +109,7 @@ public class FilterController implements IMapSelectionListener, IExtension {
 	    		public void ancestorMoved(final AncestorEvent event) {
 	    		}
 	    		public void ancestorRemoved(final AncestorEvent event) {
-	    			final Component selectedComponent = Controller.getCurrentController().getMapViewManager().getSelectedComponent();
+	    			final Component selectedComponent = Controller.getCurrentController().getViewController().getSelectedComponent();
 	    			if(selectedComponent != null)
 	    				selectedComponent.requestFocusInWindow();
 	    			quickEditor.removeAncestorListener(this);
@@ -170,7 +167,6 @@ public class FilterController implements IMapSelectionListener, IExtension {
 // // 	private final Controller controller;
 	final private FilterChangeListener filterChangeListener;
 	private DefaultComboBoxModel filterConditions;
-	private final FilterMenuBuilder filterMenuBuilder;
 	private JToolBar filterToolbar;
 	private final FilterHistory history;
 	private Filter inactiveFilter;
@@ -187,7 +183,6 @@ public class FilterController implements IMapSelectionListener, IExtension {
 
 	public FilterController() {
 		Controller controller = Controller.getCurrentController();
-		filterMenuBuilder = new FilterMenuBuilder(this);
 		history = new FilterHistory();
 		filterChangeListener = new FilterChangeListener();
 		showAncestors = new JToggleButton.ToggleButtonModel();
@@ -368,8 +363,7 @@ public class FilterController implements IMapSelectionListener, IExtension {
 		filterToolbar.add(applyQuickSelectBtn);
 		filterToolbar.add(applyQuickFilterBtn);
 		filterToolbar.add(applyQuickHighlightBtn);
-		final DefaultConditionRenderer toolbarConditionRenderer = new DefaultConditionRenderer(TextUtils.getText("filter_no_filtering"), false);
-		activeFilterConditionComboBox.setRenderer(toolbarConditionRenderer);
+		activeFilterConditionComboBox.setRenderer(this.getConditionRenderer());
 		return filterToolbar;
 	}
 
@@ -393,7 +387,7 @@ public class FilterController implements IMapSelectionListener, IExtension {
 
 	DefaultConditionRenderer getConditionRenderer() {
 		if (conditionRenderer == null) {
-			conditionRenderer = new DefaultConditionRenderer(TextUtils.getText("filter_no_filtering"), true);
+			conditionRenderer = new DefaultConditionRenderer(TextUtils.getText("filter_no_filtering"));
 		}
 		return conditionRenderer;
 	}
@@ -460,7 +454,7 @@ public class FilterController implements IMapSelectionListener, IExtension {
 
 	public void loadDefaultConditions() {
 	    try {
-			loadConditions(getFilterConditions(), pathToFilterFile);
+			loadConditions(filterConditions, pathToFilterFile);
 		}
 		catch (final Exception e) {
 			LogUtils.severe(e);
@@ -527,10 +521,6 @@ public class FilterController implements IMapSelectionListener, IExtension {
 		addStandardConditions();
 		filterConditions.addListDataListener(filterChangeListener);
 		applyFilter(false);
-		Controller controller = Controller.getCurrentController();
-		final ModeController modeController = controller.getModeController();
-		final MenuBuilder menuBuilder = modeController.getUserInputListenerFactory().getMenuBuilder();
-		filterMenuBuilder.updateMenus(modeController, menuBuilder);
 	}
 
 	private void updateSettingsFromFilter(final Filter filter) {
@@ -601,16 +591,4 @@ public class FilterController implements IMapSelectionListener, IExtension {
 	public ButtonModel getCaseSensitiveButtonModel() {
 		return caseSensitiveButtonModel;
 	}
-
-	public void apply(ASelectableCondition condition) {
-		final DefaultComboBoxModel filterConditions = getFilterConditions();
-		if(condition.equals(filterConditions.getSelectedItem()))
-			applyFilter(true);
-		else
-			filterConditions.setSelectedItem(condition);
-    }
-
-	public IMenuContributor getMenuContributor() {
-	    return filterMenuBuilder;
-    }
 }

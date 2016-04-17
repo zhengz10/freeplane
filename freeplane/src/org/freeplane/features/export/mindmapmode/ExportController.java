@@ -100,13 +100,6 @@ public class ExportController implements IExtension{
 	}
 
 	public void addExportEngine(final FileFilter filter, final IExportEngine exporter) {
-		for (final IExportEngine existingExporter : filterMap.values())
-		{
-			if (existingExporter.equals(exporter))
-			{
-				return;
-			}
-		}
 	    fileFilters.add(filter);
 		filterMap.put(filter, exporter);
     }

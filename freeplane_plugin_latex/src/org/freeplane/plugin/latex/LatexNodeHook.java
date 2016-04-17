@@ -169,7 +169,7 @@ class LatexNodeHook extends PersistentNodeHook implements INodeViewLifeCycleList
 			super.undoableToggleHook(node, extension);
 			return;
 		}
-		final String equation = LegacyLatexEditor.editLatex("", node);
+		final String equation = LatexEditor.editLatex("", node);
 		if (equation == null || "".equals(equation.trim())) {
 			return;
 		}
@@ -183,11 +183,11 @@ class LatexNodeHook extends PersistentNodeHook implements INodeViewLifeCycleList
 		final String equation;
 		//if no LaTeX is attached, create one
 		if (latexExtension == null) {
-			equation = LegacyLatexEditor.editLatex("", node);
+			equation = LatexEditor.editLatex("", node);
 		}
 		//if LaTeX is present edit it
 		else {
-			equation = LegacyLatexEditor.editLatex(latexExtension.getEquation(), node);
+			equation = LatexEditor.editLatex(latexExtension.getEquation(), node);
 		}
 		// return on cancel
 		if (equation == null) {

@@ -10,8 +10,7 @@ import org.freeplane.features.mode.Controller;
  * 
  * @author Stefan Ott
  *
- * This class is called when a (legacy!) Latex formula is edited
- * @see http://freeplane.sourceforge.net/wiki/index.php/LaTeX_in_Freeplane
+ *This class is called when a Latex formula is edited
  */
 public class EditLatexAction extends AFreeplaneAction {
 	private static final long serialVersionUID = 1L;

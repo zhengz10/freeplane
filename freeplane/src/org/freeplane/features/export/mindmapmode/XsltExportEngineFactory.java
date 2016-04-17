@@ -27,10 +27,9 @@ class XsltExportEngineFactory {
 	void gatherXsltScripts(ExportController controller) {
 		try{
 			this.controller = controller;
-		// look for user xslt scripts first
-		gatherXsltScripts(getXsltUserDirectory());
-		// use system xslt scripts as a fallback
 		gatherXsltScripts(getXsltSysDirectory());
+		// overwrite with user settings
+		gatherXsltScripts(getXsltUserDirectory());
 		}
 		finally{
 			this.controller = null;

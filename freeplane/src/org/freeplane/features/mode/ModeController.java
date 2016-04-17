@@ -265,7 +265,7 @@ public class ModeController extends AController {
 		return extensionContainer.containsExtension(clazz);
 	}
 
-	public void removeExtension(Class<? extends IExtension> clazz) {
+	public void removeExtension(Class<DocuMapAttribute> clazz) {
 		extensionContainer.removeExtension(clazz);
 	}
 	public MapController getMapController() {
@@ -426,4 +426,5 @@ public class ModeController extends AController {
 			toolTip.put(key, tooltip);
 		}
 	}
+
 }

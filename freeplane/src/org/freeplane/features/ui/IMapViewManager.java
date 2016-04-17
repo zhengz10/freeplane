@@ -21,24 +21,18 @@ package org.freeplane.features.ui;
 
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Container;
 import java.awt.Font;
-import java.awt.Graphics2D;
 import java.awt.image.RenderedImage;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
-import javax.swing.JScrollPane;
-
-import org.freeplane.core.ui.MenuBuilder;
 import org.freeplane.features.map.IMapSelection;
 import org.freeplane.features.map.IMapSelectionListener;
 import org.freeplane.features.map.MapModel;
 import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.mode.ModeController;
-import org.freeplane.view.swing.map.MapView;
 
 /**
  * @author Dimitry Polivaev
@@ -76,11 +70,10 @@ public interface IMapViewManager {
 	 *            forces the closing without any save actions.
 	 */
 	public boolean close(final boolean withoutSave);
-	public boolean close(final Component view, final boolean force);
-	
+
 	public String createHtmlMap();
 
-	public RenderedImage createImage(int dpi);
+	public RenderedImage createImage();
 
 	public Color getBackgroundColor(NodeModel node);
 
@@ -108,6 +101,8 @@ public interface IMapViewManager {
 	public Component getSelectedComponent();
 
 	public Color getTextColor(NodeModel node);
+
+	public int getViewNumber();
 
 	public float getZoom();
 
@@ -140,10 +135,4 @@ public interface IMapViewManager {
 	public Map<String, MapModel> getMaps(String modename);
 
 	public List<Component> getViews(MapModel map);
-	public void updateMenus(final MenuBuilder menuBuilder);
-	public void obtainFocusForSelected();
-	public void setTitle();
-	public Object setEdgesRenderingHint(final Graphics2D g);
-	public void setTextRenderingHint(final Graphics2D g);
-	public boolean closeAllMaps();
 }

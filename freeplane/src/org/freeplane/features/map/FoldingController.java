@@ -31,7 +31,6 @@ import org.freeplane.core.extension.IExtension;
 import org.freeplane.core.ui.AFreeplaneAction;
 import org.freeplane.core.ui.AMultipleNodeAction;
 import org.freeplane.core.ui.IMouseWheelEventHandler;
-import org.freeplane.core.ui.IUserInputListenerFactory;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 
@@ -160,12 +159,9 @@ public class FoldingController implements IMouseWheelEventHandler, IExtension {
 	public FoldingController() {
 		super();
 		final ModeController modeController = Controller.getCurrentModeController();
-		if(!modeController.getController().getViewController().isHeadless()){
-			final IUserInputListenerFactory userInputListenerFactory = modeController.getUserInputListenerFactory();
-			userInputListenerFactory.addMouseWheelEventHandler(this);
-			for (final AFreeplaneAction annotatedAction : getAnnotatedActions()) {
-				modeController.addAction(annotatedAction);
-			}
+		modeController.getUserInputListenerFactory().addMouseWheelEventHandler(this);
+		for (final AFreeplaneAction annotatedAction : getAnnotatedActions()) {
+			modeController.addAction(annotatedAction);
 		}
 	}
 

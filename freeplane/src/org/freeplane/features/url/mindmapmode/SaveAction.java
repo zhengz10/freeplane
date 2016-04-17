@@ -50,7 +50,7 @@ class SaveAction extends AFreeplaneAction {
 		else {
 			controller.getViewController().out(TextUtils.getText("saving_canceled"));
 		}
-		controller.getMapViewManager().setTitle();
+		controller.getViewController().setTitle();
 	}
 	
 	@Override

@@ -87,7 +87,7 @@ class LinkProxy extends AbstractProxy<NodeModel> implements Proxy.Link {
 	public void setText(String target) {
 		try {
 			if (!removeLinkIfNull(target)) {
-				getLinkController().setLink(getDelegate(), new URI(target), LinkController.LINK_ABSOLUTE);
+				getLinkController().setLink(getDelegate(), new URI(target), false);
 			}
 		}
 		catch (final URISyntaxException e) {
@@ -98,14 +98,14 @@ class LinkProxy extends AbstractProxy<NodeModel> implements Proxy.Link {
 	// Link R/W
 	public void setUri(URI target) {
 		if (!removeLinkIfNull(target)) {
-			getLinkController().setLink(getDelegate(), target, LinkController.LINK_ABSOLUTE);
+			getLinkController().setLink(getDelegate(), target, false);
 		}
 	}
 	
 	// Link R/W
 	public void setFile(File file) {
 		if (!removeLinkIfNull(file)) {
-			getLinkController().setLink(getDelegate(), file.toURI(), LinkController.LINK_ABSOLUTE);
+			getLinkController().setLink(getDelegate(), file.toURI(), false);
 		}
 	}
 	
@@ -134,7 +134,7 @@ class LinkProxy extends AbstractProxy<NodeModel> implements Proxy.Link {
 
 	private boolean removeLinkIfNull(Object target) {
 		if (target == null){
-			getLinkController().setLink(getDelegate(), (URI) null, LinkController.LINK_ABSOLUTE);
+			getLinkController().setLink(getDelegate(), (URI) null, false);
 			return true;
 		}
 	    return false;

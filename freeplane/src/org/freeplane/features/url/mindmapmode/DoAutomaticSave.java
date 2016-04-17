@@ -72,7 +72,7 @@ public class DoAutomaticSave extends TimerTask {
 		}
 		try {
 			cancel();
-			Controller.getCurrentController().getViewController().invokeAndWait(new Runnable() {
+			EventQueue.invokeAndWait(new Runnable() {
 
 				public void run() {
 					/* Now, it is dirty, we save it. */
@@ -115,7 +115,10 @@ public class DoAutomaticSave extends TimerTask {
 				}
 			});
 		}
-		catch (final Exception e) {
+		catch (final InterruptedException e) {
+			LogUtils.severe(e);
+		}
+		catch (final InvocationTargetException e) {
 			LogUtils.severe(e);
 		}
 	}

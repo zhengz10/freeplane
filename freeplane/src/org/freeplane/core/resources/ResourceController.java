@@ -90,7 +90,7 @@ public abstract class ResourceController {
 		resources.loadAnotherLanguage();
 	}
 
-	public void firePropertyChanged(final String property, final String value, final String oldValue) {
+	protected void firePropertyChanged(final String property, final String value, final String oldValue) {
 		if (oldValue == null || !oldValue.equals(value)) {
 			setProperty(property, value);
 			for (final IFreeplanePropertyListener listener : getPropertyChangeListeners()) {

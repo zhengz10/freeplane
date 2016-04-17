@@ -53,12 +53,6 @@ class ExternalObjectProxy extends AbstractProxy<NodeModel> implements Proxy.Exte
             setUriImpl(convertToUri(target));
         }
     }
-    
-    public void setFile(final File target) {
-        if (!removeIfTargetIsNull(target)) {
-            setUriImpl(convertToUri(target));
-        }
-    }
 
     private URI convertToUri(Object target) {
         try {

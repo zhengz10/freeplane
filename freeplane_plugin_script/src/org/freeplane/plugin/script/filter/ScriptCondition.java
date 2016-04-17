@@ -1,5 +1,7 @@
 package org.freeplane.plugin.script.filter;
 
+import groovy.lang.Script;
+
 import java.awt.Dimension;
 import java.awt.KeyboardFocusManager;
 import java.io.ByteArrayOutputStream;
@@ -16,8 +18,7 @@ import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.n3.nanoxml.XMLElement;
 import org.freeplane.plugin.script.ExecuteScriptException;
-import org.freeplane.plugin.script.GroovyScript;
-import org.freeplane.plugin.script.IScript;
+import org.freeplane.plugin.script.ScriptingEngine;
 import org.freeplane.plugin.script.ScriptingPermissions;
 
 public class ScriptCondition extends ASelectableCondition {
@@ -25,7 +26,9 @@ public class ScriptCondition extends ASelectableCondition {
 	private static final String SCRIPT_FILTER_ERROR_RESOURCE = "plugins/script_filter_error";
 	static final String NAME = "script_condition";
 	static final String SCRIPT = "SCRIPT";
-	final private IScript script;
+	final private String script;
+	private Script compiledScript = null;
+	private boolean canNotCompileScript = false;
 	private boolean errorReported = false;
 
 	static ASelectableCondition load(final XMLElement element) {
@@ -34,17 +37,27 @@ public class ScriptCondition extends ASelectableCondition {
 
 	public ScriptCondition(final String script) {
 		super();
-		final ScriptingPermissions formulaPermissions = ScriptingPermissions.getFormulaPermissions();
-		this.script = new GroovyScript(script, formulaPermissions);
+		this.script = script;
 	}
 
-	@Override
-    public boolean checkNode(final NodeModel node) {
+	public boolean checkNode(final NodeModel node) {
+		if(canNotCompileScript)
+			return false;
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
 		final PrintStream printStream = new PrintStream(out);
+		final ScriptingPermissions formulaPermissions = ScriptingPermissions.getFormulaPermissions();
+		if(compiledScript == null) {
+			try {
+				compiledScript = ScriptingEngine.compileScriptCheckExceptions(script, ScriptingEngine.IGNORING_SCRIPT_ERROR_HANDLER, printStream, formulaPermissions);
+            }
+            catch (Exception e) {
+            	canNotCompileScript = true;
+            	return false;
+             }
+		}
 		final Object result;
         try {
-			result = script.setOutStream(printStream).execute(node);
+			result = ScriptingEngine.executeScript(node, script, compiledScript, printStream, formulaPermissions);
 			if(result instanceof Boolean)
 				return (Boolean) result;
 			if(result instanceof Number)
@@ -76,9 +89,9 @@ public class ScriptCondition extends ASelectableCondition {
 
 	@Override
 	protected String createDescription() {
-		return TextUtils.format(SCRIPT_FILTER_DESCRIPTION_RESOURCE, script.getScript());
+		return TextUtils.format(SCRIPT_FILTER_DESCRIPTION_RESOURCE, script);
 	}
-
+	
 	@Override
 	protected JComponent createRendererComponent() {
 	    final JComponent renderer = super.createRendererComponent();
@@ -86,18 +99,16 @@ public class ScriptCondition extends ASelectableCondition {
 	    if(preferredSize.width > 200) {
 	        renderer.setPreferredSize(new Dimension(200, preferredSize.height));
         }
-		String scriptText = (String) script.getScript();
-		if (preferredSize.width > 200 || scriptText.contains("\n")) {
-			renderer.setToolTipText(HtmlUtils.plainToHTML(scriptText));
+	    if(preferredSize.width > 200 || script.contains("\n")) {
+	    	renderer.setToolTipText(HtmlUtils.plainToHTML(script));
 	    }
 		return renderer;
     }
 
 
-	@Override
-    public void fillXML(final XMLElement child) {
+	public void fillXML(final XMLElement child) {
 		super.fillXML(child);
-		child.setAttribute(SCRIPT, script.getScript().toString());
+		child.setAttribute(SCRIPT, script);
 	}
 
 	@Override

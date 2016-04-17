@@ -35,11 +35,9 @@ import org.freeplane.features.icon.UIIcon;
  */
 public class DefaultConditionRenderer implements ListCellRenderer, TableCellRenderer {
 	private final String noValueText;
-	private final boolean renderNamedConditions;
 
-	public DefaultConditionRenderer(String noValueText, boolean renderNamedConditions) {
+	public DefaultConditionRenderer(String noValueText) {
 	    this.noValueText = noValueText;
-		this.renderNamedConditions = renderNamedConditions;
     }
 
 	/*
@@ -72,16 +70,11 @@ public class DefaultConditionRenderer implements ListCellRenderer, TableCellRend
 		}
 		else if (value instanceof ASelectableCondition) {
 			final ASelectableCondition cond = (ASelectableCondition) value;
-			final String userName = cond.getUserName();
-			if(renderNamedConditions || userName == null)
-				component = cond.getListCellRendererComponent();
-            else {
-	            component = new JLabel(userName);
-	            component.setToolTipText(cond.createDescription());
-            }
+			component = cond.getListCellRendererComponent();
 		}
-        else
-	        component = new JLabel(value.toString());
+		else {
+			component = new JLabel(value.toString());
+		}
 		component.setOpaque(true);
 		component.setAlignmentX(Component.LEFT_ALIGNMENT);
 		return component;

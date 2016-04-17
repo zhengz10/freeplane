@@ -111,6 +111,10 @@ abstract public class EditNodeBase {
 			}
 		}
 
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;
 		private EditNodeBase base;
 
 		protected EditDialog(final EditNodeBase base, final String title, final RootPaneContainer frame) {

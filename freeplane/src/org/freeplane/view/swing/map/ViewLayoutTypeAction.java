@@ -50,7 +50,7 @@ public class ViewLayoutTypeAction extends AFreeplaneAction {
 	}
 
 	public void actionPerformed(final ActionEvent e) {
-		final MapView map = (MapView) Controller.getCurrentController().getMapViewManager().getMapViewComponent();
+		final MapView map = (MapView) Controller.getCurrentController().getViewController().getMapView();
 		if (isSelected()) {
 			map.setLayoutType(MapViewLayout.MAP);
 			setSelected(false);
@@ -78,7 +78,7 @@ public class ViewLayoutTypeAction extends AFreeplaneAction {
 
 	@Override
 	public void setSelected() {
-		final MapView map = (MapView)  Controller.getCurrentController().getMapViewManager().getMapViewComponent();
+		final MapView map = (MapView)  Controller.getCurrentController().getViewController().getMapView();
 		setSelected(map != null && map.getLayoutType() == layoutType);
 	}
 }

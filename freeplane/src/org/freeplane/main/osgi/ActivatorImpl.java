@@ -19,6 +19,7 @@
  */
 package org.freeplane.main.osgi;
 
+import java.awt.EventQueue;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -37,10 +38,8 @@ import org.freeplane.core.util.LogUtils;
 import org.freeplane.features.filter.FilterController;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
-import org.freeplane.main.application.FreeplaneGUIStarter;
 import org.freeplane.main.application.FreeplaneStarter;
 import org.freeplane.main.application.SingleInstanceManager;
-import org.freeplane.main.headlessmode.FreeplaneHeadlessStarter;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleActivator;
 import org.osgi.framework.BundleContext;
@@ -54,7 +53,6 @@ import org.osgi.service.url.URLStreamHandlerService;
  * 05.01.2009
  */
 class ActivatorImpl implements BundleActivator {
-	private static final String HEADLESS_RUN_PROPERTY_NAME = FreeplaneStarter.class.getName() + ".headless";
 	private FreeplaneStarter starter;
 
 	private String[] getCallParameters() {
@@ -89,7 +87,7 @@ class ActivatorImpl implements BundleActivator {
 	}
 
 	private void loadPlugins(final BundleContext context) {
-		final String resourceBaseDir = FreeplaneGUIStarter.getResourceBaseDir();
+		final String resourceBaseDir = FreeplaneStarter.getResourceBaseDir();
 		final File baseDir = new File(resourceBaseDir).getAbsoluteFile().getParentFile();
 		List<Bundle> loadedPlugins = new LinkedList<Bundle>();
 		loadPlugins(context, new File(baseDir, "plugins"), loadedPlugins);
@@ -151,7 +149,7 @@ class ActivatorImpl implements BundleActivator {
 	private void startFramework(final BundleContext context) {
         registerClasspathUrlHandler(context);
 		if (null == System.getProperty("org.freeplane.core.dir.lib", null)) {
-			final File root = new File(FreeplaneGUIStarter.getResourceBaseDir()).getAbsoluteFile().getParentFile();
+			final File root = new File(FreeplaneStarter.getResourceBaseDir()).getAbsoluteFile().getParentFile();
 			try {
 				String rootUrl = root.toURI().toURL().toString();
 				if (!rootUrl.endsWith("/")) {
@@ -164,7 +162,7 @@ class ActivatorImpl implements BundleActivator {
 			}
 		}
 		// initialize ApplicationController - SingleInstanceManager needs the configuration
-		starter =  createStarter();
+		starter = new FreeplaneStarter();
 		final SingleInstanceManager singleInstanceManager = new SingleInstanceManager(starter);
 		singleInstanceManager.start(getCallParameters());
 		if (singleInstanceManager.isSlave()) {
@@ -215,7 +213,7 @@ class ActivatorImpl implements BundleActivator {
 			e.printStackTrace();
 		}
 		if ("true".equals(System.getProperty("org.freeplane.exit_on_start", null))) {
-			controller.getViewController().invokeLater(new Runnable() {
+			EventQueue.invokeLater(new Runnable() {
 				public void run() {
 					try {
 						Thread.sleep(1000);
@@ -227,7 +225,7 @@ class ActivatorImpl implements BundleActivator {
 			});
 			return;
 		}
-		controller.getViewController().invokeLater(new Runnable() {
+		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				final Bundle[] bundles = context.getBundles();
 				final HashSet<String> plugins = new HashSet<String>();
@@ -240,13 +238,6 @@ class ActivatorImpl implements BundleActivator {
 			}
 		});
 	}
-
-	public FreeplaneStarter createStarter() {
-		if(Boolean.getBoolean(HEADLESS_RUN_PROPERTY_NAME))
-			return new FreeplaneHeadlessStarter();
-		else
-			return new FreeplaneGUIStarter();
-    }
 
     private void registerClasspathUrlHandler(final BundleContext context) {
         Hashtable<String, String[]> properties = new Hashtable<String, String[]>();

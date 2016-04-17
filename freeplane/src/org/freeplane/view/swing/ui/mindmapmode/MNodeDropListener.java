@@ -46,7 +46,6 @@ import org.freeplane.features.map.mindmapmode.MMapController;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 import org.freeplane.view.swing.map.MainView;
-import org.freeplane.view.swing.map.MapView;
 import org.freeplane.view.swing.map.NodeView;
 
 public class MNodeDropListener implements DropTargetListener {
@@ -98,8 +97,6 @@ public class MNodeDropListener implements DropTargetListener {
 			final Transferable t = dtde.getTransferable();
 			final MainView mainView = (MainView) dtde.getDropTargetContext().getComponent();
 			final NodeView targetNodeView = mainView.getNodeView();
-			final MapView mapView = targetNodeView.getMap();
-			mapView.select();
 			final NodeModel targetNode = targetNodeView.getModel();
 			final Controller controller = Controller.getCurrentController();
 			if (dtde.isLocalTransfer() && t.isDataFlavorSupported(MindMapNodesSelection.dropActionFlavor)) {

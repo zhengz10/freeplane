@@ -19,7 +19,6 @@
  */
 package org.freeplane.main.mindmapmode.stylemode;
 
-import java.awt.Component;
 import java.awt.event.ActionEvent;
 
 
@@ -53,11 +52,7 @@ public class EditStylesAction extends AEditStylesAction {
 		final IUndoHandler undoHandler = (IUndoHandler) map.getExtension(IUndoHandler.class);
 		undoHandler.startTransaction();
 		init();
-		SModeController modeController = getModeController();
-		modeController.getMapController().newMapView(styleMap);
-		Controller controller = modeController.getController();
-		Component mapViewComponent = controller.getMapViewManager().getMapViewComponent();
-		((DialogController) controller.getViewController()).setMapView(mapViewComponent);
+		getModeController().getMapController().newMapView(styleMap);
 		dialog.setLocationRelativeTo(Controller.getCurrentController().getViewController().getJFrame());
 		dialog.setVisible(true);
 	}

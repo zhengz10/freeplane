@@ -23,12 +23,9 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.Dimension;
 import java.awt.HeadlessException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.HierarchyEvent;
-import java.awt.event.HierarchyListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
@@ -514,15 +511,7 @@ public class StyleEditorPanel extends JPanel {
 		this.modeController = modeController;
 		this.addStyleBox = addStyleBox;
 		this.uiFactory = uiFactory;
-		addHierarchyListener(new HierarchyListener() {
-			
-			public void hierarchyChanged(HierarchyEvent e) {
-				if(isDisplayable()){
-					removeHierarchyListener(this);
-					init();
-				}
-			}
-		});
+		init();
 	}
 
 	private void addBgColorControl(final List<IPropertyControl> controls) {
@@ -749,15 +738,12 @@ public class StyleEditorPanel extends JPanel {
 		addCloudShapeControl(controls);
 		return controls;
 	}
-	
-	
+
 	/**
 	 * Creates all controls and adds them to the frame.
 	 * @param modeController 
 	 */
 	private void init() {
-		if(mControls != null)
-			return;
 		final String form = "right:max(20dlu;p), 2dlu, p, 1dlu,right:max(20dlu;p), 4dlu, 80dlu, 7dlu";
 		final FormLayout rightLayout = new FormLayout(form, "");
 		final DefaultFormBuilder rightBuilder = new DefaultFormBuilder(rightLayout);
