@@ -1,4 +1,12 @@
 ===============================
+1.5.5
+===============================
+Save autosave period in time period units
+Reminder notification popups
+Change shortcut for blue color in inline editor to control + L
+Use dark green in inline editor
+
+===============================
 1.5.4
 ===============================
 Single node clones
