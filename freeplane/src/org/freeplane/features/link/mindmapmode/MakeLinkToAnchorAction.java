@@ -28,7 +28,7 @@ import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 
-@EnabledAction(checkOnNodeChange=true)
+@EnabledAction
 public class MakeLinkToAnchorAction extends AFreeplaneAction {
 
 	private static final long serialVersionUID = 1L;

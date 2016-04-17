@@ -729,18 +729,11 @@ public class MapViewController implements IMapViewManager , IMapViewChangeListen
 
 	public void updateMenus(final MenuBuilder menuBuilder) {
 		if (menuBuilder.contains("main_toolbar_zoom")) {
-			final JComboBox zoomBox = createZoomBox();
+			final JComboBox zoomBox = new JComboBox(zoomModel);
 			menuBuilder.addElement("main_toolbar_zoom", zoomBox, MenuBuilder.AS_CHILD);
 			// FELIXHACK
 			//zoomBox.setRenderer(new ComboBoxRendererWithTooltip(zoomBox));
 		}
-	}
-
-	public JComboBox createZoomBox() {
-		if(zoomBox == null) {
-			zoomBox = new JComboBox(zoomModel);
-		}
-		return zoomBox;
 	}
 
 	public String[] getZooms() {
@@ -786,7 +779,6 @@ public class MapViewController implements IMapViewManager , IMapViewChangeListen
 	}
 	private boolean antialiasAll = false;
 	private boolean antialiasEdges = false;
-	private JComboBox zoomBox;
 	private boolean getAntialiasAll() {
 		return antialiasAll;
 	}

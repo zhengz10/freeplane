@@ -27,14 +27,12 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
-import javax.swing.Action;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 
@@ -82,16 +80,11 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 	 * Contains Restore string => map name (map.toString()).
 	 */
 	final private Map<String, String> mRestorableToMapName = new HashMap<String, String>();
-	final private LastOpenedMapsRibbonContributorFactory lastOpenedMapsRibbonContributorFactory;
-
-	public LastOpenedMapsRibbonContributorFactory getLastOpenedMapsRibbonContributorFactory() {
-		return lastOpenedMapsRibbonContributorFactory;
-	}
+	private String mapSelectedOnStart;
 
 	LastOpenedList() {
 //		this.controller = controller;
-		restoreList(LAST_OPENED, lastOpenedList);
-		lastOpenedMapsRibbonContributorFactory = new LastOpenedMapsRibbonContributorFactory(this);
+		restoreList(LAST_OPENED);
 	}
 
 	public void afterViewChange(final Component oldView, final Component newView) {
@@ -188,30 +181,22 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 			return;
 		final String mode = tokens.nextToken();
 		Controller.getCurrentController().selectMode(mode);
-		File file = createFileFromRestorable(tokens);
+		String fileName = tokens.nextToken(";").substring(1);
+		if (PORTABLE_APP && fileName.startsWith(":") && USER_DRIVE.endsWith(":")) {
+			fileName = USER_DRIVE + fileName.substring(1);
+		}
 		if(!changedToMapView)
-			Controller.getCurrentModeController().getMapController().newMap(Compat.fileToUrl(file));
+			Controller.getCurrentModeController().getMapController().newMap(Compat.fileToUrl(new File(fileName)));
 		else{
 			final MapModel map = Controller.getCurrentController().getMap();
 			Controller.getCurrentModeController().getMapController().newMapView(map);
 		}
 	}
 
-	public File createFileFromRestorable(StringTokenizer tokens) {
-		String fileName = tokens.nextToken(";").substring(1);
-		if (PORTABLE_APP && fileName.startsWith(":") && USER_DRIVE.endsWith(":")) {
-			fileName = USER_DRIVE + fileName.substring(1);
-		}
-		File file = new File(fileName);
-		return file;
-	}
-
-	public void openMapsOnStart() {
-		if (!lastOpenedList.isEmpty()) {
-			final String lastMap;
-			lastMap = lastOpenedList.get(0);
-			if(!tryToChangeToMapView(lastMap))
-				safeOpen(lastMap);
+	void openLastMapOnStart() {
+		if (mapSelectedOnStart != null) {
+			if(!tryToChangeToMapView(mapSelectedOnStart))
+				safeOpen(mapSelectedOnStart);
 		}
 	}
 
@@ -220,10 +205,13 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 		updateMenus();
 	}
 
-	private void restoreList(final String key, final List<String> list) {
+	private void restoreList(final String key) {
 		final String restored = ResourceController.getResourceController().getProperty(key, null);
 		if (restored != null && !restored.equals("")) {
-			list.addAll(ConfigurationUtils.decodeListValue(restored, true));
+			lastOpenedList.addAll(ConfigurationUtils.decodeListValue(restored, true));
+			if (!lastOpenedList.isEmpty()) {
+				mapSelectedOnStart = lastOpenedList.get(0);
+			}
 		}
 	}
 
@@ -275,62 +263,42 @@ class LastOpenedList implements IMapViewChangeListener, IMapChangeListener {
 	private void updateMenus() {
 		Controller controller = Controller.getCurrentController();
 		final ModeController modeController = controller.getModeController();
-		if(!modeController.getUserInputListenerFactory().useRibbonMenu()) {
-			final MenuBuilder menuBuilder = modeController.getUserInputListenerFactory().getMenuBuilder(MenuBuilder.class);
-			menuBuilder.removeChildElements(MENU_CATEGORY);
-			List<AFreeplaneAction> openMapActions = createOpenLastMapActionList();
-			for(AFreeplaneAction openMapAction:openMapActions)
-			{
-				final IFreeplaneAction acceleratableAction = menuBuilder.acceleratableAction(openMapAction);
-				final JMenuItem item = new JFreeplaneMenuItem(acceleratableAction);
-				item.setMnemonic(0);
-				menuBuilder.addMenuItem(MENU_CATEGORY, item, MENU_CATEGORY + '/' + openMapAction.getKey(),
-				    UIBuilder.AS_CHILD);
+		final MenuBuilder menuBuilder = modeController.getUserInputListenerFactory().getMenuBuilder();
+		menuBuilder.removeChildElements(MENU_CATEGORY);
+		int i = 0;
+		int maxEntries = getMaxMenuEntries();
+		for (final String key : lastOpenedList) {
+			if (i == 0
+			        && (!modeController.getModeName().equals(MModeController.MODENAME) || controller.getMap() == null || controller
+			            .getMap().getURL() == null)) {
+				i++;
+				maxEntries++;
 			}
+			if (i == maxEntries) {
+				break;
+			}
+			final AFreeplaneAction lastOpenedActionListener = new OpenLastOpenedAction(i++, this);
+			final IFreeplaneAction decoratedAction = menuBuilder.decorateAction(lastOpenedActionListener);
+			final JMenuItem item = new JFreeplaneMenuItem(decoratedAction);
+			item.setActionCommand(key);
+			String text = createOpenMapItemName(key);
+			item.setText(text);
+			item.setMnemonic(0);
+			menuBuilder.addMenuItem(MENU_CATEGORY, item, MENU_CATEGORY + '/' + lastOpenedActionListener.getKey(),
+			    UIBuilder.AS_CHILD);
 		}
 	}
 
-	public List<AFreeplaneAction> createOpenLastMapActionList() {
-		Controller controller = Controller.getCurrentController();
-		final ModeController modeController = controller.getModeController();
-	    int i = 0;
-	    int maxEntries = getMaxMenuEntries();
-	    List<AFreeplaneAction> openMapActions = new ArrayList<AFreeplaneAction>(maxEntries);
-	    for (final String key : lastOpenedList) {
-	    	if (i == 0
-	    	        && (!modeController.getModeName().equals(MModeController.MODENAME) || controller.getMap() == null || controller
-	    	            .getMap().getURL() == null)) {
-	    		i++;
-	    		maxEntries++;
-	    	}
-	    	if (i == maxEntries) {
-	    		break;
-	    	}
-
-	    	final AFreeplaneAction openMapAction = new OpenLastOpenedAction(i++, this, key);
-	    	createOpenMapItemName(openMapAction, key);
-	    	openMapActions.add(openMapAction);
-	    }
-	    return openMapActions;
-    }
-
-	private void createOpenMapItemName(AFreeplaneAction openMapAction, final String restorable) {
+	private String createOpenMapItemName(final String restorable) {
 		final int separatorIndex = restorable.indexOf(':');
 		if(separatorIndex == -1)
-			openMapAction.putValue(Action.NAME, restorable);
-
+			return restorable;
 		String key = restorable.substring(0, separatorIndex);
 		String fileName = restorable.substring(separatorIndex);
-		String keyName = TextUtils.getText("open_as" + key, key);
-		openMapAction.putValue(Action.SHORT_DESCRIPTION, keyName);
-		openMapAction.putValue(Action.DEFAULT, fileName);
 		if(fileName.startsWith("::"))
-			fileName = fileName.substring(2);
+			return TextUtils.getText("open_as" + key, key) + " " + fileName.substring(2);
 		else
-			fileName = fileName.substring(1);
-
-		openMapAction.putValue(Action.NAME, keyName + " " + fileName);
-
+			return TextUtils.getText("open_as" + key, key) + " " + fileName.substring(1);
     }
 
 	public void onPreNodeMoved(final NodeModel oldParent, final int oldIndex, final NodeModel newParent,

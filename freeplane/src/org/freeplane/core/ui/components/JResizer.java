@@ -39,10 +39,9 @@ import javax.swing.SwingUtilities;
  * Jan 24, 2011
  */
 @SuppressWarnings("serial")
-public class JResizer extends JComponent {
+public class JResizer extends JComponent{
 	private static final int CONTROL_SIZE = 5;
-	protected boolean sliderLock = false;
-	protected Point point;
+	private Point point;
 	private int index;
 	public enum Direction {RIGHT, LEFT, UP, DOWN}
 	private Set<ResizerListener> resizeListener = new LinkedHashSet<ResizerListener>();
@@ -113,9 +112,6 @@ public class JResizer extends JComponent {
 
 
             public void mouseDragged(MouseEvent e) {
-            	if(sliderLock) {
-            		return;
-            	}
 				final Point point2 = e.getPoint();
 				SwingUtilities.convertPointToScreen(point2, e.getComponent());
 				if(point != null){
@@ -129,10 +125,10 @@ public class JResizer extends JComponent {
 						size.width += (point2.x - point.x);
 					}
 					else if(d.equals(Direction.UP)){
-						size.height += (point2.y - point.y);
+						size.height += (point2.x - point.x);
 					}
 					else if(d.equals(Direction.DOWN)){
-						size.height -= (point2.y - point.y);
+						size.height -= (point2.x - point.x);
 					}
 					resizedComponent.setPreferredSize(new Dimension(Math.max(size.width, 0), Math.max(size.height, 0)));
 					parent.revalidate();
@@ -164,16 +160,8 @@ public class JResizer extends JComponent {
 		}		
 	}
 	
-	public void setSliderLocked(boolean enabled) {
-		this.sliderLock = enabled;
-	}
-	
-	public boolean isSliderLocked() {
-		return this.sliderLock;
-	}
-	
 	private void fireSizeChanged(Component resizedComponent) {
-		ResizeEvent event = new ResizeEvent(this, resizedComponent);
+		ResizeEvent event = new ResizeEvent(resizedComponent);
 		synchronized (this.resizeListener) {
 			for(ResizerListener listener : resizeListener) {
 				listener.componentResized(event);

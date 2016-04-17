@@ -89,11 +89,10 @@ public class IndexedTree {
 			return string2Element.size();
 		}
 	}
-	public static final int APPEND = 2;
+
 	public static final int AFTER = 1;
 	public static final int AS_CHILD = 0;
 	public static final int BEFORE = -1;
-	public static final int PREPEND = -2;
 	private final HashMap<Object, Node> string2Element;
 
 	public IndexedTree(final Object root) {
@@ -144,7 +143,7 @@ public class IndexedTree {
 				parent.insert(node, index);
 				break;
 			}
-			case AFTER: {
+			case AFTER:
 				final DefaultMutableTreeNode parent = (DefaultMutableTreeNode) relativeNode.getParent();
 				if (parent == null) {
 					throw new RuntimeException("relative node has no parent element");
@@ -152,17 +151,6 @@ public class IndexedTree {
 				final int index = parent.getIndex(relativeNode);
 				parent.insert(node, index + 1);
 				break;
-			}
-			case PREPEND: { //DOCEAR - 
-//				final int index = relativeNode.getChildCount()-1;
-				relativeNode.insert(node, 0);
-				break;
-			}
-			case APPEND: {							
-				final int idx = relativeNode.getChildCount()-1;
-				relativeNode.insert(node, idx + 1);
-				break;
-			}
 			default:
 				throw new RuntimeException("wrong position");
 		}

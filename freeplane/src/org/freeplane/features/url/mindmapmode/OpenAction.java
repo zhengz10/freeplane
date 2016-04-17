@@ -26,7 +26,7 @@ import org.freeplane.features.mode.Controller;
 import org.freeplane.features.mode.ModeController;
 import org.freeplane.features.mode.mindmapmode.MModeController;
 
-public class OpenAction extends AFreeplaneAction {
+class OpenAction extends AFreeplaneAction {
 	/**
 	 * 
 	 */
