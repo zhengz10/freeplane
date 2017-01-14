@@ -2,10 +2,11 @@ package org.freeplane.view.swing.map.layout;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.freeplane.view.swing.map.layout.StructureBuilder.PairFactory;
 import org.junit.Before;
 import org.junit.Test;
 
-public class LayoutElementBuilderShould {
+public class StructureBuilderShould {
 	private int nodeCount = 0;
 	private SingleLayoutElement element() {
 		return element("e" + ++nodeCount);
@@ -29,11 +30,24 @@ public class LayoutElementBuilderShould {
 	}
 
 
-	private LayoutElementBuilder uut;
+	private StructureBuilder<LayoutElement> uut;
 
 	@Before
 	public void setup() throws Exception {
-		uut = new LayoutElementBuilder();
+		uut = new StructureBuilder<LayoutElement>(new EmptyLayoutElement(), new PairFactory<LayoutElement>() {
+
+			@Override
+			public LayoutElement createPair(LayoutElement first, LayoutElement second) {
+				return new LayoutElementPair(first, second);
+			}
+		}, 
+				new PairFactory<LayoutElement>() {
+
+			@Override
+			public LayoutElement createPair(LayoutElement first, LayoutElement second) {
+				return new LayoutSummaryPair(first, second);
+			}
+		});
 	}
 
 	@Test

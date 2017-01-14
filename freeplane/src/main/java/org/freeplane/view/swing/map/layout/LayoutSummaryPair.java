@@ -5,7 +5,7 @@ public class LayoutSummaryPair implements LayoutElement {
 	private LayoutElement first;
 	private LayoutElement second;
 
-	public LayoutSummaryPair(LayoutElement firstLayoutElement, SingleLayoutElement secondLayoutElement) {
+	public LayoutSummaryPair(LayoutElement firstLayoutElement, LayoutElement secondLayoutElement) {
 		this.first = firstLayoutElement;
 		this.second = secondLayoutElement;
 	}
