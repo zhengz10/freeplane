@@ -50,7 +50,7 @@ import com.jgoodies.forms.factories.Paddings;
 import com.jgoodies.forms.layout.FormLayout;
 
 public class StyleEditorPanel extends JPanel {
-	static final int FONT_SIZE = Math.round(UITools.FONT_SCALE_FACTOR * 8);
+	static final float FONT_SIZE = UITools.getUIFontSize(0.8);
 
 	/**
 	* 
@@ -104,6 +104,8 @@ public class StyleEditorPanel extends JPanel {
 				new NodeTextAlignmentControlGroup(),
 				new NodeFontHyperLinkControlGroup(),
 				new NextLineControlGroup(),
+				new GroupSeparator("OptionPanel.separator.IconControls"),
+				new IconSizeControlGroup(),
 				new GroupSeparator("OptionPanel.separator.EdgeControls"),
 				new EdgeWidthControlGroup(),
 				new EdgeDashControlGroup(),

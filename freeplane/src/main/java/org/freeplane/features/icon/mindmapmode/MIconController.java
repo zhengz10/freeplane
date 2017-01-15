@@ -49,6 +49,7 @@ import org.freeplane.core.resources.components.KeyProperty;
 import org.freeplane.core.resources.components.OptionPanelBuilder;
 import org.freeplane.core.ui.AFreeplaneAction;
 import org.freeplane.core.ui.IndexedTree;
+import org.freeplane.core.ui.LengthUnits;
 import org.freeplane.core.ui.MenuSplitter;
 import org.freeplane.core.ui.components.FreeplaneToolBar;
 import org.freeplane.core.ui.components.JAutoScrollBarPane;
@@ -59,6 +60,7 @@ import org.freeplane.core.ui.menubuilders.generic.EntryAccessor;
 import org.freeplane.core.ui.menubuilders.generic.EntryVisitor;
 import org.freeplane.core.ui.menubuilders.generic.PhaseProcessor.Phase;
 import org.freeplane.core.undo.IActor;
+import org.freeplane.core.util.Quantity;
 import org.freeplane.features.icon.IIconInformation;
 import org.freeplane.features.icon.IconController;
 import org.freeplane.features.icon.IconGroup;
@@ -77,6 +79,8 @@ import org.freeplane.features.ui.FrameController;
  * @author Dimitry Polivaev
  */
 public class MIconController extends IconController {
+	private static final float ARROW_SIZE = UITools.getUIFontSize(0.8);
+
 	private final class IconActionBuilder implements EntryVisitor {
 		private final HashMap<String, Entry> submenuEntries = new HashMap<String, Entry>();
 		final private ModeController modeController;
@@ -250,6 +254,30 @@ public class MIconController extends IconController {
 		Controller.getCurrentModeController().execute(actor, node.getMap());
 	}
 
+	public void changeIconSize(final NodeModel node, final Quantity<LengthUnits> iconSize)
+	{
+		final IActor actor = new IActor() {
+
+			private Quantity<LengthUnits> oldIconSize;
+
+			public void act() {
+				oldIconSize = node.getSharedData().getIcons().getIconSize();
+				node.getSharedData().getIcons().setIconSize(iconSize);
+				Controller.getCurrentModeController().getMapController().nodeChanged(node, NodeModel.NODE_ICON_SIZE, null, iconSize);
+			}
+
+			public String getDescription() {
+				return "changeIconSize";
+			}
+
+			public void undo() {
+				node.getSharedData().getIcons().setIconSize(oldIconSize);
+				Controller.getCurrentModeController().getMapController().nodeChanged(node, NodeModel.NODE_ICON_SIZE, oldIconSize, null);
+			}
+		};
+		Controller.getCurrentModeController().execute(actor, node.getMap());
+	}
+
 	private void createIconActions(final ModeController modeController) {
 		modeController.addAction(new RemoveIconAction(0));
 		modeController.addAction(new RemoveIconAction(-1));
@@ -313,7 +341,7 @@ public class MIconController extends IconController {
 				return new Point(getWidth(), 0);
 			}
 		};
-		menu.setFont(menu.getFont().deriveFont(8F));
+		menu.setFont(menu.getFont().deriveFont(ARROW_SIZE));
 		menu.setMargin(new Insets(0, 0, 0, 0));
 		menu.setIcon(group.getGroupIcon().getIcon());
 		for (final MindIcon icon : group.getIcons()) {
