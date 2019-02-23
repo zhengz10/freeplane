@@ -1,4 +1,6 @@
-import org.apache.tools.ant.taskdefs.condition.Os;
+targetCompatibility= JavaVersion.VERSION_1_9
+sourceCompatibility= JavaVersion.VERSION_1_9
+
 
 repositories {
     maven {url 'http://devel.uji.es/nexus/content/repositories/releases/'}
@@ -8,6 +10,5 @@ dependencies {
     compile (project(':freeplane')) {
         transitive = false
     }
-    
-    compileOnly 'com.apple:applejavaextensions:1.5.4'
+
 }
