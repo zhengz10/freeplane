@@ -148,7 +148,7 @@ class MapViewDockingWindows implements IMapViewChangeListener {
 					final DockingWindowProperties windowProperties = addedWindow.getWindowProperties();
 					windowProperties.setDockEnabled(false);
 					windowProperties.setUndockEnabled(false);
-					if(UITools.getCurrentFrame().isResizable())
+					if(! UITools.getCurrentFrame().isUndecorated())
 						setTabAreaVisiblePolicy((TabWindow) addedWindow);
 					else
 						setTabAreaPolicy((TabWindow) addedWindow, TabAreaVisiblePolicy.NEVER);

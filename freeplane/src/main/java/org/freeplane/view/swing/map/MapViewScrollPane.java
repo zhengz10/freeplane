@@ -170,7 +170,7 @@ public class MapViewScrollPane extends JScrollPane implements IFreeplaneProperty
 		boolean areScrollbarsVisible = viewController.areScrollbarsVisible();
 	    setHorizontalScrollBarPolicy(areScrollbarsVisible ? JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS : JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 	    setVerticalScrollBarPolicy(areScrollbarsVisible ? JScrollPane.VERTICAL_SCROLLBAR_ALWAYS : JScrollPane.VERTICAL_SCROLLBAR_NEVER);
-	    final boolean isFullScreenEnabled = ! UITools.getCurrentFrame().isResizable();
+	    final boolean isFullScreenEnabled = UITools.getCurrentFrame().isUndecorated();
 	    setBorder(isFullScreenEnabled && ! areScrollbarsVisible ? null : defaultBorder);
     }
 

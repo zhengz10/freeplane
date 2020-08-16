@@ -70,7 +70,7 @@ public class UIComponentVisibilityDispatcher {
 
 	private boolean isContainedInFullWindow() {
 		final Component root = SwingUtilities.getRoot(component);
-		return root instanceof Frame && !((Frame) root).isResizable();
+		return root instanceof Frame && ((Frame) root).isUndecorated();
 	}
 
 	public void toggleVisibility() {

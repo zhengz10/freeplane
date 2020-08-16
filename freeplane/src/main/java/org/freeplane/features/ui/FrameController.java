@@ -283,7 +283,7 @@ abstract public class FrameController implements ViewController {
 	}
 
 	boolean isFullScreenEnabled(final Component currentRootComponent) {
-		return currentRootComponent instanceof Frame && !((Frame) currentRootComponent).isResizable();
+		return currentRootComponent instanceof Frame && ((Frame) currentRootComponent).isUndecorated();
 	}
 
 	@Override
@@ -472,16 +472,16 @@ abstract public class FrameController implements ViewController {
 		    Boolean.toString(!fullScreen), Boolean.toString(fullScreen));
 		Iterable<Window> visibleFrames = collectVisibleFrames(frame);
 		if (fullScreen) {
-			final GraphicsConfiguration graphicsConfiguration = frame.getGraphicsConfiguration();
-			final Rectangle bounds = graphicsConfiguration.getBounds();
-			frame.getRootPane().putClientProperty(FrameState.class,
-			    new FrameState(frame.getBounds(), frame.getExtendedState()));
-			frame.getExtendedState();
+//			final GraphicsConfiguration graphicsConfiguration = frame.getGraphicsConfiguration();
+//			final Rectangle bounds = graphicsConfiguration.getBounds();
+//			frame.getRootPane().putClientProperty(FrameState.class,
+//			    new FrameState(frame.getBounds(), frame.getExtendedState()));
+//			frame.getExtendedState();
 			frame.dispose();
-			frame.setExtendedState(Frame.MAXIMIZED_BOTH);
-			frame.setBounds(bounds);
+//			frame.setExtendedState(Frame.MAXIMIZED_BOTH);
+//			frame.setBounds(bounds);
 			frame.setUndecorated(true);
-			frame.setResizable(false);
+//			frame.setResizable(false);
 			setUIComponentsVisible(controller.getMapViewManager(), isMenubarVisible());
 			for (int j = 0; j < 4; j++) {
 				final Iterable<JComponent> toolBars = controller.getModeController().getUserInputListenerFactory()
@@ -495,10 +495,10 @@ abstract public class FrameController implements ViewController {
 		else {
 			frame.dispose();
 			frame.setUndecorated(false);
-			frame.setResizable(true);
-			FrameState frameState = (FrameState) frame.getRootPane().getClientProperty(FrameState.class);
-			frame.setBounds(frameState.bounds);
-			frame.setExtendedState(frameState.winState);
+//			frame.setResizable(true);
+//			FrameState frameState = (FrameState) frame.getRootPane().getClientProperty(FrameState.class);
+//			frame.setBounds(frameState.bounds);
+//			frame.setExtendedState(frameState.winState);
 			setUIComponentsVisible(controller.getMapViewManager(), isMenubarVisible());
 			for (int j = 0; j < 4; j++) {
 				final Iterable<JComponent> toolBars = controller.getModeController().getUserInputListenerFactory()
