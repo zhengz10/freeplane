@@ -1,6 +1,10 @@
 package org.freeplane.plugin.script.proxy;
 
-import groovy.lang.Closure;
+import java.awt.Color;
+import java.awt.GraphicsEnvironment;
+import java.io.File;
+import java.util.Map.Entry;
+
 import org.freeplane.api.NodeChangeListener;
 import org.freeplane.api.NodeCondition;
 import org.freeplane.core.resources.ResourceController;
@@ -8,12 +12,15 @@ import org.freeplane.core.util.ColorUtils;
 import org.freeplane.features.filter.Filter;
 import org.freeplane.features.filter.FilterController;
 import org.freeplane.features.filter.condition.ICondition;
+import org.freeplane.features.map.MapController;
 import org.freeplane.features.map.MapModel;
 import org.freeplane.features.map.NodeModel;
+import org.freeplane.features.map.mindmapmode.MMapController;
 import org.freeplane.features.mode.Controller;
 import org.freeplane.features.styles.MapStyle;
 import org.freeplane.features.styles.MapStyleModel;
 import org.freeplane.features.ui.IMapViewManager;
+import org.freeplane.features.url.UrlManager;
 import org.freeplane.features.url.mindmapmode.MFileManager;
 import org.freeplane.plugin.script.FormulaUtils;
 import org.freeplane.plugin.script.ScriptContext;
@@ -21,9 +28,7 @@ import org.freeplane.plugin.script.proxy.Proxy.Map;
 import org.freeplane.plugin.script.proxy.Proxy.MindMap;
 import org.freeplane.plugin.script.proxy.Proxy.Node;
 
-import java.awt.*;
-import java.io.File;
-import java.util.Map.Entry;
+import groovy.lang.Closure;
 
 public class MapProxy extends AbstractProxy<MapModel> implements MindMap, Map {
 	public MapProxy(final MapModel map, final ScriptContext scriptContext) {
@@ -101,23 +106,25 @@ public class MapProxy extends AbstractProxy<MapModel> implements MindMap, Map {
 	public boolean close(boolean force, boolean allowInteraction) {
 		if (!getDelegate().isSaved() && !force && !allowInteraction)
 			throw new RuntimeException("will not close an unsaved map without being told so");
-		final IMapViewManager mapViewManager = getMapViewManager();
-		changeToThisMap(mapViewManager);
-		if(force) {
-			mapViewManager.closeWithoutSaving();
-			return true;
-		}
+		MMapController mapController = (MMapController) getModeController().getMapController();
+		if(force && ! allowInteraction) {
+            mapController.closeWithoutSaving(getDelegate());
+            return true;
+        } else if(allowInteraction)
+		    return mapController.close(getDelegate());
 		else
-			return mapViewManager.close();
+		    return false;
 	}
 
-	private void changeToThisMap(final IMapViewManager mapViewManager) {
+	private boolean changeToThisMap(final IMapViewManager mapViewManager) {
 		if (! GraphicsEnvironment.isHeadless()) {
 			String mapKey = findMapViewKey(mapViewManager);
-			if (mapKey == null)
-				throw new RuntimeException("map " + getDelegate() + " does not seem to be opened");
-			mapViewManager.changeToMapView(mapKey);
+			if (mapKey != null) {
+                mapViewManager.changeToMapView(mapKey);
+                return true;
+            }
 		}
+		return false;
 	}
 
 	private IMapViewManager getMapViewManager() {
@@ -136,24 +143,25 @@ public class MapProxy extends AbstractProxy<MapModel> implements MindMap, Map {
 	// Map: R/W
 	@Override
 	public boolean save(boolean allowInteraction) {
-		if (!getDelegate().isSaved() && getDelegate().getURL() == null && !allowInteraction)
-			throw new RuntimeException("no url set for map " + getDelegate());
-		changeToThisMap(getMapViewManager());
-		return getModeController().save();
+	    if (!getDelegate().isSaved() && getDelegate().getURL() == null) {
+	        if(! (allowInteraction  && changeToThisMap(getMapViewManager())))
+                throw new RuntimeException("no url set for map " + getDelegate());
+            
+	    }
+	    return ((MFileManager) UrlManager.getController()).save(getDelegate());
 	}
 
 	// Map: R/W
 	@Override
 	public boolean saveAs(File file) {
-		changeToThisMap(getMapViewManager());
 		return MFileManager.getController(getModeController()).save(getDelegate(), file);
 	}
 
 	// Map: R/W
 	@Override
 	public void setName(final String title) {
-		changeToThisMap(getMapViewManager());
-		Controller.getCurrentController().getMapViewManager().getMapViewComponent().setName(title);
+		if (changeToThisMap(getMapViewManager()))
+		    Controller.getCurrentController().getMapViewManager().getMapViewComponent().setName(title);
 	}
 
 	// Map: R/W

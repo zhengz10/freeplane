@@ -44,11 +44,13 @@ public class FreeplaneUriConverter{
 
 	public URL freeplaneUrl(URI uri) throws MalformedURLException {
 	    final String scheme = uri.getScheme();
-	    if(FREEPLANE_SCHEME.equals(scheme)){
-	    	return new URL(UrlManager.FILE_SCHEME, uri.getHost(), uri.getPath().substring(2));
+	    String uriHost = uri.getHost();
+        String host = uriHost != null ? uriHost : "";
+        if(FREEPLANE_SCHEME.equals(scheme)){
+	    	return new URL(UrlManager.FILE_SCHEME, host, uri.getPath().substring(2));
 	    }
 	    else
-	    	return new URL(scheme, uri.getHost(), uri.getPort(), uri.getPath());
+	    	return new URL(scheme, host, uri.getPort(), uri.getPath());
     }
 
 	public String fixPartiallyDecodedFreeplaneUriComingFromInternetExplorer(String uriCandidate) {
