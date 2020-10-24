@@ -67,6 +67,9 @@ public class EditNodeDialog extends EditNodeBase {
 
 	private class LongNodeDialog extends EditDialog {
 
+		private final JPanel optionPane;
+		private final JPanel buttonPane;
+
 		public LongNodeDialog(final RootPaneContainer frame, final String title, final Color background) {
 			super(EditNodeDialog.this, title, frame);
 			final IMapViewManager viewController = Controller.getCurrentModeController().getController()
@@ -217,7 +220,7 @@ public class EditNodeDialog extends EditNodeBase {
 					conditionallyShowPopup(e);
 				}
 			});
-			final JPanel buttonPane = new JPanel();
+			buttonPane = new JPanel();
 			buttonPane.add(enterConfirms);
 			buttonPane.add(okButton);
 			buttonPane.add(cancelButton);
@@ -228,6 +231,9 @@ public class EditNodeDialog extends EditNodeBase {
 			contentPane.add(editorScrollPane, BorderLayout.CENTER);
 			final boolean areButtonsAtTheTop = ResourceController.getResourceController().getBooleanProperty("el__buttons_above");
 			contentPane.add(buttonPane, areButtonsAtTheTop ? BorderLayout.NORTH : BorderLayout.SOUTH);
+			
+			optionPane = new JPanel();
+			contentPane.add(optionPane, !areButtonsAtTheTop ? BorderLayout.NORTH : BorderLayout.SOUTH);
 		}
 
 		/*
@@ -309,13 +315,13 @@ public class EditNodeDialog extends EditNodeBase {
 		if (title == null) {
 			title = TextUtils.getText("edit_long_node");
 		}
-		final EditDialog editor = new LongNodeDialog(frame, title, getBackground());
+		final LongNodeDialog editor = new LongNodeDialog(frame, title, getBackground());
 		redispatchKeyEvents(textComponent, firstEvent);
         if (firstEvent == null) {
             textComponent.setCaretPosition(textComponent.getDocument().getLength());
         }
 		final JDialog dialog = editor.getDialog();
-		configureDialog(dialog);
+		configureDialog(dialog, editor.buttonPane, editor.optionPane);
 		dialog.setModal(isModal);
 		dialog.pack();
 		Controller.getCurrentModeController().getController().getMapViewManager().scrollNodeToVisible(node);
@@ -346,7 +352,7 @@ public class EditNodeDialog extends EditNodeBase {
 		});
 	}
 
-	protected void configureDialog(JDialog dialog) {
+	protected void configureDialog(JDialog dialog, JPanel buttonPane, JPanel optionPane) {
 	}
 
 	public void setTitle(String title) {

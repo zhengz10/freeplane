@@ -22,7 +22,15 @@ package org.freeplane.plugin.latex;
 
 import java.awt.event.KeyEvent;
 
+import javax.swing.ButtonGroup;
+import javax.swing.JDialog;
 import javax.swing.JEditorPane;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.text.Document;
+
 import org.freeplane.features.map.NodeModel;
 import org.freeplane.features.text.mindmapmode.EditNodeDialog;
 
@@ -31,9 +39,49 @@ import org.freeplane.features.text.mindmapmode.EditNodeDialog;
  */
 class LatexEditor extends EditNodeDialog {
 	
+	private JRadioButton mathMode;
+	private JRadioButton textMode;
+	
+	class ModeListener implements DocumentListener{
+
+		@Override
+		public void insertUpdate(DocumentEvent e) {
+			e.getDocument();
+		}
+
+		@Override
+		public void removeUpdate(DocumentEvent e) {
+		}
+
+		@Override
+		public void changedUpdate(DocumentEvent e) {
+		}
+		
+	}
+
 	LatexEditor(NodeModel nodeModel, String text, KeyEvent firstEvent, IEditControl editControl,
                           boolean enableSplit, JEditorPane textEditor) {
 	    super(nodeModel, text, firstEvent, editControl, enableSplit, textEditor);
 	    super.setModal(false);
+	    Document document = textEditor.getDocument();
+	    document.addDocumentListener(new ModeListener());
+		mathMode = new JRadioButton("Math");
+		textMode = new JRadioButton("Text");
+		ButtonGroup modes = new ButtonGroup();
+		modes.add(mathMode);
+		modes.add(textMode);
+		
     }
+
+	@Override
+	protected void configureDialog(JDialog dialog, JPanel buttonPane, JPanel optionPane) {
+		optionPane.add(textMode);
+		optionPane.add(mathMode);
+		super.configureDialog(dialog, buttonPane, optionPane);
+	}
+	
+	void onUpdate(Document document) {
+	}
+	
+	
 }

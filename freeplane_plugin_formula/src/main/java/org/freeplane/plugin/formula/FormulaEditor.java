@@ -31,6 +31,7 @@ import java.io.StringWriter;
 import javax.swing.Box;
 import javax.swing.JDialog;
 import javax.swing.JEditorPane;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.RootPaneContainer;
@@ -76,7 +77,7 @@ class FormulaEditor extends EditNodeDialog implements INodeSelector {
     }
 
 	@Override
-	protected void configureDialog(JDialog dialog) {
+	protected void configureDialog(JDialog dialog, JPanel buttonPane, JPanel optionPane) {
 		addPreviewPane(dialog);
 	}
 
