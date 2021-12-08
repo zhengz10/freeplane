@@ -131,4 +131,9 @@ public class CloudController implements IExtension {
 		final CloudModel cloud = getCloud(node, option);
 		return cloud != null ? cloud.getShape() : getStandardShape();
     }
+
+	public String getLabel(NodeModel node, StyleOption option) {
+		final CloudModel cloud = getCloud(node, option);
+		return cloud != null ? cloud.getLabel() : "";
+	}
 }

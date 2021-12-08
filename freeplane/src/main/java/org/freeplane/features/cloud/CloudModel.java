@@ -53,6 +53,8 @@ public class CloudModel implements IExtension {
 	
 	private CloudShape shape;
 
+	private String label;
+
 	public CloudShape getShape() {
     	return shape;
     }
@@ -72,5 +74,13 @@ public class CloudModel implements IExtension {
 
 	public void setColor(final Color color) {
 		this.color = color != null ? color : CloudController.getStandardColor();
+	}
+
+	public String getLabel() {
+		return label;
+	}
+
+	public void setLabel(final String label) {
+		this.label = label;
 	}
 }

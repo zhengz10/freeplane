@@ -96,6 +96,13 @@ class CloudBuilder implements IElementDOMHandler, IExtensionElementWriter, IElem
 				//				cloud.setWidth(Integer.parseInt(value.toString()));
 			}
 		});
+
+		reader.addAttributeHandler("cloud", "LABEL", new IAttributeHandler() {
+			public void setAttribute(final Object userObject, final String value) {
+				final CloudModel cloud = (CloudModel) userObject;
+				cloud.setLabel(value);
+			}
+		});
 	}
 
 	/**
